@@ -1,0 +1,203 @@
+package com.mojtaba.simcallrecorder.data.telephony
+
+import android.Manifest
+import android.content.Context
+import android.os.Looper
+import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
+import com.mojtaba.simcallrecorder.domain.model.CallState
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.LooperMode
+import org.robolectric.shadows.ShadowSubscriptionManager
+import org.robolectric.util.ReflectionHelpers
+
+@RunWith(RobolectricTestRunner::class)
+@LooperMode(LooperMode.Mode.PAUSED)
+class AndroidTelephonyCallStateDataSourceRobolectricTest {
+
+    private val context: Context
+        get() = RuntimeEnvironment.getApplication()
+
+    @Test
+    @Config(sdk = [35])
+    fun api31Plus_emitsRingingOffhookAndIdleForTheCorrectSubscription() = runBlocking {
+        grantPhoneStatePermission()
+        val subscriptionId = 101
+        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+        val subscription = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(subscriptionId)
+            .setSimSlotIndex(1)
+            .buildSubscriptionInfo()
+        shadowOf(subscriptionManager).setActiveSubscriptionInfoList(listOf(subscription))
+
+        val perSubscriptionManager = newTelephonyManager()
+        val defaultTelephonyManager = context.getSystemService(TelephonyManager::class.java)
+        shadowOf(defaultTelephonyManager)
+            .setTelephonyManagerForSubscriptionId(subscriptionId, perSubscriptionManager)
+
+        val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
+        val dataSource = AndroidTelephonyCallStateDataSource(context)
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+            dataSource.observeCallStateEvents().take(3).toList(events)
+        }
+
+        shadowOf(Looper.getMainLooper()).idle()
+        val telephonyShadow = shadowOf(perSubscriptionManager)
+        telephonyShadow.setCallState(TelephonyManager.CALL_STATE_RINGING)
+        shadowOf(Looper.getMainLooper()).idle()
+        telephonyShadow.setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
+        shadowOf(Looper.getMainLooper()).idle()
+        telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
+        shadowOf(Looper.getMainLooper()).idle()
+        collector.join()
+
+        assertEquals(
+            listOf(CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
+            events.map { it.state },
+        )
+        assertTrue(events.all { it.simSlotIndex == 1 })
+        assertTrue(events.all { it.observedAtEpochMillis > 0L })
+    }
+
+    @Test
+    @Config(sdk = [28])
+    fun api28To30_legacyPhoneStateListener_emitsAllCallTransitions() = runBlocking {
+        grantPhoneStatePermission()
+        val subscriptionId = 202
+        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+        val subscription = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(subscriptionId)
+            .setSimSlotIndex(0)
+            .buildSubscriptionInfo()
+        shadowOf(subscriptionManager).setActiveSubscriptionInfoList(listOf(subscription))
+
+        val perSubscriptionManager = newTelephonyManager()
+        val defaultTelephonyManager = context.getSystemService(TelephonyManager::class.java)
+        shadowOf(defaultTelephonyManager)
+            .setTelephonyManagerForSubscriptionId(subscriptionId, perSubscriptionManager)
+
+        val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
+        val dataSource = AndroidTelephonyCallStateDataSource(context)
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+            dataSource.observeCallStateEvents().take(3).toList(events)
+        }
+
+        shadowOf(Looper.getMainLooper()).idle()
+        val telephonyShadow = shadowOf(perSubscriptionManager)
+        telephonyShadow.setCallState(TelephonyManager.CALL_STATE_RINGING)
+        shadowOf(Looper.getMainLooper()).idle()
+        telephonyShadow.setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
+        shadowOf(Looper.getMainLooper()).idle()
+        telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
+        shadowOf(Looper.getMainLooper()).idle()
+        collector.join()
+
+        assertEquals(
+            listOf(CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
+            events.map { it.state },
+        )
+        assertTrue(events.all { it.simSlotIndex == 0 })
+    }
+
+    @Test
+    @Config(sdk = [35])
+    fun multipleSubscriptions_keepTheirOwnSlotAssociation() = runBlocking {
+        grantPhoneStatePermission()
+        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+        val firstSubscriptionId = 301
+        val secondSubscriptionId = 302
+        val firstInfo = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(firstSubscriptionId)
+            .setSimSlotIndex(0)
+            .buildSubscriptionInfo()
+        val secondInfo = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(secondSubscriptionId)
+            .setSimSlotIndex(1)
+            .buildSubscriptionInfo()
+        shadowOf(subscriptionManager).setActiveSubscriptionInfoList(listOf(firstInfo, secondInfo))
+
+        val firstManager = newTelephonyManager()
+        val secondManager = newTelephonyManager()
+        val defaultManager = context.getSystemService(TelephonyManager::class.java)
+        shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(firstSubscriptionId, firstManager)
+        shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(secondSubscriptionId, secondManager)
+
+        val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+            AndroidTelephonyCallStateDataSource(context)
+                .observeCallStateEvents()
+                .take(2)
+                .toList(events)
+        }
+
+        shadowOf(Looper.getMainLooper()).idle()
+        shadowOf(firstManager).setCallState(TelephonyManager.CALL_STATE_RINGING)
+        shadowOf(Looper.getMainLooper()).idle()
+        shadowOf(secondManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
+        shadowOf(Looper.getMainLooper()).idle()
+        collector.join()
+
+        assertEquals(listOf(0, 1), events.map { it.simSlotIndex })
+        assertEquals(listOf(CallState.RINGING, CallState.OFFHOOK), events.map { it.state })
+    }
+
+    @Test
+    @Config(sdk = [35])
+    fun activeSimSlots_exposeSlotLabelsButNotSubscriptionIdentifiers() = runBlocking {
+        grantPhoneStatePermission()
+        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+        val first = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(411)
+            .setSimSlotIndex(0)
+            .buildSubscriptionInfo()
+        val second = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(412)
+            .setSimSlotIndex(1)
+            .buildSubscriptionInfo()
+        shadowOf(subscriptionManager).setActiveSubscriptionInfoList(listOf(first, second))
+
+        val slots = AndroidTelephonyCallStateDataSource(context).getActiveSimSlots()
+
+        assertEquals(listOf("SIM 1", "SIM 2"), slots.map { it.label })
+        assertEquals(listOf(0, 1), slots.map { it.slotIndex })
+    }
+
+    @Test
+    @Config(sdk = [35])
+    fun observer_withoutReadPhoneStatePermission_failsClosed() = runBlocking {
+        shadowOf(context).denyPermissions(Manifest.permission.READ_PHONE_STATE)
+
+        val exception = try {
+            AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().collect()
+            null
+        } catch (caught: SecurityException) {
+            caught
+        }
+
+        assertTrue(exception != null)
+    }
+
+    private fun grantPhoneStatePermission() {
+        shadowOf(context).grantPermissions(Manifest.permission.READ_PHONE_STATE)
+    }
+
+    private fun newTelephonyManager(): TelephonyManager =
+        ReflectionHelpers.callConstructor(
+            TelephonyManager::class.java,
+            ReflectionHelpers.ClassParameter.from(Context::class.java, context),
+        )
+}

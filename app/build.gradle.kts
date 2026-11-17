@@ -39,7 +39,6 @@ android {
     }
 }
 
-
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
@@ -65,6 +64,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
