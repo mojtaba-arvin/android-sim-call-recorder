@@ -1,11 +1,14 @@
 package com.mojtaba.simcallrecorder
 
 import android.os.Build
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.mojtaba.simcallrecorder.core.permissions.CallPermissionManager
+import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
+import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
 import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
@@ -36,6 +41,7 @@ import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -50,7 +56,11 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var diagnosticsRepository: DeviceDiagnosticsRepository
 
+    @Inject
+    lateinit var recorderClient: ShizukuAudioRecorderClient
+
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var monitorJob: Job? = null
 
     private var missingPermissions by mutableStateOf(emptyList<String>())
@@ -59,6 +69,8 @@ class MainActivity : ComponentActivity() {
     private var audioRoutes by mutableStateOf(emptyList<AudioRoute>())
     private var monitoring by mutableStateOf(false)
     private var diagnosticsError by mutableStateOf<String?>(null)
+    private var recorderConnectionStatus by mutableStateOf("Checking Shizuku status…")
+    private var recorderCaptureStatus by mutableStateOf("Idle")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,10 +80,25 @@ class MainActivity : ComponentActivity() {
         ) {
             refreshPermissionState()
             refreshDiagnostics()
+            recorderClient.refreshConnectionStatus()
+        }
+
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            if (granted) launchRecordingForegroundService()
+            else recorderCaptureStatus = "Notification permission is required before recording."
         }
 
         refreshPermissionState()
         refreshDiagnostics()
+        recorderClient.refreshConnectionStatus()
+        lifecycleScope.launch {
+            recorderClient.connectionStatus.collect { recorderConnectionStatus = it }
+        }
+        lifecycleScope.launch {
+            recorderClient.captureStatus.collect { recorderCaptureStatus = it }
+        }
 
         setContent {
             MaterialTheme {
@@ -83,6 +110,10 @@ class MainActivity : ComponentActivity() {
                         audioRoutes = audioRoutes,
                         monitoring = monitoring,
                         diagnosticsError = diagnosticsError,
+                        recorderConnectionStatus = recorderConnectionStatus,
+                        recorderCaptureStatus = recorderCaptureStatus,
+                        recorderConnected = recorderConnectionStatus.startsWith("Connected"),
+                        recorderActive = recorderCaptureStatus.startsWith("Recording active"),
                         onRequestPermissions = {
                             permissionLauncher.launch(
                                 permissionManager.permissionsFor(PermissionPurpose.CALL_STATE)
@@ -92,6 +123,9 @@ class MainActivity : ComponentActivity() {
                         onRefresh = ::refreshDiagnostics,
                         onStartMonitoring = ::startMonitoring,
                         onStopMonitoring = ::stopMonitoring,
+                        onConnectRecorder = recorderClient::connectOrRequestPermission,
+                        onStartRecording = ::requestStartRecording,
+                        onStopRecording = ::stopRecording,
                     )
                 }
             }
@@ -164,6 +198,29 @@ class MainActivity : ComponentActivity() {
         monitoring = false
     }
 
+    private fun requestStartRecording() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        launchRecordingForegroundService()
+    }
+
+    private fun launchRecordingForegroundService() {
+        val intent = Intent(this, CallRecordingForegroundService::class.java)
+            .setAction(CallRecordingForegroundService.ACTION_START)
+        ContextCompat.startForegroundService(this, intent)
+    }
+
+    private fun stopRecording() {
+        startService(
+            Intent(this, CallRecordingForegroundService::class.java)
+                .setAction(CallRecordingForegroundService.ACTION_STOP),
+        )
+    }
+
     private companion object {
         const val MAX_VISIBLE_EVENTS = 40
     }
@@ -177,10 +234,17 @@ private fun DiagnosticsScreen(
     audioRoutes: List<AudioRoute>,
     monitoring: Boolean,
     diagnosticsError: String?,
+    recorderConnectionStatus: String,
+    recorderCaptureStatus: String,
+    recorderConnected: Boolean,
+    recorderActive: Boolean,
     onRequestPermissions: () -> Unit,
     onRefresh: () -> Unit,
     onStartMonitoring: () -> Unit,
     onStopMonitoring: () -> Unit,
+    onConnectRecorder: () -> Unit,
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -282,6 +346,38 @@ private fun DiagnosticsScreen(
             Text(
                 "This is an inventory of audio endpoints, not proof that a device exposes " +
                     "cellular call audio. The selected communication route is reported separately.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        DiagnosticCard(title = "Advanced call-audio capture · Shizuku") {
+            Text("Connection: $recorderConnectionStatus")
+            Text("Capture: $recorderCaptureStatus")
+            Button(onClick = onConnectRecorder) {
+                Text("Connect / authorize Shizuku")
+            }
+            if (recorderActive) {
+                OutlinedButton(onClick = onStopRecording) {
+                    Text("Stop recording")
+                }
+            } else {
+                Button(
+                    onClick = onStartRecording,
+                    enabled = recorderConnected && !recorderCaptureStatus.startsWith("Preparing"),
+                ) {
+                    Text("Start visible call recording")
+                }
+            }
+            Text(
+                "This optional path requires Android 11+, a running Shizuku/Sui server, and explicit " +
+                    "authorization. It opens AudioSource.VOICE_CALL only inside the shell/root UserService. " +
+                    "It does not switch on speakerphone or fall back to the microphone.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "Start manually only during a call and only after obtaining any consent required by local law. " +
+                    "A saved WAV is not proof that both parties were audible; the signal level is checked and " +
+                    "OEM/modem behavior remains device-specific.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
