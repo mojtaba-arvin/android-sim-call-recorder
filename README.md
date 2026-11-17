@@ -61,6 +61,7 @@ The current call-state skeleton observes the default subscription only. It does 
 ## Privacy and safety
 
 - No READ_CALL_LOG, contacts, broad storage, overlay, or accessibility permission is requested.
+- Permissions are requested just in time: the foundation initially asks only for call-state access; microphone and notification permissions are deferred until their respective features are implemented and entered by the user.
 - Audio files are intended for app-private storage; the database stores a generated filename rather than an externally accessible path.
 - A permission grant is not treated as consent from every call participant.
 - Recording must be clearly indicated to the device user, and applicable local consent laws must be followed.

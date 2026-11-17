@@ -10,32 +10,47 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Runtime permissions used by the initial call-state and microphone foundation.
- *
- * These permissions do not grant access to privileged cellular call audio sources.
- * READ_CALL_LOG is intentionally excluded.
+ * Permission groups are requested only when the corresponding capability is entered.
+ * Holding RECORD_AUDIO or POST_NOTIFICATIONS is not required just to observe call state.
  */
+enum class PermissionPurpose {
+    CALL_STATE,
+    MICROPHONE_CAPTURE,
+    FOREGROUND_NOTIFICATIONS,
+}
+
 @Singleton
 class CallPermissionManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    fun requestablePermissions(): List<String> = buildList {
-        add(Manifest.permission.READ_PHONE_STATE)
-        add(Manifest.permission.RECORD_AUDIO)
+    fun permissionsFor(purpose: PermissionPurpose): List<String> =
+        when (purpose) {
+            PermissionPurpose.CALL_STATE ->
+                listOf(Manifest.permission.READ_PHONE_STATE)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            add(Manifest.permission.POST_NOTIFICATIONS)
+            PermissionPurpose.MICROPHONE_CAPTURE ->
+                listOf(Manifest.permission.RECORD_AUDIO)
+
+            PermissionPurpose.FOREGROUND_NOTIFICATIONS ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    listOf(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    emptyList()
+                }
         }
-    }
 
-    fun missingRuntimePermissions(): List<String> =
-        requestablePermissions().filterNot(::isGranted)
+    fun missingPermissions(purpose: PermissionPurpose): List<String> =
+        permissionsFor(purpose).filterNot(::isGranted)
 
     fun hasCallStatePermission(): Boolean =
         isGranted(Manifest.permission.READ_PHONE_STATE)
 
     fun hasMicrophonePermission(): Boolean =
         isGranted(Manifest.permission.RECORD_AUDIO)
+
+    fun hasNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            isGranted(Manifest.permission.POST_NOTIFICATIONS)
 
     private fun isGranted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) ==

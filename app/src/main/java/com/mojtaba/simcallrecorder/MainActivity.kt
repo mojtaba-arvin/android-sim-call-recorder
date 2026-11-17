@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mojtaba.simcallrecorder.core.permissions.CallPermissionManager
+import com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -52,7 +53,7 @@ class MainActivity : ComponentActivity() {
                         missingPermissions = missingPermissions,
                         onRequestPermissions = {
                             permissionLauncher.launch(
-                                permissionManager.requestablePermissions().toTypedArray(),
+                                permissionManager.permissionsFor(PermissionPurpose.CALL_STATE).toTypedArray(),
                             )
                         },
                     )
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshPermissionState() {
-        missingPermissions = permissionManager.missingRuntimePermissions()
+        missingPermissions = permissionManager.missingPermissions(PermissionPurpose.CALL_STATE)
     }
 }
 
@@ -96,9 +97,9 @@ private fun PermissionHomeScreen(
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = if (missingPermissions.isEmpty()) {
-                "The requested runtime permissions are granted."
+                "Call-state permission is granted."
             } else {
-                "Runtime permissions are still missing."
+                "Call-state permission is required to observe SIM call transitions."
             },
             style = MaterialTheme.typography.bodyLarge,
         )
@@ -115,10 +116,10 @@ private fun PermissionHomeScreen(
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "This foundation does not record audio yet. Microphone and call-state " +
-                "permissions do not grant unrestricted access to both sides of a SIM call. " +
-                "Audio capture will only be enabled after device-level feasibility and consent " +
-                "behavior have been verified.",
+            text = "This foundation does not record audio yet. Microphone and notification permissions are " +
+                "intentionally requested only when a validated recording mode and its foreground " +
+                "service are implemented. Call-state access does not grant unrestricted access " +
+                "to both sides of a SIM call.",
             style = MaterialTheme.typography.bodyMedium,
         )
     }
