@@ -50,13 +50,14 @@ See:
 
 - Android application and Compose entry point.
 - Runtime permission manager for microphone, telephony call-state, and Android 13+ notifications.
-- Native call-state source using TelephonyCallback on API 31+ and PhoneStateListener on API 28–30.
+- Subscription-aware call-state diagnostics using TelephonyCallback on API 31+ and PhoneStateListener on API 28–30.
+- Device diagnostics screen showing device/build information, visible SIM slots, per-SIM call-state events, and reported audio input/output endpoints.
 - Domain call-state model and repository/use-case boundary.
 - Room metadata entity, DAO, database, and Hilt providers.
 - Unit tests for telephony-state mapping.
 - CI workflow for unit tests, Android lint, and debug APK assembly.
 
-The current call-state skeleton observes the default subscription only. It does not read call-log data or infer the remote phone number. Multi-SIM subscription coverage, recording lifecycle, audio-path capability testing, and device validation remain separate work items.
+The diagnostics screen observes each active subscription visible to the app and shows the Android-reported audio endpoint inventory. It does not read call-log data, phone numbers, ICCIDs, or subscription identifiers for display/storage. This is an on-screen diagnostic session only; it is not a background service and does not record audio. Physical-device tests and two-way audio capability validation remain outstanding.
 
 ## Privacy and safety
 
