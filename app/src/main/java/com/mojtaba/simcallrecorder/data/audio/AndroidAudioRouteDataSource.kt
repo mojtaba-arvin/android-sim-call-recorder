@@ -24,7 +24,7 @@ class AndroidAudioRouteDataSource @Inject constructor(
             null
         }
 
-        return manager.getDevices(AudioManager.GET_DEVICES_ALL)
+        return manager.getDevices(AudioManager.GET_DEVICES_INPUTS or AudioManager.GET_DEVICES_OUTPUTS)
             .map { device ->
                 AudioRoute(
                     direction = when {
