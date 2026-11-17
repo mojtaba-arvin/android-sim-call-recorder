@@ -78,14 +78,14 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
             }
 
             for ((channelMask, channelCount) in candidates) {
-                val minBufferBytes = runCatching {
+                val minBufferBytes = try {
                     AudioRecord.getMinBufferSize(
                         sampleRate,
                         channelMask,
                         AudioFormat.ENCODING_PCM_16BIT,
                     )
-                }.getOrElse {
-                    lastError = "Could not query AudioRecord buffer size: ${it.message}"
+                } catch (exception: Exception) {
+                    lastError = "Could not query AudioRecord buffer size: ${exception.message}"
                     continue
                 }
 
@@ -94,7 +94,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                     continue
                 }
 
-                val record = runCatching {
+                val record = try {
                     AudioRecord(
                         MediaRecorder.AudioSource.VOICE_CALL,
                         sampleRate,
@@ -102,8 +102,8 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                         AudioFormat.ENCODING_PCM_16BIT,
                         max(minBufferBytes * 4, sampleRate * channelCount),
                     )
-                }.getOrElse {
-                    lastError = "VOICE_CALL AudioRecord creation failed: ${it.javaClass.simpleName}: ${it.message}"
+                } catch (exception: Exception) {
+                    lastError = "VOICE_CALL AudioRecord creation failed: ${exception.javaClass.simpleName}: ${exception.message}"
                     continue
                 }
 
@@ -113,11 +113,11 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                     continue
                 }
 
-                val sink = runCatching {
+                val sink = try {
                     ParcelFileDescriptor.dup(output.fileDescriptor)
-                }.getOrElse {
+                } catch (exception: Exception) {
                     runCatching { record.release() }
-                    lastError = "Could not duplicate the capture output pipe: ${it.message}"
+                    lastError = "Could not duplicate the capture output pipe: ${exception.message}"
                     continue
                 }
 
@@ -287,10 +287,11 @@ internal class RecorderServiceController(
 
         state = State.STARTING
         policyError = ""
-        val channels = runCatching {
+        val channels = try {
             engine.start(output, sampleRate, preferredChannels)
-        }.getOrElse {
-            policyError = "Capture initialization threw ${it.javaClass.simpleName}: ${it.message}"
+        } catch (exception: Exception) {
+            runCatching { output.close() }
+            policyError = "Capture initialization threw ${exception.javaClass.simpleName}: ${exception.message}"
             0
         }
 

@@ -12,7 +12,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.mojtaba.simcallrecorder.MainActivity
-import com.mojtaba.simcallrecorder.R
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +28,7 @@ class CallRecordingForegroundService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var startInProgress = false
+    private var watchCaptureStatusJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -53,6 +53,15 @@ class CallRecordingForegroundService : Service() {
             try {
                 val output = recorderClient.startRecording()
                 updateNotification("Recording active · ${output.name}")
+                watchCaptureStatusJob?.cancel()
+                watchCaptureStatusJob = serviceScope.launch {
+                    recorderClient.captureStatus.collect { status ->
+                        if (status.startsWith("Saved ") || status.startsWith("Recording file was not saved:")) {
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            stopSelf()
+                        }
+                    }
+                }
             } catch (exception: Exception) {
                 updateNotification("Capture did not start · ${exception.message ?: "unsupported device"}")
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -131,6 +140,12 @@ class CallRecordingForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        watchCaptureStatusJob?.cancel()
+        // A normal user stop reaches ACTION_STOP first. This best-effort cleanup also covers
+        // foreground-service teardown so the shell-side AudioRecord is not left running.
+        kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+            runCatching { recorderClient.stopRecording() }
+        }
         serviceScope.cancel()
         super.onDestroy()
     }

@@ -4,14 +4,12 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.media.AudioFormat
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import androidx.annotation.MainThread
 import com.mojtaba.simcallrecorder.recording.WavCaptureResult
 import com.mojtaba.simcallrecorder.recording.WavPcmFileWriter
-import com.mojtaba.simcallrecorder.recording.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +18,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
@@ -186,6 +183,10 @@ class ShizukuAudioRecorderClient @Inject constructor(
 
         val channels = try {
             api.startVoiceCallCapture(writeEnd, SAMPLE_RATE, PREFERRED_CHANNELS)
+        } catch (exception: Exception) {
+            runCatching { readEnd.close() }
+            _captureStatus.value = "Capture request failed: ${exception.message}"
+            throw exception
         } finally {
             runCatching { writeEnd.close() }
         }

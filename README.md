@@ -2,14 +2,14 @@
 
 A native Android (Kotlin) project investigating reliable SIM-call recording on real devices.
 
-> **Current status:** native foundation and automated Android-framework tests. The repository does not yet claim to record cellular calls. Android call-state access, microphone permission, foreground services, and audio endpoint inventory do not grant access to both sides of a cellular call.
+> **Current status:** native diagnostics, automated Android-framework tests, and an opt-in Shizuku `VOICE_CALL` capture prototype. Two-way audio is not claimed as universally supported; OEM/modem behavior must be validated.
 
 ## Project goals
 
-- Native Kotlin implementation; no cross-platform runtime or accessibility-service workaround.
-- Android 9 (API 28) and newer, with a current target SDK.
+- Native Kotlin implementation; no cross-platform runtime or Accessibility workaround.
+- Android 9 (API 28) diagnostics baseline, with privileged capture prototype requiring Android 11+.
 - Explicit separation between call-state detection, audio-capture capability, recording lifecycle, persistence, and UI.
-- App-private audio storage and local metadata; no broad storage permission.
+- App-private WAV storage and local metadata; no broad storage permission.
 - Transparent user controls and explicit recording disclosure.
 
 ## Technology
@@ -22,10 +22,9 @@ A native Android (Kotlin) project investigating reliable SIM-call recording on r
 | Dependency injection | Hilt |
 | Metadata | Room / SQLite |
 | Build | Gradle Kotlin DSL, version catalog |
+| Privileged helper | MIT-licensed Shizuku API 13.1.5, optional UserService |
 | Tests | JUnit and Robolectric 4.17 |
 | CI | GitHub Actions: unit tests, Robolectric, lint, debug APK |
-
-The initial dependency versions are pinned in gradle/libs.versions.toml. The app compiles against Android 17 (API 37) for current AndroidX dependencies, while `targetSdk` remains 36 until Android 17 runtime behavior changes have been explicitly validated. The minimum supported version is Android 9 (API 28).
 
 ## Build
 
@@ -35,36 +34,51 @@ Requirements: JDK 21, Android SDK Platform 37, Build Tools 37.0.0, and Gradle 9.
 gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-The test task executes the existing JVM unit tests and Robolectric tests against Android framework shadows. GitHub Actions runs the same tasks on every branch push and pull request. A Gradle Wrapper is not checked in yet; it will be added after the first successful build has validated the toolchain.
+GitHub Actions runs the same tasks on branch pushes and pull requests. A Gradle Wrapper is not checked in yet; it will be added after the toolchain is validated in CI.
 
-## Important platform constraint
+## Call-audio capture
 
-The public Android SDK exposes `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK` audio-source constants, but capturing cellular call streams requires `CAPTURE_AUDIO_OUTPUT`, a permission reserved for system components and unavailable to ordinary third-party apps. During an active voice call Android's input-sharing rules give the call priority; a normal app cannot assume that `MIC` or `VOICE_COMMUNICATION` will receive call audio. A microphone recording is not equivalent to a two-sided call recording.
+The standard third-party app process does not have public-SDK access to cellular uplink/downlink. `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK` require `CAPTURE_AUDIO_OUTPUT`, which is reserved for privileged/system components. During an active voice call, Android's input-sharing rules prioritize the call; a normal app cannot assume `MIC` or `VOICE_COMMUNICATION` receives call audio.
 
-The open-source [ShizuCallRecorder](https://github.com/kitsumed/ShizuCallRecorder) uses a separate Shizuku/ADB shell helper and hidden Android APIs; it is not a public-SDK source fallback. The project and compatibility implications are documented here:
+This repository includes an **optional, manually started Shizuku capture prototype**:
 
-- [Android call-audio constraints and feasibility gates](docs/ANDROID_CALL_AUDIO_CONSTRAINTS.md)
+- The user must run Shizuku/Sui and explicitly authorize the app.
+- The capture helper runs as shell UID 2000 or root UID 0 and opens `AudioRecord(VOICE_CALL)`.
+- It prefers 48 kHz PCM16 stereo, then falls back to mono (still VOICE_CALL only).
+- PCM is written as a WAV file in the app-private `files/recordings` directory.
+- A foreground notification remains visible and includes a Stop action.
+- Empty streams are rejected; all-zero recordings are labelled silent.
+- No automatic speakerphone toggle and no MIC fallback are used.
+
+This is a device-dependent privileged capture path, not a guarantee of two-sided audio on every model/carrier. CallVault and ShizuCallRecorder were reviewed as open-source references, but their GPL code was not copied. This project remains MIT-licensed. The Shizuku API itself is MIT-licensed.
+
+To use the prototype, install and start Shizuku/Sui separately, return to the app, tap **Connect / authorize Shizuku**, grant the request in Shizuku, then start a recording manually during a call. On a non-root phone, starting Shizuku normally requires ADB Wireless Debugging on Android 11+ and re-authorization after reboot. The app does not start recording automatically.
+
+Read the detailed research and safety constraints:
+
+- [Android call-audio constraints and implementation decision](docs/ANDROID_CALL_AUDIO_CONSTRAINTS.md)
 - [Architecture and module boundaries](docs/ARCHITECTURE.md)
 - [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)
 
-## Current implementation
+## Diagnostics implementation
 
-- Android application and Compose entry point.
-- Runtime permission manager for microphone, telephony call-state, and Android 13+ notifications.
-- Subscription-aware call-state diagnostics using `TelephonyCallback` on API 31+ and `PhoneStateListener` on API 28–30.
-- Device diagnostics screen showing device/build information, visible SIM slots, per-SIM call-state events, and reported audio input/output endpoints.
-- Domain call-state model and repository/use-case boundary.
-- Room metadata entity, DAO, database, and Hilt providers.
-- Unit tests for telephony-state mapping.
-- Robolectric integration tests for modern/legacy call-state delivery, multi-SIM slot association, permission enforcement, audio route inventory, and communication-route selection.
-- CI workflow for unit tests, Robolectric, Android lint, and debug APK assembly.
+- Subscription-aware call-state observation using `TelephonyCallback` on API 31+ and `PhoneStateListener` on API 28–30.
+- Device diagnostics screen showing device/build information, visible SIM slots, per-SIM call-state events, and Android-reported audio input/output endpoints.
+- AudioManager communication-route reporting on API 31+.
+- Robolectric tests for modern/legacy call-state delivery, multi-SIM slot association, permission enforcement, audio route inventory, and communication-route selection.
+- Recording-service controller tests for shell/root UID gating, duplicate starts, stop/restart, and initialization failure/retry.
+- WAV file tests for RIFF header correctness, PCM lengths, peak/RMS, and empty-stream rejection.
 
-The diagnostics screen observes each active subscription visible to the app and shows the Android-reported audio endpoint inventory. It does not read call-log data, phone numbers, ICCIDs, or persist subscription identifiers. This is an on-screen diagnostic session only; it is not a background service and does not record audio. Robolectric coverage does not replace physical modem/audio-HAL validation.
+The diagnostics screen does not read phone numbers, ICCIDs, call-log data, or persist subscription identifiers. Recording files remain in app-private storage and are not uploaded.
 
-## Privacy and safety
+## Limits of automated testing
+
+Robolectric can verify framework callback wiring, state transitions, service policy, and PCM/WAV file logic. It cannot emulate the cellular modem, carrier VoLTE path, OEM audio HAL, or prove that both call participants are audible. A green CI run is not a device-compatibility claim.
+
+## Privacy and legal use
 
 - No READ_CALL_LOG, contacts, broad storage, overlay, or accessibility permission is requested.
-- Permissions are requested just in time: the foundation initially asks only for call-state access; microphone and notification permissions are deferred until their respective features are implemented and entered by the user.
-- Audio files are intended for app-private storage; the database stores a generated filename rather than an externally accessible path.
-- A permission grant is not treated as consent from every call participant.
-- Recording must be clearly indicated to the device user, and applicable local consent laws must be followed.
+- No microphone permission prompt is needed for the privileged UserService path; the ordinary app does not capture the microphone.
+- Recording starts only from the visible user action in this prototype and shows an ongoing foreground notification with Stop.
+- A Shizuku authorization is an additional privilege grant and must be understood by the user.
+- A permission grant is not consent from every call participant. The user must comply with applicable local law and obtain all required consent.

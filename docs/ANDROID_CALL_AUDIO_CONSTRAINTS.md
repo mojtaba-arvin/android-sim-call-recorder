@@ -1,10 +1,10 @@
-# Android SIM-call audio: constraints and feasibility
+# Android SIM-call audio: constraints and implementation decision
 
 ## Executive finding
 
-A normal third-party Android application cannot assume that it can record both the uplink (local speaker) and downlink (remote party) of a cellular call through public SDK APIs.
+A normal third-party Android application cannot assume that it can record both uplink (local speaker) and downlink (remote party) of a cellular call through public SDK APIs.
 
-The SDK defines `MediaRecorder.AudioSource.VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK`. Capturing the call streams requires `android.permission.CAPTURE_AUDIO_OUTPUT`, which is reserved for system components and is not available to ordinary third-party applications. This is a platform access boundary, not a missing Gradle dependency.
+Android exposes `MediaRecorder.AudioSource.VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK`, but capturing cellular call streams requires `android.permission.CAPTURE_AUDIO_OUTPUT`, which is reserved for privileged/system components. During an active voice call, Android's input-sharing rules give the call priority; ordinary app microphone capture does not receive a second copy of the call audio.
 
 Official references:
 
@@ -16,100 +16,89 @@ Official references:
 - [Android 15 behavior changes](https://developer.android.com/about/versions/15/behavior-changes-15)
 - [Google Play Developer Program Policy — Accessibility API](https://support.google.com/googleplay/android-developer/answer/18265346)
 
-## Why speakerphone + MIC is not a general call-recording workaround
+## Why speakerphone + MIC is not a reliable workaround
 
-Android's audio-input sharing documentation states that when a voice call is active, the call always receives the input audio. An ordinary app does not get a second copy of the call microphone input; the documented exceptions are an accessibility service or a privileged pre-installed app with `CAPTURE_AUDIO_OUTPUT`. The call's uplink/downlink capture path uses `VOICE_UPLINK`, `VOICE_DOWNLINK`, and/or `AudioDeviceInfo.TYPE_TELEPHONY`, which are privileged.
+Turning on speakerphone does not change Android's permission/concurrency rules. It may produce an acoustic path on a particular handset, but it cannot be assumed to make a normal app's microphone stream available while the cellular call owns input. Android also documents `AudioManager.setSpeakerphoneOn()` as intended for the main telephony app or apps replacing platform-wide audio management; it is deprecated from API 34.
 
-Turning on speakerphone does not change that permission/concurrency policy. It may produce an acoustic path on a particular OEM build, but it cannot be assumed to make a normal app's microphone stream available during a cellular call. A successful `MediaRecorder.start()` is not evidence that either call participant is present in the saved file.
+A successful `MediaRecorder.start()`, a growing file, or non-zero sample count is not proof that both call participants were captured. For this reason the app has no automatic speakerphone toggle and no `MIC` fallback masquerading as call recording.
 
-Android also says `AudioManager.setSpeakerphoneOn()` should only be used by applications replacing platform-wide audio management or the main telephony application. API 34 deprecated it. `setCommunicationDevice()` is intended for communication use cases controlled by the requesting app and remains subject to audio-mode priority; it is not a general API for taking control of a cellular call route.
-
-Product consequence: do not automatically toggle speakerphone when `OFFHOOK` arrives. Such behavior changes the user's call privacy and audio route, can be overridden by the telephony app, and still does not establish that microphone capture will receive call audio.
-
-## Other public AudioSource choices
-
-| Source / approach | What it means | Product stance |
-|---|---|---|
-| `VOICE_CALL` | Combined cellular call uplink and downlink; requires privileged `CAPTURE_AUDIO_OUTPUT` | Not available to an ordinary app |
-| `VOICE_UPLINK` / `VOICE_DOWNLINK` | Individual cellular call directions; privileged | Not a fallback for a normal app |
-| `REMOTE_SUBMIX` | Captures a remote submix; privileged | Not a third-party workaround |
-| `MIC` / `DEFAULT` | Physical microphone input | Suitable for an explicitly started microphone test; not a supported call-audio path while a cellular call owns input |
-| `VOICE_COMMUNICATION` | Communication-oriented microphone source with audio processing | Does not grant call uplink/downlink access or bypass call-input sharing |
-| Speakerphone + `MIC` | Attempts to record the acoustic output of the loudspeaker | Device-dependent and not supported as a universal call-recording mechanism |
-
-## What the open-source projects actually do
+## Open-source implementation research
 
 ### ShizuCallRecorder
 
-[ShizuCallRecorder](https://github.com/kitsumed/ShizuCallRecorder) is the most technically relevant modern non-root open-source reference found during this review. Its README requires Shizuku/ADB shell authorization, documents per-Android-version limitations, and explicitly warns that the implementation uses hidden Android APIs which may break with new Android releases or OEM modifications.
+[ShizuCallRecorder](https://github.com/kitsumed/ShizuCallRecorder) uses Shizuku and a helper process that runs with ADB shell identity. It is not simply switching public AudioSource values in the normal application process. Its implementation is GPL-3.0 with additional terms; code was reviewed but not copied into this repository.
 
-Inspection of its implementation confirms that it does not merely switch to another public `AudioSource`: recording runs through a shell-UID/Shizuku service, constructs `AudioRecord` with internal Android context/attribution details, and uses reflection against private framework members on fallback paths. It also has an Android 11-specific foreground workaround. This is a separate privileged-helper architecture with a larger security and compatibility surface, not a drop-in recorder service for an ordinary app.
+### CallVault
 
-The project is licensed under GPL-3.0 with additional terms. Its implementation has not been copied into this repository.
+[CallVault](https://github.com/madkongo/CallVault) is a more recent fork of ShizuCallRecorder. Its README documents two privileged backends: embedded Wireless ADB and Shizuku. It explicitly warns that behavior depends on OEM/hidden framework APIs and can break after Android updates. Its published requirement is Android 11+, arm64, developer options enabled for its built-in ADB mode. It also documents the need to re-establish ADB authorization after reboot and that some OEMs impose extra setup. CallVault is GPL-3.0 with additional Section 7 terms. Its source was inspected as research only; no code was copied.
 
-### Other microphone/speakerphone approaches
+### Shizuku API
 
-Open-source projects that offer a microphone or speakerphone fallback typically document device-dependent or one-sided recordings. A local microphone test can verify that a microphone recorder writes a valid audio file, but cannot establish a two-sided cellular-call capture path. This repository will not label that as successful call recording.
+The separate [Shizuku API](https://github.com/RikkaApps/Shizuku-API) is MIT-licensed. Its documented `UserService` runs code in another process under UID 2000 (ADB shell) or UID 0 (root), after the user explicitly starts/authorizes Shizuku or Sui. API 13.1.5 is used here. UserService lifecycle requires a binder interface and explicit destroy cleanup.
 
-## Android foreground-service constraints
+This repository uses that API as an optional, explicit helper boundary. It does not embed CallVault/ShizuCallRecorder code, their scrcpy server, their ADB pairing code, or their GPL dependencies. The repository's MIT license is unchanged.
 
-Foreground services improve process importance; they do not grant protected audio sources or bypass audio-input sharing.
+## Implemented prototype in this repository
 
-For microphone capture:
+The optional capture prototype has these layers:
 
-- Declare the microphone foreground-service type and its type-specific permission.
-- Request and obtain `RECORD_AUDIO`.
-- On Android 14+ (API 34+), microphone foreground services are subject to while-in-use restrictions. In general, the service must be started while the app has a visible activity, unless a documented exemption applies.
-- A microphone foreground service cannot be assumed to be startable later from a background telephony callback.
-- The `phoneCall` foreground-service type is intended for ongoing calls managed through `ConnectionService`. Its prerequisites include `MANAGE_OWN_CALLS` or holding the default dialer role; it is not a generic permission to record SIM calls.
+1. The regular application asks the user to connect/authorize Shizuku. It checks the actual UserService UID and accepts only shell UID 2000 or root UID 0.
+2. A Shizuku `UserService` process opens `AudioRecord(MediaRecorder.AudioSource.VOICE_CALL)` under that authorized identity. It prefers 48 kHz PCM16 stereo and falls back to PCM16 mono; it does **not** fall back to MIC/DEFAULT/VOICE_COMMUNICATION.
+3. PCM is streamed over a one-session Binder-passed pipe to the app process and finalized as a WAV file under the app-private `files/recordings` directory.
+4. A user-initiated foreground service shows a persistent notification with a Stop action. The app requests notification permission before starting capture.
+5. The file writer rejects an empty stream and computes peak/RMS. It labels an all-zero WAV as digital silence. Non-silent audio is still not proof of both talk directions; hardware/firmware and carrier behavior must be validated separately.
 
-Android 17 also introduces `BYPASS_CONCURRENT_RECORD_AUDIO_RESTRICTION` as a signature/privileged permission. That reinforces that bypassing concurrent-recording restrictions is a system/OEM capability, not a runtime permission an ordinary app can request.
+Capture is manual and visible in this prototype. It does not automatically begin on OFFHOOK, toggle loudspeaker, record while a user has not explicitly started it, or send audio off-device.
 
-## Accessibility, hidden APIs, and privileged helpers
+### Requirements and expected limitations
 
-Google Play policy says the Accessibility API is not designed for remote call-audio recording and must not be used to work around Android security/privacy controls. This repository will not use Accessibility for call-audio capture.
+- Android 11 (API 30) or newer.
+- Shizuku/Sui running and the user must grant this app Shizuku authorization.
+- Without root, Shizuku must be started via ADB. On Android 11+ this can be done with Wireless Debugging on the device; Android clears the debugging authorization on reboot and Shizuku normally needs to be restarted/authorized again. Older Android versions need a computer for ADB setup.
+- UID 2000 does not have identical privileges on every Android build. Some OEMs restrict protected audio capture, and carrier/OEM audio HALs can still return silence or one direction only.
+- The foreground-service notification is part of the recording disclosure. The app does not use Accessibility APIs for call capture.
 
-A Shizuku/ADB shell helper is a possible separate advanced product track, but it needs an explicit user-authorized setup, an isolated helper process, a threat model for shell privileges, a non-copied implementation and dependency/license review, version-specific framework compatibility tests, and a physical-device validation matrix. It is not included implicitly in the standard app build.
+## Foreground-service and platform constraints
 
-This repository will not rely on hidden APIs, reflection, shell identity impersonation, or undocumented vendor behavior as the default recording path.
+Foreground services improve process importance; they do not grant protected audio sources. A microphone FGS cannot be assumed to start later from a background telephony callback because of while-in-use restrictions. This prototype starts an explicitly user-initiated special-use foreground service from the visible app, and uses a privileged external UserService for capture.
 
-## Telephony monitoring and automated tests
+The `phoneCall` foreground-service type is intended for ongoing calls managed through `ConnectionService` and requires `MANAGE_OWN_CALLS` or the default dialer role. It is not a generic SIM-call recording permission.
 
-There is no telephony `BroadcastReceiver` in the current application. The implementation uses:
+## Accessibility, hidden APIs, and privilege boundaries
 
-- `TelephonyCallback.CallStateListener` on API 31+.
-- Subscription-specific `PhoneStateListener` on API 28–30.
-- `SubscriptionManager.getActiveSubscriptionInfoList()` to enumerate visible active subscriptions.
+Google Play's Accessibility policy does not authorize using Accessibility to bypass Android's privacy controls for call recording. This project does not declare an AccessibilityService or use it to collect call audio.
 
-Robolectric tests exercise both callback/listener paths, the `RINGING → OFFHOOK → IDLE` transitions, multiple subscription-to-slot associations, the just-in-time `READ_PHONE_STATE` permission check, audio input/output inventories, deterministic ordering, and the selected communication endpoint on API 31+.
+The Shizuku helper is a deliberate, user-visible privilege boundary. Shizuku runs user code with shell/root identity and has a different attack surface from the ordinary app UID. The app does not execute arbitrary shell commands; the helper exposes a narrow Binder API for starting/stopping one VOICE_CALL capture stream and reporting status. The feature must remain opt-in and clearly disclosed.
 
-These tests validate Android framework integration and application state logic in a simulated runtime. They cannot simulate a modem, OEM audio HAL, acoustic speaker/microphone coupling, carrier VoLTE behavior, or prove that both participants are audible in a physical recording.
+## Automated validation boundary
+
+Robolectric tests validate:
+
+- API 31+ `TelephonyCallback` state delivery.
+- API 28–30 subscription-specific `PhoneStateListener`.
+- `RINGING → OFFHOOK → IDLE` transitions.
+- Multiple active subscription-to-SIM-slot associations.
+- READ_PHONE_STATE permission enforcement.
+- Audio input/output endpoint inventory and selected communication endpoint.
+- Recorder-service UID gate, lifecycle transitions, duplicate-start rejection, stop/restart, and failure/retry.
+- WAV header, PCM sizing, signal peak/RMS measurement, and empty-stream rejection.
+
+These tests do not emulate a modem, OEM audio HAL, carrier VoLTE implementation, Shizuku's privileged process, or actual acoustic/cellular call streams. A CI green result can prove code/state/file-format correctness, not prove that a particular phone exposes both participants. The capture engine intentionally surfaces initialization errors and silence rather than reporting success optimistically.
 
 ## Explicit non-goals
 
 The project will not:
 
-- Use Accessibility Services to capture remote call audio or work around platform privacy controls.
-- Attempt `VOICE_CALL`, `VOICE_UPLINK`, or `VOICE_DOWNLINK` as fake fallbacks in an ordinary app.
-- Toggle speakerphone automatically when a call becomes `OFFHOOK`.
-- Claim universal two-way recording based solely on an API returning success or a non-empty audio file.
-- Claim a foreground service makes the app immune to force-stop or OEM power-management policies.
+- Use Accessibility Services to capture remote call audio or work around Android privacy controls.
+- Attempt privileged VOICE_CALL sources in the ordinary app UID and disguise failure with a microphone recording.
+- Toggle speakerphone automatically on OFFHOOK.
+- Claim universal two-way recording based only on API success or a non-empty file.
+- Claim a foreground service makes the app immune to force-stop or OEM power management.
 
-## Feasibility gate before implementing a call recorder
+## Device support acceptance criteria
 
-For each candidate device, record:
-
-1. Manufacturer, exact model, chipset where known, Android version, API level, build fingerprint, and security patch.
-2. SIM configuration and subscription slot.
-3. Incoming and outgoing call results.
-4. Earpiece, speakerphone, wired headset, and Bluetooth routes.
-5. Audio source, sample rate, channel count, encoding, and recorder errors.
-6. Whether local speech and remote speech are both independently audible in the saved file.
-7. Whether capture starts under OS foreground-service rules without a permission exception or race.
-8. Behavior after screen-off, app backgrounding, process recreation, battery saver, and OEM power management.
-
-A device is considered supported only after both directions are intelligible in independently reviewed recordings across repeated tests. Unsupported devices must show an explicit limitation rather than silently producing one-sided recordings.
+A device can be marked supported only after repeated real calls demonstrate both participants are independently intelligible in recordings, for both SIM slots and relevant routes (earpiece, speaker, wired, Bluetooth). Record make/model, Android release/API, build fingerprint, security patch, carrier, SIM slot, route, selected channel count, peak/RMS, and the two-direction result. Keep failures and unsupported device cases as first-class results.
 
 ## Decision
 
-Keep call-state detection and audio-capture capability separate. The standard app can reliably test telephony state handling and report available audio endpoints, but public SDK APIs do not provide an ordinary third-party app with guaranteed cellular uplink/downlink access. A real two-way recording implementation needs a separately selected and reviewed platform-specific track (for example, an opt-in Shizuku helper or OEM/system integration), followed by explicit device/API validation. Do not substitute a microphone-only prototype and call it a call recorder.
+Keep ordinary telephony state monitoring separate from privileged capture. The project now contains an opt-in Shizuku UserService prototype for devices where shell/root `VOICE_CALL` is permitted. This is a real capture path to evaluate, not a universal guarantee. The repository remains MIT-licensed, the main branch remains untouched, and this PR must stay draft until CI and device compatibility evidence are reviewed.

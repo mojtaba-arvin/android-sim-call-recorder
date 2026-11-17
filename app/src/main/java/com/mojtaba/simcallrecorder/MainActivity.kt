@@ -137,6 +137,7 @@ class MainActivity : ComponentActivity() {
         if (::permissionLauncher.isInitialized) {
             refreshPermissionState()
             refreshDiagnostics()
+            recorderClient.refreshConnectionStatus()
         }
     }
 
@@ -258,7 +259,7 @@ private fun DiagnosticsScreen(
             style = MaterialTheme.typography.headlineMedium,
         )
         Text(
-            text = "Device diagnostics · No audio is being recorded",
+            text = if (recorderActive) "Device diagnostics · call-audio capture active" else "Device diagnostics · no call-audio capture",
             style = MaterialTheme.typography.bodyMedium,
         )
 
@@ -383,9 +384,9 @@ private fun DiagnosticsScreen(
         }
 
         DiagnosticCard(title = "Hardware validation") {
-            Text("This build does not start an audio recorder.")
+            Text("Call-audio capture is an explicit, optional Shizuku UserService feature; it is never started automatically.")
             Text(
-                "Place a test call on each SIM and check the RINGING, OFFHOOK, and IDLE events above.",
+                "Call-state transitions are covered automatically by Robolectric tests. This device panel remains useful for identifying OEM-specific differences.",
             )
             Text(
                 "Two-way audio remains unverified until a lawful capture path is tested on that " +
