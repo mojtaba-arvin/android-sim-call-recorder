@@ -18,6 +18,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.shadow.api.Shadow
+import org.robolectric.shadows.ShadowApplication
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
@@ -178,7 +180,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     @Test
     @Config(sdk = [35])
     fun observer_withoutReadPhoneStatePermission_failsClosed() = runBlocking {
-        shadowOf(context).denyPermissions(Manifest.permission.READ_PHONE_STATE)
+        (Shadow.extract(context) as ShadowApplication).denyPermissions(Manifest.permission.READ_PHONE_STATE)
 
         val exception = try {
             AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().collect { }
@@ -191,7 +193,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     }
 
     private fun grantPhoneStatePermission() {
-        shadowOf(context).grantPermissions(Manifest.permission.READ_PHONE_STATE)
+        (Shadow.extract(context) as ShadowApplication).grantPermissions(Manifest.permission.READ_PHONE_STATE)
     }
 
     private fun newTelephonyManager(): TelephonyManager =

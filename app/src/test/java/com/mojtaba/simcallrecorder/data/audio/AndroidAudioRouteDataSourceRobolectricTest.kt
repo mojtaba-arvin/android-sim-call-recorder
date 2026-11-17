@@ -6,7 +6,6 @@ import android.media.AudioManager
 import android.util.SparseIntArray
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,7 +46,7 @@ class AndroidAudioRouteDataSourceRobolectricTest {
 
         shadowOf(audioManager).setInputDevices(listOf(microphone))
         shadowOf(audioManager).setOutputDevices(listOf(speaker, bluetoothHeadset))
-        shadowOf(audioManager).setCommunicationDevice(speaker)
+        audioManager.setCommunicationDevice(speaker)
 
         val routes = AndroidAudioRouteDataSource(context).getRoutes()
 
