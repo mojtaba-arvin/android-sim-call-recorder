@@ -61,7 +61,12 @@ class ShizukuAudioRecorderClient @Inject constructor(
     }
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
+        val staleConnection = serviceConnection
         remote = null
+        serviceConnection = null
+        if (staleConnection != null) {
+            runCatching { Shizuku.unbindUserService(userServiceArgs, staleConnection, true) }
+        }
         _connectionStatus.value = "Shizuku stopped. Restart Shizuku and reconnect."
     }
 
@@ -83,6 +88,20 @@ class ShizukuAudioRecorderClient @Inject constructor(
     }
 
     fun refreshConnectionStatus() {
+        val existing = remote
+        if (existing != null && runCatching { existing.asBinder().isBinderAlive }.getOrDefault(false)) {
+            val uid = runCatching { existing.hostUid }.getOrDefault(-1)
+            if (uid == SHELL_UID || uid == ROOT_UID) {
+                _connectionStatus.value = if (uid == ROOT_UID) {
+                    "Connected · root UID 0"
+                } else {
+                    "Connected · shell UID 2000"
+                }
+                return
+            }
+            remote = null
+            serviceConnection = null
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             _connectionStatus.value = "Shizuku capture requires Android 11 or newer."
             return
@@ -231,10 +250,12 @@ class ShizukuAudioRecorderClient @Inject constructor(
         runCatching { api?.stopVoiceCallCapture() }
             .onFailure { _captureStatus.value = "Capture stop request failed: ${it.message}" }
 
-        copyJob?.join()
-        copyJob = null
+        // Closing the reader is also a hard fallback: if the remote binder died, the shell-side
+        // pipe writer receives EPIPE and its AudioRecord loop can release instead of hanging join().
         activeReadPipe?.let { runCatching { it.close() } }
         activeReadPipe = null
+        copyJob?.join()
+        copyJob = null
         if (_captureStatus.value.startsWith("Recording active")) {
             _captureStatus.value = "Capture stopped. No finalized WAV result was reported."
         }

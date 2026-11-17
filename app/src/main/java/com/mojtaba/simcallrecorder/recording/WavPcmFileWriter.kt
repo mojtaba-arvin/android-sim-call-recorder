@@ -37,6 +37,8 @@ object WavPcmFileWriter {
         var peak = 0
         var sumSquares = 0.0
         var sampleCount = 0L
+        val frameBytes = channels * BYTES_PER_SAMPLE
+        var pending = ByteArray(0)
 
         try {
             RandomAccessFile(temporary, "rw").use { output ->
@@ -49,16 +51,23 @@ object WavPcmFileWriter {
                     if (count < 0) break
                     if (count == 0) continue
 
-                    val alignedCount = count - (count % (channels * BYTES_PER_SAMPLE))
-                    if (alignedCount == 0) continue
+                    val combined = ByteArray(pending.size + count)
+                    pending.copyInto(combined)
+                    buffer.copyInto(combined, destinationOffset = pending.size, startIndex = 0, endIndex = count)
+                    val alignedCount = combined.size - (combined.size % frameBytes)
+                    if (alignedCount == 0) {
+                        pending = combined
+                        continue
+                    }
 
-                    output.write(buffer, 0, alignedCount)
+                    output.write(combined, 0, alignedCount)
                     dataBytes += alignedCount
+                    pending = combined.copyOfRange(alignedCount, combined.size)
 
                     var index = 0
                     while (index + 1 < alignedCount) {
-                        val raw = (buffer[index].toInt() and 0xff) or
-                            ((buffer[index + 1].toInt() and 0xff) shl 8)
+                        val raw = (combined[index].toInt() and 0xff) or
+                            ((combined[index + 1].toInt() and 0xff) shl 8)
                         val sample = if (raw >= 0x8000) raw - 0x1_0000 else raw
                         val absolute = kotlin.math.abs(sample)
                         if (absolute > peak) peak = absolute
@@ -68,7 +77,10 @@ object WavPcmFileWriter {
                     }
                 }
 
-                check(dataBytes >= channels * BYTES_PER_SAMPLE) {
+                check(pending.isEmpty()) {
+                    "The PCM stream ended in a partial frame; refusing to save a truncated recording."
+                }
+                check(dataBytes >= frameBytes) {
                     "No PCM frames were received; refusing to save an empty recording."
                 }
                 output.seek(0L)
