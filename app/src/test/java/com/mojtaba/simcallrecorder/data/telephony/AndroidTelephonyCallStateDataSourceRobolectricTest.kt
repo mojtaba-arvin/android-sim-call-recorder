@@ -7,7 +7,6 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import com.mojtaba.simcallrecorder.domain.model.CallState
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -182,7 +181,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(context).denyPermissions(Manifest.permission.READ_PHONE_STATE)
 
         val exception = try {
-            AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().collect()
+            AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().collect { }
             null
         } catch (caught: SecurityException) {
             caught
