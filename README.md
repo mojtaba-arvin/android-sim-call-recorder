@@ -72,6 +72,7 @@ Read the detailed research and safety constraints:
 - [Capture compatibility matrix and strategy-selection policy](docs/COMPATIBILITY_MATRIX.md)
 - [Consent-gated automatic recording lifecycle](docs/AUTO_RECORDING_LIFECYCLE.md)
 - [OEM integration research and vendor API decision](docs/OEM_INTEGRATION_RESEARCH.md)
+- [Embedded ADB shell capture research](docs/EMBEDDED_ADB_CAPTURE_RESEARCH.md)
 
 ## Application screens
 
