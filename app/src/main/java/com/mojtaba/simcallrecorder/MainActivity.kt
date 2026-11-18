@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var monitorJob: Job? = null
+    private var pendingMicrophoneStart: Boolean = false
 
     private var missingPermissions by mutableStateOf(emptyList<String>())
     private var activeSims by mutableStateOf(emptyList<SimSlot>())
@@ -98,10 +99,18 @@ class MainActivity : ComponentActivity() {
 
         permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
-        ) {
+        ) { grants ->
             refreshPermissionState()
             refreshDiagnostics()
             recorderClient.refreshConnectionStatus()
+            if (pendingMicrophoneStart) {
+                pendingMicrophoneStart = false
+                if (grants[android.Manifest.permission.RECORD_AUDIO] == true) {
+                    requestStartRecording()
+                } else {
+                    recorderCaptureStatus = "Microphone permission was denied."
+                }
+            }
         }
 
         notificationPermissionLauncher = registerForActivityResult(
@@ -268,6 +277,19 @@ class MainActivity : ComponentActivity() {
     private fun requestStartRecording() {
         if (!participantConsentConfirmed) {
             recorderCaptureStatus = "Confirm participant consent before starting a recording."
+            return
+        }
+        val microphoneStrategies = setOf(
+            RecordingMode.SPEAKERPHONE_MIC,
+            RecordingMode.OEM_VOICE_RECOGNITION,
+            RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION,
+        )
+        if (recorderSettings.recordingMode in microphoneStrategies &&
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingMicrophoneStart = true
+            permissionLauncher.launch(arrayOf(android.Manifest.permission.RECORD_AUDIO))
             return
         }
         if (activeCallSlotIndex() == null) {
