@@ -250,7 +250,8 @@ class MainActivity : ComponentActivity() {
                                         automaticRecordingArmed ||
                                             recorderCaptureStatus.startsWith("Recording") ||
                                             recorderCaptureStatus.startsWith("Starting") ||
-                                            recorderCaptureStatus.startsWith("Finalizing")
+                                            recorderCaptureStatus.startsWith("Finalizing") ||
+                                            recorderCaptureStatus.startsWith("Preparing")
                                     )
                                 ) {
                                         startService(
