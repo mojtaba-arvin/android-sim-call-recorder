@@ -64,7 +64,7 @@ class CallRecordingForegroundService : Service() {
         startInProgress = true
         startForegroundCompat(buildNotification("Preparing authorized call-audio capture"))
 
-        val request = runCatching {
+        val request = try {
             val mode = RecordingMode.valueOf(
                 intent.getStringExtra(EXTRA_RECORDING_MODE) ?: RecordingMode.SHIZUKU_VOICE_CALL.name,
             )
@@ -77,7 +77,7 @@ class CallRecordingForegroundService : Service() {
                 simSlotIndex = slot,
                 participantConsentConfirmed = consent,
             )
-        }.getOrElse { exception ->
+        } catch (exception: Exception) {
             updateNotification("Capture refused · ${exception.message ?: "invalid recording request"}")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()

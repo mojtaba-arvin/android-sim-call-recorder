@@ -16,7 +16,7 @@ class RecorderServiceControllerTest {
     @Test
     fun shellUid_canStartAndStopCapture() {
         val engine = FakeCaptureEngine()
-        val controller = RecorderServiceController(engine) { 2_000 }
+        val controller = RecorderServiceController(engine, hostUid = { 2_000 })
         val pipe = ParcelFileDescriptor.createPipe()
 
         val channels = controller.start(pipe[1], 48_000, 2)
@@ -36,7 +36,7 @@ class RecorderServiceControllerTest {
     @Test
     fun rootUid_canUseTheExplicitPrivilegedBackend() {
         val engine = FakeCaptureEngine()
-        val controller = RecorderServiceController(engine) { 0 }
+        val controller = RecorderServiceController(engine, hostUid = { 0 })
         val pipe = ParcelFileDescriptor.createPipe()
 
         assertEquals(2, controller.start(pipe[1], 48_000, 2))
@@ -48,7 +48,7 @@ class RecorderServiceControllerTest {
     @Test
     fun ordinaryApplicationUid_isRejectedBeforeAudioRecordIsOpened() {
         val engine = FakeCaptureEngine()
-        val controller = RecorderServiceController(engine) { 10_123 }
+        val controller = RecorderServiceController(engine, hostUid = { 10_123 })
         val pipe = ParcelFileDescriptor.createPipe()
 
         assertEquals(0, controller.start(pipe[1], 48_000, 2))
