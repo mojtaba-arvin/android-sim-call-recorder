@@ -136,8 +136,8 @@ class ShizukuAudioRecorderClient @Inject constructor(
             remote = null
             serviceConnection = null
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            _connectionStatus.value = "Shizuku capture requires Android 11 or newer."
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            _connectionStatus.value = "Shizuku capture requires Android 8.0 (API 26) or newer."
             return
         }
         if (!runCatching { Shizuku.pingBinder() }.getOrDefault(false)) {
@@ -159,8 +159,8 @@ class ShizukuAudioRecorderClient @Inject constructor(
 
     @MainThread
     fun connectOrRequestPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            _connectionStatus.value = "Shizuku capture requires Android 11 or newer."
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            _connectionStatus.value = "Shizuku capture requires Android 8.0 (API 26) or newer."
             return
         }
         if (!runCatching { Shizuku.pingBinder() }.getOrDefault(false)) {
