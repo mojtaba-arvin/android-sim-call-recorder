@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -65,7 +66,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(Looper.getMainLooper()).idle()
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
-        collector.join()
+        withTimeout(10_000) { collector.join() }
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
