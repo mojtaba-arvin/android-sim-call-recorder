@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - "bootstrap/**"
-      - "feature/**"
   pull_request:
     branches:
       - main
@@ -15,13 +13,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: android-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
   verify:
     name: Unit tests, lint, and debug APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
 
     steps:
@@ -65,7 +63,7 @@ jobs:
   instrumented:
     name: Compose UI tests on Android emulator
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
 
     steps:
