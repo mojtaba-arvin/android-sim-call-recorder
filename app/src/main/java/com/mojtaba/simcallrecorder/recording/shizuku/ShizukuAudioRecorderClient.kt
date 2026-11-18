@@ -338,6 +338,8 @@ class ShizukuAudioRecorderClient @Inject constructor(
 
     fun currentCaptureStartedAtEpochMillis(): Long? = activeCaptureStartedAtEpochMillis
 
+    fun currentCaptureChannels(): Int = lastCaptureChannels
+
     private fun createRecordingFile(): File {
         val folder = File(context.filesDir, "recordings")
         check(folder.exists() || folder.mkdirs()) { "Could not create the private recordings directory." }
