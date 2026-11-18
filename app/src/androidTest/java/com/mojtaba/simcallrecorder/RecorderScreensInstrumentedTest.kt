@@ -86,4 +86,3 @@ class RecorderScreensInstrumentedTest {
         status = "COMPLETED",
         failureReason = null,
     )
-)
