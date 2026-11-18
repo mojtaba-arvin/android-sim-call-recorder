@@ -33,4 +33,8 @@ data class CallRecordEntity(
     /** RECORDING, COMPLETED, INTERRUPTED, FAILED, or LEGACY. */
     val status: String,
     val failureReason: String?,
+    /** Runtime device/API/permission profile captured when this session started. */
+    val captureProfile: String? = null,
+    /** Latest matching AudioRecordingConfiguration snapshot; null for non-microphone backends. */
+    val captureDiagnostics: String? = null,
 )
