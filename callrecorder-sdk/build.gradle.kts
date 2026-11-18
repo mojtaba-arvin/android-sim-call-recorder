@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mojtaba.simcallrecorder"
+    namespace = "com.mojtaba.simcallrecorder.sdk"
     compileSdk = 37
 
     defaultConfig {

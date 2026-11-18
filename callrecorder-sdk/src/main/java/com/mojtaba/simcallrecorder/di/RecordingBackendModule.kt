@@ -1,6 +1,6 @@
 package com.mojtaba.simcallrecorder.di
 
-import com.mojtaba.simcallrecorder.BuildConfig
+import com.mojtaba.simcallrecorder.sdk.BuildConfig
 import com.mojtaba.simcallrecorder.recording.CallAudioRecordingBackend
 import com.mojtaba.simcallrecorder.recording.SpeakerphoneMicCallCaptureStrategy
 import com.mojtaba.simcallrecorder.recording.OemVoiceRecognitionCaptureStrategy
