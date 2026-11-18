@@ -19,7 +19,7 @@ Current product and engineering decisions are recorded here so later changes do 
 - The helper exposes only start, stop, status, UID, and error methods.
 - The helper rejects identities other than UID 2000 or UID 0.
 - Shell attribution compatibility is isolated and fails closed if the framework field cannot be adjusted.
-- No AccessibilityService, overlay, contacts, call-log, or remote upload is used for capture.
+- The Shizuku path does not use AccessibilityService, overlays, contacts, call-log access, or remote upload. A separate, explicitly enabled Accessibility-priority microphone experiment exists as its own strategy; it does not inspect UI content and is not a Google Play distribution path for call recording.
 - Recording requires an in-app acknowledgement and manual start while a SIM reports OFFHOOK.
 - A persistent notification exposes an explicit Stop action.
 - Shizuku authorization is not consent from the other participants.
