@@ -68,6 +68,24 @@ class RecordingCoordinatorTest {
     }
 
     @Test
+    fun shizukuRuntimeFailureNeverStartsMicrophoneFallback() = runBlocking {
+        val shizuku = FakeBackend(
+            mode = RecordingMode.SHIZUKU_VOICE_CALL,
+            startFailure = IllegalStateException("VOICE_CALL source rejected"),
+        )
+        val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
+        val coordinator = RecordingCoordinator(setOf(shizuku, microphone), shizukuCaptureEnabled = true)
+
+        val failure = runCatching {
+            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL), profile())
+        }.exceptionOrNull()
+
+        assertEquals("VOICE_CALL source rejected", failure?.message)
+        assertEquals(1, shizuku.startCount)
+        assertEquals(0, microphone.startCount)
+    }
+
+    @Test
     fun featureFlagDisablesShizukuModeWithoutTryingStandardFallback() = runBlocking {
         val standard = StandardCallRecordingBackend()
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
@@ -138,11 +156,13 @@ class RecordingCoordinatorTest {
 
     private class FakeBackend(
         override val mode: RecordingMode,
+        private val startFailure: Exception? = null,
     ) : CallAudioRecordingBackend {
         var startCount = 0
         var stopCount = 0
         override suspend fun start(request: RecordingStartRequest): File {
             startCount++
+            startFailure?.let { throw it }
             return File("test-recording.wav")
         }
         override suspend fun stop(): FinalizedAudioCapture? {
