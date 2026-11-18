@@ -80,7 +80,7 @@ class RecordingCoordinator(
 ) {
     private val captureManager = CallCaptureManager(backends, shizukuCaptureEnabled)
 
-    suspend fun start(request: RecordingStartRequest): File {
+    suspend fun start(request: RecordingStartRequest, profile: CaptureDeviceProfile): File {
         require(request.participantConsentConfirmed) {
             "Confirm that you are authorized to record and have obtained all required participant consent."
         }
@@ -92,6 +92,15 @@ class RecordingCoordinator(
         }
         if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL && !shizukuCaptureEnabled) {
             throw UnsupportedOperationException("The Shizuku call-capture feature is disabled in this build.")
+        }
+
+        if (request.mode != RecordingMode.STANDARD) {
+            val candidate = captureManager.availability(profile).firstOrNull { it.mode == request.mode }
+            if (candidate?.available != true) {
+                throw UnsupportedOperationException(
+                    candidate?.reason ?: "The selected recording strategy is unavailable or not installed.",
+                )
+            }
         }
 
         val backend = captureManager.strategyFor(request.mode)
