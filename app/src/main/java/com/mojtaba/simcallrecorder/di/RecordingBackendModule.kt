@@ -2,6 +2,9 @@ package com.mojtaba.simcallrecorder.di
 
 import com.mojtaba.simcallrecorder.BuildConfig
 import com.mojtaba.simcallrecorder.recording.CallAudioRecordingBackend
+import com.mojtaba.simcallrecorder.recording.SpeakerphoneMicCallCaptureStrategy
+import com.mojtaba.simcallrecorder.recording.OemVoiceRecognitionCaptureStrategy
+import com.mojtaba.simcallrecorder.recording.AccessibilityVoiceRecognitionCaptureStrategy
 import com.mojtaba.simcallrecorder.recording.RecordingCoordinator
 import com.mojtaba.simcallrecorder.recording.ShizukuVoiceCallRecordingBackend
 import com.mojtaba.simcallrecorder.recording.StandardCallRecordingBackend
@@ -26,6 +29,24 @@ abstract class RecordingBackendBindings {
     @IntoSet
     abstract fun bindShizukuBackend(
         implementation: ShizukuVoiceCallRecordingBackend,
+    ): CallAudioRecordingBackend
+
+    @Binds
+    @IntoSet
+    abstract fun bindSpeakerphoneMicBackend(
+        implementation: SpeakerphoneMicCallCaptureStrategy,
+    ): CallAudioRecordingBackend
+
+    @Binds
+    @IntoSet
+    abstract fun bindOemVoiceRecognitionBackend(
+        implementation: OemVoiceRecognitionCaptureStrategy,
+    ): CallAudioRecordingBackend
+
+    @Binds
+    @IntoSet
+    abstract fun bindAccessibilityVoiceRecognitionBackend(
+        implementation: AccessibilityVoiceRecognitionCaptureStrategy,
     ): CallAudioRecordingBackend
 
     companion object {
