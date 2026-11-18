@@ -66,7 +66,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(Looper.getMainLooper()).idle()
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
-        withTimeout(10_000) { withTimeout(10_000) { collector.join() } }
+        withTimeout(10_000) { collector.join() }
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
