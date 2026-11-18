@@ -10,22 +10,28 @@ import org.junit.Test
 class AutomaticCallRecordingPolicyTest {
 
     @Test
-    fun armingRequiresExplicitEnablementConsentAndMicrophonePermission() {
+    fun armingRequiresExplicitEnablementConsentAvailabilityAndModePermissions() {
         val policy = AutomaticCallRecordingPolicy()
 
-        assertFalse(policy.arm(false, true, RecordingMode.SPEAKERPHONE_MIC, true))
-        assertFalse(policy.arm(true, false, RecordingMode.SPEAKERPHONE_MIC, true))
-        assertFalse(policy.arm(true, true, RecordingMode.SPEAKERPHONE_MIC, false))
+        assertFalse(policy.arm(false, true, RecordingMode.SPEAKERPHONE_MIC, true, true))
+        assertFalse(policy.arm(true, false, RecordingMode.SPEAKERPHONE_MIC, true, true))
+        assertFalse(policy.arm(true, true, RecordingMode.SPEAKERPHONE_MIC, false, true))
+        assertFalse(policy.arm(true, true, RecordingMode.SPEAKERPHONE_MIC, true, false))
         assertFalse(policy.isArmed)
     }
 
     @Test
-    fun automaticPolicyAcceptsOnlyTheStandardAcousticStrategy() {
+    fun automaticPolicyAcceptsOnlyShizukuOrStandardAcousticWhenAvailable() {
         val policy = AutomaticCallRecordingPolicy()
 
-        assertFalse(policy.arm(true, true, RecordingMode.SHIZUKU_VOICE_CALL, true))
-        assertFalse(policy.arm(true, true, RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION, true))
-        assertTrue(policy.arm(true, true, RecordingMode.SPEAKERPHONE_MIC, true))
+        assertFalse(policy.arm(true, true, RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION, true, true))
+        assertFalse(policy.arm(true, true, RecordingMode.SHIZUKU_VOICE_CALL, false, false))
+        assertTrue(policy.arm(true, true, RecordingMode.SHIZUKU_VOICE_CALL, true, false))
+        assertEquals(RecordingMode.SHIZUKU_VOICE_CALL, policy.selectedMode)
+
+        policy.disarm()
+        assertTrue(policy.arm(true, true, RecordingMode.SPEAKERPHONE_MIC, true, true))
+        assertEquals(RecordingMode.SPEAKERPHONE_MIC, policy.selectedMode)
     }
 
     @Test
@@ -59,11 +65,12 @@ class AutomaticCallRecordingPolicyTest {
 
         assertFalse(policy.isArmed)
         assertEquals(null, policy.activeSimSlotIndex)
+        assertEquals(null, policy.selectedMode)
         assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.IDLE)))
     }
 
     private fun armedPolicy() = AutomaticCallRecordingPolicy().apply {
-        check(arm(true, true, RecordingMode.SPEAKERPHONE_MIC, true))
+        check(arm(true, true, RecordingMode.SPEAKERPHONE_MIC, true, true))
     }
 
     private fun event(slot: Int, state: CallState) = CallStateEvent(
