@@ -457,6 +457,13 @@ class CallRecordingForegroundService : Service() {
             Intent(this, CallRecordingForegroundService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val stopLabel = if (
+            automaticArmed && stateMachine.state == RecordingServiceStateMachine.State.IDLE
+        ) {
+            "Disable monitoring"
+        } else {
+            "Stop recording"
+        }
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle(
@@ -476,7 +483,7 @@ class CallRecordingForegroundService : Service() {
             )
             .setOnlyAlertOnce(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .addAction(android.R.drawable.ic_media_pause, "Stop recording", stop)
+            .addAction(android.R.drawable.ic_media_pause, stopLabel, stop)
             .build()
     }
 
