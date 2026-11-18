@@ -22,30 +22,33 @@ class CallCaptureManagerTest {
     }
 
     @Test
-    fun shizukuUserServiceRequiresAndroidElevenOrNewer() {
-        listOf(24, 28, 29).forEach { sdk ->
+    fun shizukuUserServiceSupportsApi26WhenTheServerWasStartedByRootOrComputerAdb() {
+        listOf(26, 27, 28, 29, 30).forEach { sdk ->
             val option = CaptureStrategySelector.evaluate(
                 profile(sdk = sdk, shizuku = true),
             ).first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }
 
-            assertFalse("Shizuku must be unavailable on API $sdk", option.available)
-            assertTrue(option.reason.contains("API 30"))
+            assertTrue("Shizuku should be eligible on API $sdk when its live UserService is ready", option.available)
         }
-
-        val api30 = CaptureStrategySelector.evaluate(
-            profile(sdk = 30, shizuku = true),
-        ).first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }
-        assertTrue("Shizuku should be eligible on API 30 when its live service is ready", api30.available)
     }
 
     @Test
-    fun shizukuUserServiceIsUnavailableBelowItsApiMinimum() {
+    fun shizukuUserServiceIsUnavailableBelowTheAppsApiMinimum() {
         val option = CaptureStrategySelector.evaluate(
-            profile(sdk = 29, shizuku = true),
+            profile(sdk = 25, shizuku = true),
         ).first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }
 
         assertFalse(option.available)
-        assertTrue(option.reason.contains("API 30"))
+        assertTrue(option.reason.contains("API 26"))
+    }
+
+    @Test
+    fun shizukuCanBeRecommendedOnAndroidEightWhenItIsAlreadyRunning() {
+        val option = CaptureStrategySelector.evaluate(
+            profile(sdk = 26, shizuku = true, microphone = false),
+        ).first { it.recommended }
+
+        assertEquals(RecordingMode.SHIZUKU_VOICE_CALL, option.mode)
     }
 
     @Test
