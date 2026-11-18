@@ -66,8 +66,12 @@ class CallCaptureManagerTest {
 
     @Test
     fun voipNotificationIsOnlyAContextHintAndDoesNotCreateAnAudioStrategy() {
-        val withoutHint = CaptureStrategySelector.evaluate(profile(microphone = true, voipCall = false))
-        val withHint = CaptureStrategySelector.evaluate(profile(microphone = true, voipCall = true))
+        val withoutHint = CaptureStrategySelector.evaluate(
+            profile(microphone = true, accessibility = true, voipCall = false),
+        )
+        val withHint = CaptureStrategySelector.evaluate(
+            profile(microphone = true, accessibility = true, voipCall = true),
+        )
 
         assertEquals(withoutHint.map { it.mode to it.available }, withHint.map { it.mode to it.available })
         assertTrue(
