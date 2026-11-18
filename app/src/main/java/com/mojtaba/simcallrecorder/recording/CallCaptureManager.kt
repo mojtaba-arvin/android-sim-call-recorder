@@ -35,35 +35,8 @@ object CaptureStrategySelector {
                 capability = "Potential cellular uplink + downlink",
                 reason = when {
                     profile.sdkInt < 30 -> "The integrated UserService requires Android 11 or newer."
-                    !profile.shizukuAuthorized -> "Start Shizuku and explicitly authorize this app."
+                    !profile.shizukuAuthorized -> "Start Shizuku, authorize this app, and connect its recorder UserService."
                     else -> "Privileged source access is available; the modem/audio HAL still needs device testing."
-                },
-            ),
-            CaptureStrategyAvailability(
-                mode = RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION,
-                displayName = "Accessibility · VOICE_RECOGNITION",
-                available = profile.sdkInt >= 29 &&
-                    profile.recordAudioGranted && profile.accessibilityServiceEnabled,
-                recommended = false,
-                capability = "Accessibility-priority microphone input; speaker acoustics may supply remote audio",
-                reason = when {
-                    profile.sdkInt < 29 -> "The Android 10+ audio-input sharing policy is required for this path."
-                    !profile.recordAudioGranted -> "Grant the microphone permission."
-                    !profile.accessibilityServiceEnabled -> "Enable the app's explicitly described accessibility service in Android Settings."
-                    profile.voipCallNotificationPresent -> "An ongoing call notification was detected; direct playback capture is not implied."
-                    else -> "Accessibility input sharing is eligible; two-way capture must be verified on this device."
-                },
-            ),
-            CaptureStrategyAvailability(
-                mode = RecordingMode.OEM_VOICE_RECOGNITION,
-                displayName = "OEM experiment · VOICE_RECOGNITION",
-                available = profile.recordAudioGranted,
-                recommended = false,
-                capability = "Firmware-dependent microphone input",
-                reason = if (profile.recordAudioGranted) {
-                    "Candidate for OEM audio-HAL experiments on ${profile.manufacturer} ${profile.model}; no compatibility claim is inferred from the brand."
-                } else {
-                    "Grant the microphone permission."
                 },
             ),
             CaptureStrategyAvailability(
@@ -73,7 +46,34 @@ object CaptureStrategySelector {
                 recommended = false,
                 capability = "Acoustic capture only; not digital call downlink",
                 reason = if (profile.recordAudioGranted) {
-                    "The selected strategy requests speaker routing during the user-started session and records microphone input. Echo, clipping, Bluetooth and OEM routing can affect results."
+                    "Explicit acoustic mode: requests speaker routing and records microphone input. Echo, clipping, Bluetooth and OEM routing can affect results."
+                } else {
+                    "Grant the microphone permission."
+                },
+            ),
+            CaptureStrategyAvailability(
+                mode = RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION,
+                displayName = "Accessibility · VOICE_RECOGNITION (experimental)",
+                available = profile.sdkInt >= 29 &&
+                    profile.recordAudioGranted && profile.accessibilityServiceEnabled,
+                recommended = false,
+                capability = "Accessibility-priority microphone input; speaker acoustics may supply remote speech",
+                reason = when {
+                    profile.sdkInt < 29 -> "The Android 10+ audio-input sharing policy is required for this path."
+                    !profile.recordAudioGranted -> "Grant the microphone permission."
+                    !profile.accessibilityServiceEnabled -> "Enable the app's explicitly described accessibility service in Android Settings."
+                    profile.voipCallNotificationPresent -> "An ongoing call notification was detected; direct playback capture is not implied."
+                    else -> "Experimental Accessibility-priority microphone input; not a digital call downlink and not eligible for automatic selection."
+                },
+            ),
+            CaptureStrategyAvailability(
+                mode = RecordingMode.OEM_VOICE_RECOGNITION,
+                displayName = "Platform microphone experiment · VOICE_RECOGNITION",
+                available = profile.recordAudioGranted,
+                recommended = false,
+                capability = "Generic platform microphone input; not vendor-specific",
+                reason = if (profile.recordAudioGranted) {
+                    "Generic VOICE_RECOGNITION microphone candidate on ${profile.manufacturer} ${profile.model}; no OEM compatibility is inferred."
                 } else {
                     "Grant the microphone permission."
                 },
