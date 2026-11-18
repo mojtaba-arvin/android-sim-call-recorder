@@ -17,6 +17,7 @@ import com.mojtaba.simcallrecorder.recording.AudioRecordingDiagnostics
 import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
 import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfileProvider
 import com.mojtaba.simcallrecorder.recording.RecordingCoordinator
+import com.mojtaba.simcallrecorder.recording.CaptureStrategySelector
 import com.mojtaba.simcallrecorder.recording.RecordingMode
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -30,6 +31,26 @@ import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Immutable public snapshot for the sample UI and SDK consumers. No capture backend or Android
+ * service implementation types cross the SDK boundary.
+ */
+data class CaptureStrategyOption(
+    val mode: RecordingMode,
+    val displayName: String,
+    val available: Boolean,
+    val recommended: Boolean,
+    val capability: String,
+    val reason: String,
+)
+
+data class CaptureStrategySnapshot(
+    val options: List<CaptureStrategyOption> = emptyList(),
+    val microphonePermissionGranted: Boolean = false,
+    val notificationListenerEnabled: Boolean = false,
+    val voipCallNotificationPresent: Boolean = false,
+)
 
 /**
  * Supported integration facade for the call-recorder engine.
@@ -87,6 +108,25 @@ class SimCallRecorderSdk @Inject internal constructor(
     fun hasMicrophonePermission(): Boolean = permissions.hasMicrophonePermission()
 
     val shizukuHostUid: Int? get() = shizukuClient.authorizedHostUid
+
+    fun captureStrategySnapshot(): CaptureStrategySnapshot {
+        val profile = profileProvider.snapshot()
+        return CaptureStrategySnapshot(
+            options = CaptureStrategySelector.evaluate(profile).map { option ->
+                CaptureStrategyOption(
+                    mode = option.mode,
+                    displayName = option.displayName,
+                    available = option.available,
+                    recommended = option.recommended,
+                    capability = option.capability,
+                    reason = option.reason,
+                )
+            },
+            microphonePermissionGranted = profile.recordAudioGranted,
+            notificationListenerEnabled = profile.notificationListenerEnabled,
+            voipCallNotificationPresent = profile.voipCallNotificationPresent,
+        )
+    }
 
     fun selectBestRecordingMode(): RecordingMode? =
         coordinator.selectBest(profileProvider.snapshot())?.mode

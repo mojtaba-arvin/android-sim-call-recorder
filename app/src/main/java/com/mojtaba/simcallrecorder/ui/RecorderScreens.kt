@@ -2,13 +2,8 @@ package com.mojtaba.simcallrecorder.ui
 
 import android.net.Uri
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
-import com.mojtaba.simcallrecorder.recording.CallAudioAccessibilityService
-import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfile
-import com.mojtaba.simcallrecorder.recording.CaptureStrategySelector
-import com.mojtaba.simcallrecorder.recording.VoipCallNotificationRegistry
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,6 +49,7 @@ import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
 import com.mojtaba.simcallrecorder.recording.RecordingMode
+import com.mojtaba.simcallrecorder.sdk.CaptureStrategySnapshot
 import kotlinx.coroutines.delay
 import java.io.File
 import java.text.SimpleDateFormat
@@ -70,7 +66,7 @@ fun RecorderRootScreen(
     records: List<CallRecord>,
     settings: RecorderSettings,
     selectedRecord: CallRecord?,
-    shizukuServiceUid: Int? = null,
+    captureStrategySnapshot: CaptureStrategySnapshot,
     diagnosticsContent: @Composable () -> Unit,
     onFilterChanged: (CallRecordFilter) -> Unit,
     onOpenRecord: (CallRecord) -> Unit,
@@ -119,7 +115,7 @@ fun RecorderRootScreen(
                 RecorderDestination.DIAGNOSTICS -> diagnosticsContent()
                 RecorderDestination.SETTINGS -> RecorderSettingsScreen(
                     settings = settings,
-                    shizukuServiceUid = shizukuServiceUid,
+                    captureStrategySnapshot = captureStrategySnapshot,
                     onStorageLimitChanged = onStorageLimitChanged,
                     onRecordingModeChanged = onRecordingModeChanged,
                     onRequestMicrophonePermission = onRequestMicrophonePermission,
@@ -415,7 +411,7 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
 @Composable
 fun RecorderSettingsScreen(
     settings: RecorderSettings,
-    shizukuServiceUid: Int?,
+    captureStrategySnapshot: CaptureStrategySnapshot,
     onStorageLimitChanged: (Int) -> Unit,
     onRecordingModeChanged: (RecordingMode) -> Unit,
     onRequestMicrophonePermission: () -> Unit,
@@ -427,27 +423,8 @@ fun RecorderSettingsScreen(
         Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("Capture strategy matrix", style = MaterialTheme.typography.titleMedium)
         val context = LocalContext.current
-        val microphoneGranted = context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED
-        // A Shizuku permission grant is not enough: the authorized UserService must be
-        // connected and its actual host UID must be shell (2000) or root (0).
-        val shizukuAuthorized = shizukuServiceUid == 2000 || shizukuServiceUid == 0
-        val enabledNotificationListeners = Settings.Secure.getString(
-            context.contentResolver,
-            "enabled_notification_listeners",
-        ).orEmpty()
-        val notificationListenerEnabled = enabledNotificationListeners.contains(context.packageName)
-        val profile = CaptureDeviceProfile(
-            sdkInt = Build.VERSION.SDK_INT,
-            manufacturer = Build.MANUFACTURER,
-            model = Build.MODEL,
-            recordAudioGranted = microphoneGranted,
-            shizukuAuthorized = shizukuAuthorized,
-            accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(context),
-            notificationListenerEnabled = notificationListenerEnabled,
-            voipCallNotificationPresent = VoipCallNotificationRegistry.packageName != null,
-        )
-        val options = CaptureStrategySelector.evaluate(profile)
+        val microphoneGranted = captureStrategySnapshot.microphonePermissionGranted
+        val options = captureStrategySnapshot.options
         val recommendedMode = options.firstOrNull { it.recommended }?.mode
         Text(
             "Device: ${Build.MANUFACTURER} ${Build.MODEL} · Android API ${Build.VERSION.SDK_INT}",
@@ -520,9 +497,9 @@ fun RecorderSettingsScreen(
             }) { Text("Notification access") }
         }
         Text(
-            if (profile.notificationListenerEnabled && profile.voipCallNotificationPresent) {
+            if (captureStrategySnapshot.notificationListenerEnabled && captureStrategySnapshot.voipCallNotificationPresent) {
                 "An ongoing VoIP call notification was observed. Only package/session presence is used; notification text and notification audio are not captured."
-            } else if (profile.notificationListenerEnabled) {
+            } else if (captureStrategySnapshot.notificationListenerEnabled) {
                 "Notification access is enabled. It detects CATEGORY_CALL notifications only and does not expose notification sound or digital call audio."
             } else {
                 "Notification access is optional and used only to recognize an ongoing VoIP call notification. It does not grant audio playback capture."

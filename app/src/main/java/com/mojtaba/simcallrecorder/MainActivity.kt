@@ -39,6 +39,7 @@ import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
 import com.mojtaba.simcallrecorder.recording.RecordingMode
+import com.mojtaba.simcallrecorder.sdk.CaptureStrategySnapshot
 import com.mojtaba.simcallrecorder.sdk.SdkPermissionPurpose
 import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdk
 import com.mojtaba.simcallrecorder.ui.RecorderRootScreen
@@ -80,6 +81,7 @@ class MainActivity : ComponentActivity() {
     private var callRecords by mutableStateOf(emptyList<CallRecord>())
     private var selectedRecord by mutableStateOf<CallRecord?>(null)
     private var recorderSettings by mutableStateOf(RecorderSettings())
+    private var captureStrategySnapshot by mutableStateOf(CaptureStrategySnapshot())
     private var recordsJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -177,7 +179,7 @@ class MainActivity : ComponentActivity() {
                         records = callRecords,
                         settings = recorderSettings,
                         selectedRecord = selectedRecord,
-                        shizukuServiceUid = recorderServiceUid,
+                        captureStrategySnapshot = captureStrategySnapshot,
                         onFilterChanged = ::refreshRecords,
                         onOpenRecord = { selectedRecord = it },
                         onDeleteRecord = { record ->
@@ -279,10 +281,12 @@ class MainActivity : ComponentActivity() {
 
     private fun refreshPermissionState() {
         missingPermissions = recorderSdk.missingPermissions(SdkPermissionPurpose.CALL_STATE)
+        captureStrategySnapshot = recorderSdk.captureStrategySnapshot()
     }
 
     private fun refreshDiagnostics() {
         audioRoutes = recorderSdk.audioRoutes()
+        captureStrategySnapshot = recorderSdk.captureStrategySnapshot()
         if (!recorderSdk.hasCallStatePermission()) {
             activeSims = emptyList()
             return

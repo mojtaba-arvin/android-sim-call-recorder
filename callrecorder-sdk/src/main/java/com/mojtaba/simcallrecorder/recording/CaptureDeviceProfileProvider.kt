@@ -2,8 +2,10 @@ package com.mojtaba.simcallrecorder.recording
 
 import android.Manifest
 import android.content.Context
+import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -25,6 +27,13 @@ internal class CaptureDeviceProfileProvider @Inject constructor(
         val accessibilityEnabled = runCatching {
             CallAudioAccessibilityService.isEnabled(context)
         }.getOrDefault(false)
+        val enabledListeners = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_NOTIFICATION_LISTENERS,
+        ).orEmpty().split(':')
+        val expectedListener = ComponentName(context, VoipCallNotificationListenerService::class.java).flattenToString()
+        val notificationListenerEnabled = expectedListener in enabledListeners
+
         return CaptureDeviceProfile(
             sdkInt = Build.VERSION.SDK_INT,
             manufacturer = Build.MANUFACTURER,
@@ -33,8 +42,8 @@ internal class CaptureDeviceProfileProvider @Inject constructor(
                 PackageManager.PERMISSION_GRANTED,
             shizukuAuthorized = hostUid == 2_000 || hostUid == 0,
             accessibilityServiceEnabled = accessibilityEnabled,
-            notificationListenerEnabled = false,
-            voipCallNotificationPresent = false,
+            notificationListenerEnabled = notificationListenerEnabled,
+            voipCallNotificationPresent = VoipCallNotificationRegistry.packageName != null,
         )
     }
 }
