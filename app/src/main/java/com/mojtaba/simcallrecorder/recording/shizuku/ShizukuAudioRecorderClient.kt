@@ -313,9 +313,7 @@ class ShizukuAudioRecorderClient @Inject constructor(
         } ?: true
         if (!drained) {
             reader?.let { runCatching { it.close() } }
-            writerJob?.let { job ->
-                runCatching { withTimeout(PIPE_CLOSE_TIMEOUT_MS) { job.join() } }
-            }
+            runCatching { withTimeout(PIPE_CLOSE_TIMEOUT_MS) { writerJob.join() } }
         }
         activeReadPipe = null
         copyJob = null
