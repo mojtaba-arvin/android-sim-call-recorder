@@ -13,7 +13,7 @@ import androidx.annotation.Keep
  * This is not an exported Android Service and is never started automatically by the app.
  */
 @Keep
-class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub {
+internal class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub {
     private val shellAttributionReady = ShizukuShellAttribution.detachFromApplication()
 
     @Volatile

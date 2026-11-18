@@ -41,7 +41,7 @@ lifecycleScope.launch {
 
 Use `createArmAutomaticRecordingIntent` only after the host UI has obtained the required Android permissions and explicit participant-consent confirmation. Start the returned intent with `ContextCompat.startForegroundService`. Use `createStopRecordingIntent` for the visible Stop action.
 
-Implementation classes are kept in the SDK module; the facade is the supported integration contract. The SDK does not promise a specific cellular audio route: Shizuku `VOICE_CALL` depends on shell/root permission and OEM audio-HAL behavior, while Speakerphone + MIC is acoustic capture.
+Capture backends, Room entities/DAOs, repositories, services, platform adapters, and Hilt modules use Kotlin `internal` visibility. The public integration surface is the `SimCallRecorderSdk` facade and the public domain models/recording-mode enum. The SDK does not promise a specific cellular audio route: Shizuku `VOICE_CALL` depends on shell/root permission and OEM audio-HAL behavior, while Speakerphone + MIC is acoustic capture.
 
 ## Validation
 

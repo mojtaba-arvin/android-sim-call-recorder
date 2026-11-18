@@ -1,6 +1,6 @@
 package com.mojtaba.simcallrecorder.domain.model
 
-internal data class CallRecord(
+data class CallRecord(
     val id: Long = 0,
     val startedAtEpochMillis: Long,
     val durationMillis: Long?,
@@ -21,7 +21,7 @@ internal data class CallRecord(
     val captureDiagnostics: String? = null,
 )
 
-internal data class CallRecordFilter(
+data class CallRecordFilter(
     val simSlotIndex: Int? = null,
     val fromEpochMillis: Long? = null,
     /** Exclusive upper bound, normally midnight after the selected end date. */
