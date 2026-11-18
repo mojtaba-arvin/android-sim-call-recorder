@@ -20,7 +20,7 @@ class RecordingCoordinatorTest {
         }.exceptionOrNull()
 
         assertTrue(failure is UnsupportedOperationException)
-        assertTrue(failure?.message.orEmpty().contains("cannot capture cellular call audio"))
+        assertTrue(failure?.message.orEmpty().contains("cannot capture cellular call uplink/downlink"))
         assertEquals(0, shizuku.startCount)
     }
 
