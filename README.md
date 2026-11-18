@@ -83,7 +83,7 @@ Read the detailed research and safety constraints:
 ## Diagnostics implementation
 
 - Subscription-aware call-state observation using `TelephonyCallback` on API 31+ and `PhoneStateListener` on API 28–30.
-- Device diagnostics screen showing device/build information, visible SIM slots, per-SIM call-state events, and Android-reported audio input/output endpoints.
+- Device diagnostics screen showing device/build information, visible SIM slots, per-SIM call-state events, Android-reported audio input/output endpoints, and live `AudioRecordingCallback` source/silencing diagnostics on API 29+.
 - AudioManager communication-route reporting on API 31+.
 - Robolectric tests for modern/legacy call-state delivery, multi-SIM slot association, permission enforcement, audio route inventory, and communication-route selection.
 - Recording-service controller tests for shell/root UID gating, duplicate starts, stop/restart, and initialization failure/retry.
