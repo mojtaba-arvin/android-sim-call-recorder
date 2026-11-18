@@ -165,6 +165,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
+            set +e
             mkdir -p app/build/reports/emulator
             # Some API 26 emulator images reject logcat buffer clearing. Diagnostics are best-effort.
             adb logcat -c || true
