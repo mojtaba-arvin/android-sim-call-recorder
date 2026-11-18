@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_SOURCES="app/src/main app/src/test app/src/androidTest"
+SOURCE_DIRS=()
+for path in app/src/main app/src/test app/src/androidTest; do
+  [[ -d "$path" ]] && SOURCE_DIRS+=("$path")
+done
+
 FORBIDDEN='com\.mojtaba\.simcallrecorder\.(core|data|di|recording|domain\.(repository|usecase))'
 
-if grep -RInE --include='*.kt' "$FORBIDDEN" $APP_SOURCES; then
+if (("${#SOURCE_DIRS[@]}" > 0)) && grep -RInE --include='*.kt' "$FORBIDDEN" "${SOURCE_DIRS[@]}"; then
   echo "The sample app must consume the SDK public API, not implementation packages." >&2
   exit 1
 fi
