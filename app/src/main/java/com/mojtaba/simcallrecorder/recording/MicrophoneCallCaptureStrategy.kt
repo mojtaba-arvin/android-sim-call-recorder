@@ -5,15 +5,21 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
+import android.media.AudioRecordingConfiguration
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.annotation.SuppressLint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.PipedInputStream
@@ -21,6 +27,19 @@ import java.io.PipedOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlin.math.max
+
+/**
+ * Process-wide diagnostic snapshot for the currently active app-UID microphone capture.
+ * An unsilenced configuration is not evidence that remote call audio is present.
+ */
+object AudioRecordingDiagnostics {
+    private val _status = MutableStateFlow("No microphone capture active")
+    val status: StateFlow<String> = _status.asStateFlow()
+
+    internal fun update(value: String) {
+        _status.value = value
+    }
+}
 
 class SpeakerphoneMicCallCaptureStrategy @Inject constructor(
     @ApplicationContext context: Context,
@@ -116,6 +135,7 @@ private class MicrophoneCaptureSession(
     @Volatile private var startedAtEpochMillis: Long = 0L
     @Volatile private var activeAudioSource: Int = audioSource
     @Volatile private var sourceFallbackReason: String? = null
+    @Volatile private var audioRecordingCallback: AudioManager.AudioRecordingCallback? = null
 
     val audioSourceLabel: String
         get() {
@@ -201,6 +221,7 @@ private class MicrophoneCaptureSession(
                     "No microphone source could start for $displayName. ${failures.joinToString("; ")}",
                 )
             recorder = record
+            registerAudioRecordingDiagnostics(record)
             startedAtEpochMillis = System.currentTimeMillis()
             wavResult = null
             writerFailure = null
@@ -269,6 +290,7 @@ private class MicrophoneCaptureSession(
                 runCatching { record.release() }
             }
             runCatching { pipeOutput?.close() }
+            unregisterAudioRecordingDiagnostics()
             restoreAudioRoute()
             throw failure
         }
@@ -277,6 +299,7 @@ private class MicrophoneCaptureSession(
     suspend fun stop(): FinalizedAudioCapture? = withContext(Dispatchers.IO) {
         if (!running.getAndSet(false)) return@withContext null
 
+        unregisterAudioRecordingDiagnostics()
         val record = recorder
         if (record != null) {
             runCatching { if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop() }
@@ -309,6 +332,53 @@ private class MicrophoneCaptureSession(
             rmsSample = result.rmsSample,
             isSilent = result.isSilent,
         )
+    }
+
+    private fun registerAudioRecordingDiagnostics(record: AudioRecord) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            AudioRecordingDiagnostics.update("AudioRecordingCallback requires Android 10 or newer.")
+            return
+        }
+        val callback = object : AudioManager.AudioRecordingCallback() {
+            override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>) {
+                val configuration = configs.firstOrNull {
+                    it.clientAudioSessionId == record.audioSessionId
+                }
+                if (configuration == null) {
+                    AudioRecordingDiagnostics.update(
+                        "No active framework recording configuration for session ${record.audioSessionId}.",
+                    )
+                    return
+                }
+                val device = configuration.audioDevice?.let {
+                    "${it.productName} (type=${it.type})"
+                } ?: "unknown input device"
+                AudioRecordingDiagnostics.update(
+                    "session=${configuration.clientAudioSessionId}; " +
+                        "source=${audioSourceName(configuration.clientAudioSource)}; " +
+                        "device=$device; " +
+                        "clientFormat=${configuration.clientFormat.sampleRate}Hz/" +
+                        "${configuration.clientFormat.channelCount}ch; " +
+                        "clientSilenced=${configuration.isClientSilenced}",
+                )
+            }
+        }
+        audioRecordingCallback = callback
+        runCatching {
+            audioManager.registerAudioRecordingCallback(callback, Handler(Looper.getMainLooper()))
+        }.onFailure {
+            audioRecordingCallback = null
+            AudioRecordingDiagnostics.update("Could not register AudioRecordingCallback: ${it.message}")
+        }
+    }
+
+    private fun unregisterAudioRecordingDiagnostics() {
+        val callback = audioRecordingCallback ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching { audioManager.unregisterAudioRecordingCallback(callback) }
+        }
+        audioRecordingCallback = null
+        AudioRecordingDiagnostics.update("No microphone capture active")
     }
 
     private fun audioSourceName(source: Int): String = when (source) {
