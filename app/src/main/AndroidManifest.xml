@@ -15,6 +15,11 @@
     <application
         android:name=".SimCallRecorderApplication"
         android:allowBackup="false"
+        android:backupInForeground="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
         android:label="SIM Call Recorder"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">

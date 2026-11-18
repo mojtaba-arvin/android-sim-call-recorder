@@ -511,17 +511,15 @@ class CallRecordingForegroundService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getSystemService(NotificationManager::class.java).createNotificationChannel(
-                NotificationChannel(
-                    NOTIFICATION_CHANNEL,
-                    "Call recording",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Visible notification while user-authorized call-audio capture is active."
-                },
-            )
-        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(
+                NOTIFICATION_CHANNEL,
+                "Call recording",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Visible notification while user-authorized call-audio capture is active."
+            },
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

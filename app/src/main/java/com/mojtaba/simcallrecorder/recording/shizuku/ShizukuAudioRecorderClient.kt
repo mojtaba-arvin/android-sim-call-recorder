@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
@@ -137,10 +136,6 @@ class ShizukuAudioRecorderClient @Inject constructor(
             remote = null
             serviceConnection = null
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            _connectionStatus.value = "Shizuku capture requires Android 8.0 (API 26) or newer."
-            return
-        }
         if (!runCatching { Shizuku.pingBinder() }.getOrDefault(false)) {
             _connectionStatus.value = "Shizuku is not running. Start it, then reconnect here."
             return
@@ -160,10 +155,6 @@ class ShizukuAudioRecorderClient @Inject constructor(
 
     @MainThread
     fun connectOrRequestPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            _connectionStatus.value = "Shizuku capture requires Android 8.0 (API 26) or newer."
-            return
-        }
         if (!runCatching { Shizuku.pingBinder() }.getOrDefault(false)) {
             _connectionStatus.value = "Shizuku is not running. Start it, then tap Connect again."
             return
