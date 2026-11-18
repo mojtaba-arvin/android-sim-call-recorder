@@ -29,7 +29,7 @@ internal class CaptureDeviceProfileProvider @Inject constructor(
         }.getOrDefault(false)
         val enabledListeners = Settings.Secure.getString(
             context.contentResolver,
-            Settings.Secure.ENABLED_NOTIFICATION_LISTENERS,
+            "enabled_notification_listeners",
         ).orEmpty().split(':')
         val expectedListener = ComponentName(context, VoipCallNotificationListenerService::class.java).flattenToString()
         val notificationListenerEnabled = expectedListener in enabledListeners

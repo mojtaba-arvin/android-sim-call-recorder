@@ -21,7 +21,7 @@ internal data class AudioDeviceInventory(
     val selectedCommunicationDeviceId: Int?,
 )
 
-fun interface AudioDeviceInventorySource {
+internal fun interface AudioDeviceInventorySource {
     fun getInventory(): AudioDeviceInventory
 }
 

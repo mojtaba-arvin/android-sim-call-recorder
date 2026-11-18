@@ -79,7 +79,7 @@ class SimCallRecorderSdk @Inject internal constructor(
 
     /** Recent telephony events, retained as a bounded, read-only state stream. */
     val callStates: StateFlow<List<CallStateEvent>> = diagnostics.observeCallStateEvents()
-        .scan(emptyList()) { events, event -> (events + event).takeLast(100) }
+        .scan(emptyList<CallStateEvent>()) { events, event -> (events + event).takeLast(100) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Default recordings stream; use [observeRecordings] when filtering is required. */
