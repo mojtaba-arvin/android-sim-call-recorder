@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import androidx.annotation.MainThread
+import com.mojtaba.simcallrecorder.recording.FinalizedAudioCapture
 import com.mojtaba.simcallrecorder.recording.WavCaptureResult
 import com.mojtaba.simcallrecorder.recording.WavPcmFileWriter
 import dagger.hilt.android.qualifiers.ApplicationContext
