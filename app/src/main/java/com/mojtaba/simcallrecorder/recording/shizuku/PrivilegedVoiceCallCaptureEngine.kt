@@ -85,7 +85,17 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                 listOf(AudioFormat.CHANNEL_IN_MONO to 1)
             }
 
-            for ((channelMask, channelCount) in candidates) {
+            // These sources all remain protected by CAPTURE_AUDIO_OUTPUT. Shell/root identity
+            // is not a permission bypass; each candidate is merely attempted and may be rejected.
+            // VOICE_DOWNLINK/UPLINK are isolated one-direction experiments, never combined or
+            // represented as a full-duplex capture.
+            val sourceCandidates = listOf(
+                MediaRecorder.AudioSource.VOICE_CALL,
+                MediaRecorder.AudioSource.VOICE_DOWNLINK,
+                MediaRecorder.AudioSource.VOICE_UPLINK,
+            )
+            for (audioSource in sourceCandidates) {
+                for ((channelMask, channelCount) in candidates) {
                 val minBufferBytes = try {
                     AudioRecord.getMinBufferSize(
                         sampleRate,
@@ -104,20 +114,20 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
 
                 val record = try {
                     AudioRecord(
-                        MediaRecorder.AudioSource.VOICE_CALL,
+                        audioSource,
                         sampleRate,
                         channelMask,
                         AudioFormat.ENCODING_PCM_16BIT,
                         max(minBufferBytes * 4, sampleRate * channelCount),
                     )
                 } catch (exception: Exception) {
-                    lastError = "VOICE_CALL AudioRecord creation failed: ${exception.javaClass.simpleName}: ${exception.message}"
+                    lastError = "AudioSource $audioSource AudioRecord creation failed: ${exception.javaClass.simpleName}: ${exception.message}"
                     continue
                 }
 
                 if (record.state != AudioRecord.STATE_INITIALIZED) {
                     runCatching { record.release() }
-                    lastError = "VOICE_CALL AudioRecord did not initialize for ${channelCount}-channel PCM."
+                    lastError = "AudioSource $audioSource did not initialize for ${channelCount}-channel PCM."
                     continue
                 }
 
@@ -137,7 +147,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                 } catch (exception: Exception) {
                     closeQuietly(sink)
                     runCatching { record.release() }
-                    lastError = "VOICE_CALL start failed: ${exception.javaClass.simpleName}: ${exception.message}"
+                    lastError = "AudioSource $audioSource start failed: ${exception.javaClass.simpleName}: ${exception.message}"
                     continue
                 }
 
@@ -156,11 +166,12 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                 }
 
                 return channelCount
+                }
             }
 
             closeQuietly(output)
             if (lastError.isBlank()) {
-                lastError = "No supported VOICE_CALL AudioRecord configuration was available."
+                lastError = "No supported privileged call-audio AudioRecord source/format was available."
             }
             return 0
         }
