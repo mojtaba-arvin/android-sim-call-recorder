@@ -394,7 +394,7 @@ fun RecorderSettingsScreen(
         }.getOrDefault(false)
         val enabledNotificationListeners = Settings.Secure.getString(
             context.contentResolver,
-            Settings.Secure.ENABLED_NOTIFICATION_LISTENERS,
+            "enabled_notification_listeners",
         ).orEmpty()
         val notificationListenerEnabled = enabledNotificationListeners.contains(context.packageName)
         val profile = CaptureDeviceProfile(
