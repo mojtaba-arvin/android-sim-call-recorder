@@ -40,9 +40,9 @@ class DefaultCallRecordRepository @Inject constructor(
         dao.insert(record.toEntity())
     }
 
-    override suspend fun updateCaptureDiagnostics(recordId: Long, diagnostics: String): Boolean =
+    override suspend fun appendCaptureDiagnostic(recordId: Long, diagnostic: String): Boolean =
         withContext(Dispatchers.IO) {
-            dao.updateCaptureDiagnostics(recordId, diagnostics.take(MAX_DIAGNOSTICS_LENGTH)) == 1
+            dao.appendCaptureDiagnostic(recordId, diagnostic.take(MAX_DIAGNOSTIC_EVENT_LENGTH)) == 1
         }
 
     override suspend fun completeRecording(
@@ -167,6 +167,6 @@ class DefaultCallRecordRepository @Inject constructor(
         const val STATUS_RECORDING = "RECORDING"
         const val STATUS_FAILED = "FAILED"
         const val MAX_FAILURE_REASON_LENGTH = 500
-        const val MAX_DIAGNOSTICS_LENGTH = 2_000
+        const val MAX_DIAGNOSTIC_EVENT_LENGTH = 500
     }
 }

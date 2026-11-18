@@ -71,8 +71,8 @@ interface CallRecordDao {
     )
     suspend fun updateActiveStatus(recordId: Long, status: String, reason: String?): Int
 
-    @Query("UPDATE call_records SET captureDiagnostics = :diagnostics WHERE id = :recordId AND status = 'RECORDING'")
-    suspend fun updateCaptureDiagnostics(recordId: Long, diagnostics: String): Int
+    @Query("UPDATE call_records SET captureDiagnostics = substr(CASE WHEN captureDiagnostics IS NULL OR captureDiagnostics = '' THEN :diagnostics ELSE captureDiagnostics || char(10) || :diagnostics END, -2000) WHERE id = :recordId AND status = 'RECORDING'")
+    suspend fun appendCaptureDiagnostic(recordId: Long, diagnostics: String): Int
 
     @Query("UPDATE call_records SET status = 'INTERRUPTED', failureReason = 'Process stopped before finalization' WHERE status = 'RECORDING'")
     suspend fun markAllActiveAsInterrupted(): Int

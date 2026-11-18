@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 interface CallRecordRepository {
     fun observeRecords(filter: CallRecordFilter = CallRecordFilter()): Flow<List<CallRecord>>
     suspend fun createActiveRecording(record: CallRecord): Long
-    suspend fun updateCaptureDiagnostics(recordId: Long, diagnostics: String): Boolean
+    suspend fun appendCaptureDiagnostic(recordId: Long, diagnostic: String): Boolean
     suspend fun completeRecording(recordId: Long, completion: CallRecordCompletion): Boolean
     suspend fun markRecordingFailed(recordId: Long, reason: String): Boolean
     suspend fun markActiveRecordingsInterrupted(): Int

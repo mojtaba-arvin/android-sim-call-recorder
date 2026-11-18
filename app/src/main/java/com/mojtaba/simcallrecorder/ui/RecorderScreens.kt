@@ -525,9 +525,9 @@ fun RecorderSettingsScreen(
         }
         HorizontalDivider()
         Text("Recording trigger", style = MaterialTheme.typography.titleMedium)
-        Text("Manual only", fontWeight = FontWeight.SemiBold)
+        Text("Automatic when explicitly armed", fontWeight = FontWeight.SemiBold)
         Text(
-            "Automatic recording on RINGING/OFFHOOK is disabled. Start remains an explicit user action while the selected SIM reports OFFHOOK.",
+            "Arm monitoring from Diagnostics while the app is visible and consent is confirmed. RINGING never starts capture; the selected strategy starts on a known SIM OFFHOOK and stops on that SIM returning to IDLE. Shizuku remains fixed to VOICE_CALL and never falls back to microphone capture.",
             style = MaterialTheme.typography.bodySmall,
         )
         Text("Privacy", style = MaterialTheme.typography.titleMedium)

@@ -288,7 +288,7 @@ class CallRecordingForegroundService : Service() {
                     RecordingMode.SHIZUKU_VOICE_CALL -> serviceScope.launch {
                         recorderClient.captureStatus.collect { status ->
                             activeRecordId?.let { recordId ->
-                                callRecordRepository.updateCaptureDiagnostics(recordId, status)
+                                callRecordRepository.appendCaptureDiagnostic(recordId, "[${System.currentTimeMillis()}] $status")
                             }
                             if (status.startsWith("Saved ") || status.startsWith("Recording file was not saved:")) {
                                 stopCapture(latestStartId, "Capture stream finished")

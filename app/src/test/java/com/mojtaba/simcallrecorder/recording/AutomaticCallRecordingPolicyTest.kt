@@ -50,6 +50,21 @@ class AutomaticCallRecordingPolicyTest {
     }
 
     @Test
+    fun duplicateOffhookAndConcurrentSimEventsDoNotStartAnotherSession() {
+        val policy = armedPolicy()
+        assertEquals(AutomaticCallRecordingPolicy.Decision.START, policy.onCallState(event(0, CallState.OFFHOOK)))
+        assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.OFFHOOK)))
+        // A second SIM entering OFFHOOK while the first SIM is active must not replace its session.
+        assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(1, CallState.OFFHOOK)))
+        assertEquals(0, policy.activeSimSlotIndex)
+        // A call-waiting RINGING event cannot start a second recording.
+        assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.RINGING)))
+        assertEquals(AutomaticCallRecordingPolicy.Decision.STOP, policy.onCallState(event(0, CallState.IDLE)))
+        // A stale duplicate IDLE cannot stop a later call.
+        assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.IDLE)))
+    }
+
+    @Test
     fun unknownSimSlotNeverStartsAutomaticCapture() {
         val policy = armedPolicy()
         assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(-1, CallState.OFFHOOK)))

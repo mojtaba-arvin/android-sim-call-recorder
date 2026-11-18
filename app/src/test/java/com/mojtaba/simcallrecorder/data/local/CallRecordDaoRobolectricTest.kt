@@ -59,11 +59,13 @@ class CallRecordDaoRobolectricTest {
         val dao = database.callRecordDao()
         val id = dao.insert(record(startedAt = 5_000L, simSlot = 0, file = "/private/recordings/diagnostic.wav"))
 
-        val snapshot = "session=17; clientSource=MIC; activeSource=MIC; clientSilenced=true"
-        assertEquals(1, dao.updateCaptureDiagnostics(id, snapshot))
+        val first = "[1000] session=17; clientSource=MIC; clientSilenced=false"
+        val second = "[2000] session=17; clientSource=MIC; clientSilenced=true"
+        assertEquals(1, dao.appendCaptureDiagnostic(id, first))
+        assertEquals(1, dao.appendCaptureDiagnostic(id, second))
 
         val saved = dao.findById(id)
-        assertEquals(snapshot, saved?.captureDiagnostics)
+        assertEquals("$first\\n$second", saved?.captureDiagnostics)
     }
 
     @Test
