@@ -182,7 +182,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         lifecycleScope.launch {
-            recorderClient.captureStatus.collect { recorderCaptureStatus = it }
+            CallRecordingForegroundService.serviceStatus.collect { recorderCaptureStatus = it }
         }
         lifecycleScope.launch {
             AudioRecordingDiagnostics.status.collect { audioInputDiagnostics = it }
