@@ -3,7 +3,7 @@ package com.mojtaba.simcallrecorder
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdk
 import dagger.hilt.EntryPoint
-import dagger.hilt.EntryPointAccessors
+import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import org.junit.Assert.assertEquals
