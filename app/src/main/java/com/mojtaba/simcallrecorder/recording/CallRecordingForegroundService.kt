@@ -432,11 +432,18 @@ class CallRecordingForegroundService : Service() {
         )
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle("SIM Call Recorder · Recording")
+            .setContentTitle(
+                if (automaticArmed && stateMachine.state == RecordingServiceStateMachine.State.IDLE) {
+                    "SIM Call Recorder · Automatic monitoring"
+                } else {
+                    "SIM Call Recorder · Recording"
+                },
+            )
             .setContentText(message)
             .setContentIntent(openApp)
             .setOngoing(
-                stateMachine.state == RecordingServiceStateMachine.State.STARTING ||
+                automaticArmed ||
+                    stateMachine.state == RecordingServiceStateMachine.State.STARTING ||
                     stateMachine.state == RecordingServiceStateMachine.State.RECORDING ||
                     stateMachine.state == RecordingServiceStateMachine.State.STOPPING,
             )
