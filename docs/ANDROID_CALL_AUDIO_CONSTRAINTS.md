@@ -48,7 +48,7 @@ The optional capture prototype has these layers:
 4. A user-initiated foreground service shows a persistent notification with a Stop action. The app requests notification permission before starting capture.
 5. The file writer rejects an empty stream and computes peak/RMS. It labels an all-zero WAV as digital silence. Non-silent audio is still not proof of both talk directions; hardware/firmware and carrier behavior must be validated separately.
 
-Capture is manual and visible in the current prototype. It does not automatically begin on OFFHOOK or send audio off-device. The accepted product target is consent-gated automatic Standard-mode microphone/acoustic capture with a persistent notification; Shizuku remains a separate explicit, fail-closed mode. See [the automatic lifecycle design](AUTO_RECORDING_LIFECYCLE.md).
+Capture is armed by a visible user action and then begins automatically on matching SIM OFFHOOK. The app selects Shizuku VOICE_CALL only when its live UserService, UID and shell audio attribution are ready; otherwise it selects the separately labelled Speakerphone + MIC acoustic strategy if RECORD_AUDIO is granted. The selected mode stays fixed until disarm, and a Shizuku failure never falls back to microphone capture. Audio remains on-device. See [the automatic lifecycle design](AUTO_RECORDING_LIFECYCLE.md).
 
 ### Requirements and expected limitations
 
