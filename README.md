@@ -53,12 +53,12 @@ The application exposes multiple strategies through a common `CallCaptureStrateg
 The Shizuku backend works as follows:
 
 - The user must run Shizuku/Sui and explicitly authorize the app.
-- The capture helper runs as shell UID 2000 or root UID 0 and opens `AudioRecord(VOICE_CALL)`.
-- It prefers 48 kHz PCM16 stereo, then falls back to mono (still VOICE_CALL only).
+- The capture helper runs as shell UID 2000 or root UID 0, establishes shell audio attribution, clears the incoming Binder caller identity, and opens `AudioRecord(VOICE_CALL)`.
+- It prefers 48 kHz PCM16 stereo, then falls back to mono (still VOICE_CALL only; one-sided UPLINK/DOWNLINK are rejected).
 - PCM is written as a WAV file in the app-private `files/recordings` directory.
 - A foreground notification remains visible and includes a Stop action.
 - Empty streams are rejected; all-zero recordings are labelled silent.
-- No automatic speakerphone toggle and no MIC fallback are used.
+- No MIC fallback or one-sided UPLINK/DOWNLINK fallback is used in the Shizuku path.
 
 This is a device-dependent privileged capture path, not a guarantee of two-sided audio on every model/carrier. CallVault and ShizuCallRecorder were reviewed as open-source references, but their GPL code was not copied. This project remains MIT-licensed. The Shizuku API itself is MIT-licensed.
 
