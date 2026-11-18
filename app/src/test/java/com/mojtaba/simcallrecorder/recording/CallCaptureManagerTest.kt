@@ -105,6 +105,20 @@ class CallCaptureManagerTest {
     }
 
     @Test
+    fun unavailablePreferredShizukuNeverFallsBackToMicrophone() {
+        val shizuku = FakeStrategy(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeStrategy(RecordingMode.SPEAKERPHONE_MIC)
+        val manager = CallCaptureManager(setOf(shizuku, microphone), shizukuCaptureEnabled = true)
+
+        val selected = manager.selectBest(
+            profile = profile(microphone = true, shizuku = false),
+            preferred = RecordingMode.SHIZUKU_VOICE_CALL,
+        )
+
+        assertNull(selected)
+    }
+
+    @Test
     fun managerDoesNotSelectShizukuWhenFeatureFlagIsDisabled() {
         val shizuku = FakeStrategy(RecordingMode.SHIZUKU_VOICE_CALL)
         val manager = CallCaptureManager(setOf(shizuku), shizukuCaptureEnabled = false)
