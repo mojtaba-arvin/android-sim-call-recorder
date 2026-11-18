@@ -94,7 +94,7 @@ jobs:
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
       - name: Run unit tests, lint, and assemble debug APK
-        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+        run: gradle --continue --console=plain :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 
       - name: Upload diagnostic debug APK
         uses: actions/upload-artifact@v4
@@ -142,7 +142,7 @@ jobs:
           # Keep Quick Boot snapshots enabled; forcing cold boots added several minutes per PR run.
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          script: gradle :app:connectedDebugAndroidTest
+          script: gradle --console=plain :app:connectedDebugAndroidTest
 
       - name: Upload instrumented test reports
         if: always()
