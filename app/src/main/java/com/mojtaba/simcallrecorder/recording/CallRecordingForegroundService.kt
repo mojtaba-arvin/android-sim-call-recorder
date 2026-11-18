@@ -21,6 +21,7 @@ import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
 import com.mojtaba.simcallrecorder.domain.repository.RecorderSettingsRepository
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -80,6 +81,16 @@ class CallRecordingForegroundService : Service() {
     }
 
     private fun armAutomaticMonitoring(intent: Intent) {
+        if (automaticArmed) {
+            updateNotification("Automatic acoustic recording is already armed")
+            return
+        }
+        if (stateMachine.state != RecordingServiceStateMachine.State.IDLE &&
+            stateMachine.state != RecordingServiceStateMachine.State.FAILED
+        ) {
+            updateNotification("Automatic recording cannot be armed during an active recording session")
+            return
+        }
         val consent = intent.getBooleanExtra(EXTRA_PARTICIPANT_CONSENT, false)
         val microphoneGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -132,13 +143,19 @@ class CallRecordingForegroundService : Service() {
                             startCapture(startIntent)
                         }
                         AutomaticCallRecordingPolicy.Decision.STOP -> {
-                            if (stateMachine.state == RecordingServiceStateMachine.State.RECORDING) {
-                                stopCapture(latestStartId, "Call ended")
+                            when (stateMachine.state) {
+                                RecordingServiceStateMachine.State.RECORDING ->
+                                    stopCapture(latestStartId, "Call ended")
+                                RecordingServiceStateMachine.State.STARTING ->
+                                    stopRequestedDuringStart = true
+                                else -> Unit
                             }
                         }
                         AutomaticCallRecordingPolicy.Decision.NONE -> Unit
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (exception: Exception) {
                 disarmAutomaticMonitoring()
                 updateNotification("Automatic call monitoring failed · ${exception.message}")
