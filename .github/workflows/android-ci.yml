@@ -4,32 +4,71 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-      - "README.md"
-      - "docs/**"
-  workflow_dispatch:
-  # Documentation-only changes do not need a Gradle build or emulator boot.
-  # Keep workflow/build/source changes covered by CI.
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-      - "README.md"
-      - "docs/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# One active run per PR/branch. A newer commit supersedes the previous commit.
+# Do not include github.sha here: that would create a different group for every commit.
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  # A newer commit supersedes the old commit for the same PR/branch.
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Check out history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            changed_files="$(git diff --name-only "$PR_BASE_SHA...$PR_HEAD_SHA")"
+          elif [[ "$EVENT_NAME" == "push" && "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]]; then
+            changed_files="$(git diff --name-only "$PUSH_BEFORE" "$PUSH_AFTER")"
+          else
+            # Manual runs and first pushes always execute the full verification pipeline.
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          code_changed=false
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            case "$file" in
+              *.md|docs/*) ;;
+              *) code_changed=true; break ;;
+            esac
+          done <<< "$changed_files"
+
+          echo "code=$code_changed" >> "$GITHUB_OUTPUT"
+          echo "Code/build changes: $code_changed"
+
   verify:
     name: Unit tests, lint, and debug APK
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
 
@@ -67,7 +106,8 @@ jobs:
 
   instrumented:
     name: Compose UI tests on Android emulator
-    needs: verify
+    needs: [changes, verify]
+    if: needs.changes.outputs.code == 'true' && needs.verify.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 
@@ -114,3 +154,40 @@ jobs:
             app/build/outputs/androidTest-results/connected/**
           if-no-files-found: warn
           retention-days: 7
+
+  required:
+    name: Required checks
+    if: always()
+    needs: [changes, verify, instrumented]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce CI policy
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          CODE_CHANGED: ${{ needs.changes.outputs.code }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          INSTRUMENTED_RESULT: ${{ needs.instrumented.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CHANGES_RESULT" == "success" ]] || {
+            echo "Change detection failed."
+            exit 1
+          }
+
+          if [[ "$CODE_CHANGED" != "true" ]]; then
+            echo "Documentation-only change: expensive Android jobs were intentionally skipped."
+            exit 0
+          fi
+
+          [[ "$VERIFY_RESULT" == "success" ]] || {
+            echo "Unit tests, lint, or APK assembly did not succeed: $VERIFY_RESULT"
+            exit 1
+          }
+          [[ "$INSTRUMENTED_RESULT" == "success" ]] || {
+            echo "Compose emulator tests did not succeed: $INSTRUMENTED_RESULT"
+            exit 1
+          }
+
+          echo "All required Android CI checks passed."
