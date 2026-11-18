@@ -28,6 +28,10 @@ A native Android (Kotlin) project investigating reliable SIM-call recording on r
 | Tests | JUnit and Robolectric 4.17 |
 | CI | GitHub Actions: unit tests, Robolectric, lint, debug APK |
 
+## Beta installation
+
+See [the beta installation and capture guide](docs/INSTALLING_BETA.md) for sideload steps, Shizuku setup, fallback behavior, and device validation.
+
 ## Build
 
 Requirements: JDK 21, Android SDK Platform 37, Build Tools 37.0.0, and Gradle 9.6.0.
