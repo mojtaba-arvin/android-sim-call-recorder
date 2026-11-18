@@ -4,10 +4,10 @@
 
 The target behavior is automatic capture when a cellular SIM call enters `OFFHOOK`, with two strictly separated modes:
 
-- **Standard automatic mode:** explicitly opted-in microphone/acoustic capture using a visible speakerphone route request and a microphone source. It is not digital call downlink and must be labelled honestly.
+- **Standard automatic mode:** product-level Standard mode maps to the explicit `SPEAKERPHONE_MIC` strategy (plus a bounded microphone-source chain when implemented), after opt-in, disclosure and consent. It is acoustic capture, not digital call downlink, and must be labelled honestly. The enum value `STANDARD` remains a legacy fail-closed app-UID backend.
 - **Advanced Shizuku mode:** a separate privileged `VOICE_CALL` strategy that requires explicit Shizuku authorization, an active and validated UserService, accepted UID (shell 2000 or root 0), feature-flag enablement, known SIM slot, OFFHOOK, and recording consent. It must fail closed.
 
-The current implementation is still manual-start. This document defines the accepted target; it does not claim that automatic monitoring has already shipped.
+The current implementation is still manual-start. `STANDARD` currently refuses capture; `SPEAKERPHONE_MIC` is a separately selectable acoustic strategy. This document defines the accepted target; it does not claim that automatic monitoring or the bounded source chain has already shipped.
 
 ## Standard automatic mode state flow
 
