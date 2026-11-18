@@ -30,13 +30,18 @@ class SpeakerphoneMicCallCaptureStrategy @Inject constructor(
         mode = RecordingMode.SPEAKERPHONE_MIC,
         displayName = "Speakerphone + MIC",
         audioSource = MediaRecorder.AudioSource.MIC,
+        audioSources = listOf(
+            MediaRecorder.AudioSource.MIC,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+        ),
         routeToSpeaker = true,
         useCommunicationMode = true,
     )
 
     override val mode get() = session.mode
     override val displayName get() = session.displayName
-    override val audioSourceLabel = "MIC + speaker route request (acoustic; not digital downlink)"
+    override val audioSourceLabel get() = session.audioSourceLabel
     override suspend fun start(request: RecordingStartRequest): File = session.start(request)
     override suspend fun stop(): FinalizedAudioCapture? = session.stop()
 }
@@ -96,6 +101,7 @@ private class MicrophoneCaptureSession(
     val mode: RecordingMode,
     val displayName: String,
     private val audioSource: Int,
+    private val audioSources: List<Int> = listOf(audioSource),
     private val routeToSpeaker: Boolean,
     private val useCommunicationMode: Boolean,
 ) {
@@ -108,6 +114,14 @@ private class MicrophoneCaptureSession(
     @Volatile private var wavResult: WavCaptureResult? = null
     @Volatile private var writerFailure: Throwable? = null
     @Volatile private var startedAtEpochMillis: Long = 0L
+    @Volatile private var activeAudioSource: Int = audioSource
+    @Volatile private var sourceFallbackReason: String? = null
+
+    val audioSourceLabel: String
+        get() {
+            val fallback = sourceFallbackReason?.let { " · fallback: $it" }.orEmpty()
+            return "${audioSourceName(activeAudioSource)} + speaker route request (acoustic; not digital downlink)$fallback"
+        }
     @Volatile private var previousMode: Int? = null
     @Volatile private var previousSpeakerphone: Boolean? = null
     @Volatile private var previousCommunicationDevice: AudioDeviceInfo? = null
@@ -138,30 +152,54 @@ private class MicrophoneCaptureSession(
             check(exists() || mkdirs()) { "Could not create the private recordings directory." }
         }
         val outputFile = File(outputDir, "capture_${System.currentTimeMillis()}_${mode.name.lowercase()}.wav")
-        val record = try {
-            AudioRecord(
-                audioSource,
-                sampleRate,
-                channelMask,
-                AudioFormat.ENCODING_PCM_16BIT,
-                max(minBufferBytes * 4, sampleRate),
-            )
-        } catch (error: Throwable) {
-            running.set(false)
-            throw IllegalStateException("AudioRecord initialization failed: ${error.message}", error)
-        }
-        if (record.state != AudioRecord.STATE_INITIALIZED) {
-            record.release()
-            running.set(false)
-            throw IllegalStateException("AudioRecord did not initialize for ${displayName}.")
-        }
-
+        var selectedRecord: AudioRecord? = null
         try {
             applyAudioRoute()
-            record.startRecording()
-            check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                "AudioRecord did not enter RECORDSTATE_RECORDING."
+            val failures = mutableListOf<String>()
+            for (source in audioSources.distinct()) {
+                val candidate = try {
+                    AudioRecord(
+                        source,
+                        sampleRate,
+                        channelMask,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                        max(minBufferBytes * 4, sampleRate),
+                    )
+                } catch (error: Throwable) {
+                    failures += "${audioSourceName(source)}: ${error.message ?: error::class.java.simpleName}"
+                    continue
+                }
+
+                if (candidate.state != AudioRecord.STATE_INITIALIZED) {
+                    failures += "${audioSourceName(source)}: initialization rejected"
+                    runCatching { candidate.release() }
+                    continue
+                }
+
+                val started = runCatching {
+                    candidate.startRecording()
+                    candidate.recordingState == AudioRecord.RECORDSTATE_RECORDING
+                }.getOrDefault(false)
+                if (started) {
+                    selectedRecord = candidate
+                    activeAudioSource = source
+                    sourceFallbackReason = if (source == audioSources.firstOrNull()) {
+                        null
+                    } else {
+                        "preferred ${audioSourceName(audioSources.first())} could not initialize/start"
+                    }
+                    break
+                }
+
+                failures += "${audioSourceName(source)}: startRecording was rejected"
+                runCatching { candidate.stop() }
+                runCatching { candidate.release() }
             }
+
+            val record = selectedRecord
+                ?: throw IllegalStateException(
+                    "No microphone source could start for $displayName. ${failures.joinToString("; ")}",
+                )
             recorder = record
             startedAtEpochMillis = System.currentTimeMillis()
             wavResult = null
@@ -226,8 +264,10 @@ private class MicrophoneCaptureSession(
             outputFile
         } catch (failure: Throwable) {
             running.set(false)
-            runCatching { record.stop() }
-            runCatching { record.release() }
+            selectedRecord?.let { record ->
+                runCatching { record.stop() }
+                runCatching { record.release() }
+            }
             runCatching { pipeOutput?.close() }
             restoreAudioRoute()
             throw failure
@@ -269,6 +309,13 @@ private class MicrophoneCaptureSession(
             rmsSample = result.rmsSample,
             isSilent = result.isSilent,
         )
+    }
+
+    private fun audioSourceName(source: Int): String = when (source) {
+        MediaRecorder.AudioSource.MIC -> "MIC"
+        MediaRecorder.AudioSource.VOICE_COMMUNICATION -> "VOICE_COMMUNICATION"
+        MediaRecorder.AudioSource.VOICE_RECOGNITION -> "VOICE_RECOGNITION"
+        else -> "AudioSource($source)"
     }
 
     private fun applyAudioRoute() {
