@@ -4,17 +4,24 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  # Documentation-only changes do not need a Gradle build or emulator boot.
+  # Keep workflow/build/source changes covered by CI.
   pull_request:
     branches:
       - main
-  workflow_dispatch:
+    paths-ignore:
+      - "**/*.md"
+      - "README.md"
+      - "docs/**"
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ github.sha }}
-  cancel-in-progress: false
+  group: android-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # A newer commit supersedes the old commit for the same PR/branch.
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -43,14 +50,8 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
-      - name: Run unit and Robolectric tests
-        run: gradle --no-daemon :app:testDebugUnitTest
-
-      - name: Run Android lint
-        run: gradle --no-daemon :app:lintDebug
-
-      - name: Assemble debug APK
-        run: gradle --no-daemon :app:assembleDebug
+      - name: Run unit tests, lint, and assemble debug APK
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 
       - name: Upload diagnostic debug APK
         uses: actions/upload-artifact@v4
@@ -96,4 +97,4 @@ jobs:
           profile: pixel_2
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-snapshot-save
           disable-animations: true
-          script: gradle --no-daemon :app:connectedDebugAndroidTest
+          script: gradle :app:connectedDebugAndroidTest
