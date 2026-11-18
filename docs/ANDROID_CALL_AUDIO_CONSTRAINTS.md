@@ -56,7 +56,7 @@ Capture is manual and visible in this prototype. It does not automatically begin
 - Shizuku/Sui running and the user must grant this app Shizuku authorization.
 - Without root, Shizuku must be started via ADB. On Android 11+ this can be done with Wireless Debugging on the device; Android clears the debugging authorization on reboot and Shizuku normally needs to be restarted/authorized again. Older Android versions need a computer for ADB setup.
 - UID 2000 does not have identical privileges on every Android build. Some OEMs restrict protected audio capture, and carrier/OEM audio HALs can still return silence or one direction only.
-- The foreground-service notification is part of the recording disclosure. The app does not use Accessibility APIs for call capture.
+- The foreground-service notification is part of the recording disclosure. The Shizuku backend does not use Accessibility APIs; the separate Accessibility-priority microphone experiment is opt-in, does not inspect UI content, and is excluded from Google Play call-recording distribution.
 
 ## Foreground-service and platform constraints
 
