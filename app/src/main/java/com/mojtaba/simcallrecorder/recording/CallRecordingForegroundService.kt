@@ -45,11 +45,14 @@ class CallRecordingForegroundService : Service() {
     @Inject lateinit var recorderSettingsRepository: RecorderSettingsRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // WAV finalization must outlive service-scope cancellation during onDestroy().
+    private val finalizationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val stateMachine = RecordingServiceStateMachine()
     private val automaticPolicy = AutomaticCallRecordingPolicy()
     private var automaticMonitorJob: Job? = null
     @Volatile private var automaticArmed = false
     @Volatile private var stopRequestedDuringStart = false
+    @Volatile private var serviceDestroyed = false
     private var activeMode: RecordingMode? = null
     private var activeRecordId: Long? = null
     private var watchCaptureStatusJob: Job? = null
@@ -381,16 +384,18 @@ class CallRecordingForegroundService : Service() {
         watchCaptureStatusJob = null
         updateNotification("Finalizing recording…")
 
-        finalizationJob = serviceScope.launch {
+        finalizationJob = finalizationScope.launch {
             finalizeSession(mode, reason)
             activeMode = null
             activeRecordId = null
             stateMachine.stopCompleted()
-            if (automaticArmed && reason == "Call ended") {
-                updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
-            } else {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf(startId)
+            if (!serviceDestroyed) {
+                if (automaticArmed && reason == "Call ended") {
+                    updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
+                } else {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(startId)
+                }
             }
         }
     }
@@ -457,6 +462,7 @@ class CallRecordingForegroundService : Service() {
     }
 
     private fun updateNotification(message: String) {
+        if (serviceDestroyed) return
         _serviceStatus.value = message
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(message))
     }
@@ -521,6 +527,7 @@ class CallRecordingForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        serviceDestroyed = true
         automaticMonitorJob?.cancel()
         automaticPolicy.disarm()
         setAutomaticMonitoringArmed(false)
@@ -530,9 +537,9 @@ class CallRecordingForegroundService : Service() {
         val mode = activeMode
         val recordId = activeRecordId
         if (mode != null && stateMachine.beginStop()) {
-            // onDestroy must not block the main thread. If the OS kills the process before this
-            // detached IO cleanup finishes, launch recovery will retain the record as INTERRUPTED.
-            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            // Keep cleanup independent from serviceScope: onDestroy cancels monitoring jobs,
+            // but an active recording still needs its WAV header and Room row finalized.
+            finalizationScope.launch {
                 runCatching { finalizeSession(mode, "Service destroyed") }
                     .onFailure { error ->
                         if (recordId != null) {
@@ -544,10 +551,10 @@ class CallRecordingForegroundService : Service() {
                             }
                         }
                     }
+                activeMode = null
+                activeRecordId = null
+                stateMachine.stopCompleted()
             }
-            activeMode = null
-            activeRecordId = null
-            stateMachine.stopCompleted()
         }
         serviceScope.cancel()
         super.onDestroy()
