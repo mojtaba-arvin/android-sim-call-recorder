@@ -3,7 +3,8 @@ package com.mojtaba.simcallrecorder.di
 import android.content.Context
 import androidx.room.Room
 import com.mojtaba.simcallrecorder.data.local.AppDatabase
-import com.mojtaba.simcallrecorder.data.local.dao.RecordingDao
+import com.mojtaba.simcallrecorder.data.local.MIGRATION_1_2
+import com.mojtaba.simcallrecorder.data.local.dao.CallRecordDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,9 +23,11 @@ object DatabaseModule {
         context,
         AppDatabase::class.java,
         "recordings.db",
-    ).build()
+    )
+        .addMigrations(MIGRATION_1_2)
+        .build()
 
     @Provides
-    fun provideRecordingDao(database: AppDatabase): RecordingDao =
-        database.recordingDao()
+    fun provideCallRecordDao(database: AppDatabase): CallRecordDao =
+        database.callRecordDao()
 }
