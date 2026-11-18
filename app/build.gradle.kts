@@ -42,6 +42,11 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = false
+        // Robolectric's API 36+ FileDescriptor interceptor uses JDK SharedSecrets.
+        // Keep the narrowly-scoped module export on the test JVM only.
+        unitTests.all {
+            it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+        }
     }
 }
 
