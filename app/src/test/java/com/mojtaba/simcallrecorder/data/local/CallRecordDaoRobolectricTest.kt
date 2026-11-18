@@ -121,7 +121,7 @@ class CallRecordDaoRobolectricTest {
         legacy.close()
 
         val migrated = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
 
@@ -133,7 +133,8 @@ class CallRecordDaoRobolectricTest {
             assertEquals("LEGACY", record?.recordingMode)
             assertEquals("LEGACY", record?.status)
             assertEquals(-1, record?.simSlotIndex)
-                .also { /* no phone or subscription identifiers are synthesized during migration */ }
+            assertNull(record?.captureProfile)
+            assertNull(record?.captureDiagnostics)
         } finally {
             migrated.close()
             context.deleteDatabase(databaseName)
