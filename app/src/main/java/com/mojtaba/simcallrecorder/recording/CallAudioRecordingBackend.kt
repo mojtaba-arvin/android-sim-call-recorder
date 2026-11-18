@@ -7,8 +7,26 @@ import javax.inject.Inject
 
 enum class RecordingMode {
     STANDARD,
+    SPEAKERPHONE_MIC,
+    OEM_VOICE_RECOGNITION,
+    ACCESSIBILITY_VOICE_RECOGNITION,
     SHIZUKU_VOICE_CALL,
 }
+
+/**
+ * A capture strategy is a selectable implementation, not a promise that a device's modem or audio
+ * HAL exposes both call directions. Implementations must report their actual source accurately.
+ */
+interface CallCaptureStrategy {
+    val mode: RecordingMode
+    val displayName: String get() = mode.name
+    val audioSourceLabel: String get() = mode.name
+    suspend fun start(request: RecordingStartRequest): File
+    suspend fun stop(): FinalizedAudioCapture?
+}
+
+/** Compatibility name retained for the existing Hilt multibindings and tests. */
+interface CallAudioRecordingBackend : CallCaptureStrategy
 
 data class RecordingStartRequest(
     val mode: RecordingMode,
@@ -17,28 +35,19 @@ data class RecordingStartRequest(
     val participantConsentConfirmed: Boolean,
 )
 
-interface CallAudioRecordingBackend {
-    val mode: RecordingMode
-    suspend fun start(request: RecordingStartRequest): File
-    suspend fun stop(): FinalizedAudioCapture?
-}
-
 /**
- * The standard Android app UID cannot receive cellular call audio while a voice call owns the
- * input. This backend intentionally refuses carrier-call recording instead of toggling a global
- * audio route and writing silence/one-sided microphone audio under a call-recording label.
- *
- * A separate microphone-only voice-note feature would need its own product label and must not
- * appear as a SIM-call recording.
+ * Standard is deliberately retained as a selectable diagnostic state for older preferences, but
+ * it refuses rather than recording ordinary app microphone audio as a SIM-call recording.
  */
 class StandardCallRecordingBackend @Inject constructor() : CallAudioRecordingBackend {
     override val mode: RecordingMode = RecordingMode.STANDARD
+    override val displayName: String = "Standard Android (unavailable)"
+    override val audioSourceLabel: String = "NONE"
 
     override suspend fun start(request: RecordingStartRequest): File {
         throw UnsupportedOperationException(
-            "Standard Android apps cannot capture cellular call audio. " +
-                "Speakerphone automation does not change Android's call-input ownership. " +
-                "Use the explicitly authorized Shizuku backend on a compatible device.",
+            "The standard Android app UID cannot capture cellular call uplink/downlink. " +
+                "Choose an explicitly labelled experimental strategy or the authorized Shizuku path.",
         )
     }
 
@@ -49,6 +58,8 @@ class ShizukuVoiceCallRecordingBackend @Inject constructor(
     private val client: ShizukuAudioRecorderClient,
 ) : CallAudioRecordingBackend {
     override val mode: RecordingMode = RecordingMode.SHIZUKU_VOICE_CALL
+    override val displayName: String = "Shizuku · privileged VOICE_CALL"
+    override val audioSourceLabel: String = "VOICE_CALL (privileged; device-dependent)"
 
     override suspend fun start(request: RecordingStartRequest): File {
         require(request.mode == mode) { "Recording mode does not match the Shizuku backend." }
@@ -59,8 +70,9 @@ class ShizukuVoiceCallRecordingBackend @Inject constructor(
 }
 
 /**
- * Central policy gate for all recording starts. It deliberately has no implicit fallback:
- * a failed privileged capture must never be retried as ordinary microphone audio.
+ * Resolves only the strategy explicitly selected by the user. Recommendation/fallback is exposed
+ * separately through CallCaptureManager; a capture failure is never silently retried with a
+ * different source because that could turn a call recording into a one-sided mic recording.
  */
 class RecordingCoordinator(
     backends: Set<CallAudioRecordingBackend>,
@@ -78,15 +90,17 @@ class RecordingCoordinator(
         require(request.simSlotIndex >= 0) {
             "The active call could not be associated with a SIM slot."
         }
-
         if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL && !shizukuCaptureEnabled) {
             throw UnsupportedOperationException("The Shizuku call-capture feature is disabled in this build.")
         }
 
         val backend = backendsByMode[request.mode]
-            ?: throw UnsupportedOperationException("The selected recording backend is not installed.")
+            ?: throw UnsupportedOperationException("The selected recording strategy is not installed.")
         return backend.start(request)
     }
+
+    fun audioSourceLabel(mode: RecordingMode): String =
+        backendsByMode[mode]?.audioSourceLabel ?: mode.name
 
     suspend fun stop(mode: RecordingMode): FinalizedAudioCapture? =
         backendsByMode[mode]?.stop()
