@@ -1,8 +1,10 @@
 package com.mojtaba.simcallrecorder
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -34,8 +36,11 @@ class RecorderScreensInstrumentedTest {
             }
         }
         composeRule.onNodeWithText("Recordings").assertIsDisplayed()
-        composeRule.onNodeWithText("SIM 1").assertIsDisplayed()
-        composeRule.onNodeWithText("SIM 2").assertIsDisplayed()
+        // Each SIM label appears once in the filter chip and once in its recording card.
+        composeRule.onAllNodesWithText("SIM 1").assertCountEquals(2)
+        composeRule.onAllNodesWithText("SIM 2").assertCountEquals(2)
+        composeRule.onNodeWithTag("sim-filter-0").assertIsDisplayed()
+        composeRule.onNodeWithTag("sim-filter-1").assertIsDisplayed()
         composeRule.onNodeWithTag("record-list-item-1").assertIsDisplayed()
     }
 
@@ -81,4 +86,4 @@ class RecorderScreensInstrumentedTest {
         status = "COMPLETED",
         failureReason = null,
     )
-}
+)
