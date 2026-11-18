@@ -56,7 +56,7 @@ class ShizukuAudioRecorderClient @Inject constructor(
     private val _captureStatus = MutableStateFlow("Idle")
     val captureStatus: StateFlow<String> = _captureStatus.asStateFlow()
 
-    private var remote: IPrivilegedCallRecorder? = null
+    @Volatile private var remote: IPrivilegedCallRecorder? = null
     private var serviceConnection: ServiceConnection? = null
     private var copyJob: Job? = null
     private var activeReadPipe: ParcelFileDescriptor? = null
