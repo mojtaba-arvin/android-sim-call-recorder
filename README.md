@@ -69,13 +69,13 @@ Read the detailed research and safety constraints:
 - [Android call-audio constraints and implementation decision](docs/ANDROID_CALL_AUDIO_CONSTRAINTS.md)
 - [Architecture and module boundaries](docs/ARCHITECTURE.md)
 - [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)
-- [Capture compatibility matrix and strategy-selection policy](docs/COMPATIBILITY_MATRIX.md)
+- [Capture compatibility matrix and strategy-selection policy](docs/COMPATIBILITY_MATRIX.md)\n- [Consent-gated automatic recording lifecycle](docs/AUTO_RECORDING_LIFECYCLE.md)
 
 ## Application screens
 
 - **Recordings:** search, SIM-slot filter, date filter, and newest/oldest sorting.
 - **Player:** Media3 ExoPlayer with play/pause, seek/progress controls; only completed readable private WAVs are playable.
-- **Settings:** capture strategy candidates, Shizuku status, microphone permission, local storage quota, and manual-only recording trigger policy.
+- **Settings:** capture strategy candidates, Shizuku status, microphone permission, local storage quota, and the current manual trigger. Consent-gated automatic Standard-mode capture is a tracked product requirement.
 - **Diagnostics:** the SIM-state, audio-route, and Shizuku connection panel remains available as a dedicated tab.
 
 ## Diagnostics implementation
@@ -97,6 +97,6 @@ Robolectric can verify framework callback wiring, state transitions, service pol
 
 - No READ_CALL_LOG, contacts, broad storage, or overlay permission is requested. The optional Accessibility experiment requires explicit enablement in Android Settings and is not suitable for a Google Play call-recording release.
 - No microphone permission prompt is needed for the privileged Shizuku UserService path. The explicitly selected microphone/acoustic strategies do capture microphone input and require RECORD_AUDIO.
-- Recording starts only from the visible user action in this prototype and shows an ongoing foreground notification with Stop.
+- Recording currently starts from a visible user action and shows an ongoing foreground notification with Stop. The accepted target is consent-gated automatic Standard-mode capture on OFFHOOK; see [the automatic lifecycle design](docs/AUTO_RECORDING_LIFECYCLE.md).
 - A Shizuku authorization is an additional privilege grant and must be understood by the user.
 - A permission grant is not consent from every call participant. The user must comply with applicable local law and obtain all required consent.
