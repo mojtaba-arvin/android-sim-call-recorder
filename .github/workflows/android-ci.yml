@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "**/*.md"
+      - "README.md"
+      - "docs/**"
   workflow_dispatch:
   # Documentation-only changes do not need a Gradle build or emulator boot.
   # Keep workflow/build/source changes covered by CI.
@@ -95,6 +99,18 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-snapshot-save
+          # Keep Quick Boot snapshots enabled; forcing cold boots added several minutes per PR run.
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: gradle :app:connectedDebugAndroidTest
+
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-instrumented-test-reports
+          path: |
+            app/build/reports/androidTests/connected/**
+            app/build/outputs/androidTest-results/connected/**
+          if-no-files-found: warn
+          retention-days: 7
