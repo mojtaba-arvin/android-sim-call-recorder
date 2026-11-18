@@ -99,12 +99,10 @@ class RecordingCoordinatorTest {
     ) : CallAudioRecordingBackend {
         var startCount = 0
         var stopCount = 0
-
         override suspend fun start(request: RecordingStartRequest): File {
             startCount++
             return File("test-recording.wav")
         }
-
         override suspend fun stop(): FinalizedAudioCapture? {
             stopCount++
             return null

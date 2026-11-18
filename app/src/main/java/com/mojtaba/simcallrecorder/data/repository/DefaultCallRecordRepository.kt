@@ -29,7 +29,7 @@ class DefaultCallRecordRepository @Inject constructor(
             fromEpochMillis = filter.fromEpochMillis,
             toEpochMillisExclusive = filter.toEpochMillisExclusive,
             query = filter.query.trim(),
-        ).map { entities -> entities.map(CallRecordEntity::toDomain) }
+        ).map { entities -> entities.map { entity -> entity.toDomain() } }
             .flowOn(Dispatchers.IO)
 
     override suspend fun createActiveRecording(record: CallRecord): Long = withContext(Dispatchers.IO) {
