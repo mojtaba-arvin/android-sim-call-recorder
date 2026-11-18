@@ -1,5 +1,7 @@
 # SIM Call Recorder
 
+[Download the latest APK from GitHub Releases](https://github.com/mojtaba-arvin/android-sim-call-recorder/releases/latest). Each versioned release includes the sample APK, reusable SDK AAR, and SHA-256 checksums.
+
 A native Android (Kotlin) project investigating reliable SIM-call recording on real devices.
 
 > **Current status:** native diagnostics, a Shizuku `VOICE_CALL` backend with shell-attribution readiness checks, and a user-armed automatic best-eligible strategy selector. It selects Shizuku when its live helper is ready, otherwise Speakerphone + MIC when microphone permission is available. Neither path is proof of two-way call audio; OEM/modem behavior must be validated.
@@ -17,7 +19,7 @@ A native Android (Kotlin) project investigating reliable SIM-call recording on r
 | Area | Choice |
 |---|---|
 | Language / UI | Kotlin, Jetpack Compose, Material 3 |
-| Architecture | Domain, data, presentation, dependency injection |
+| Architecture | Multi-module: reusable `:callrecorder-sdk` engine + `:app` sample/diagnostics host |
 | Async | Coroutines and Flow |
 | Dependency injection | Hilt |
 | Metadata | Room / SQLite |
@@ -25,22 +27,30 @@ A native Android (Kotlin) project investigating reliable SIM-call recording on r
 | Privileged helper | MIT-licensed Shizuku API 13.1.5, optional UserService |
 | Playback | AndroidX Media3 ExoPlayer |
 | Settings | Preferences DataStore |
-| Tests | JUnit and Robolectric 4.17 |
+| Tests | JUnit, Robolectric, and app-side SDK integration tests |
 | CI | GitHub Actions: unit tests, Robolectric, lint, debug APK |
 
 ## Beta installation
 
 See [the beta installation and capture guide](docs/INSTALLING_BETA.md) for sideload steps, Shizuku setup, fallback behavior, and device validation.
 
+## SDK module and integration
+
+The recording engine is extracted into `:callrecorder-sdk`; `:app` consumes it with `implementation(project(":callrecorder-sdk"))`. The SDK owns capture strategies, Shizuku integration, telephony listeners, foreground services, Room persistence, and storage repositories. The app owns Compose screens, playback, permission UX, and diagnostics presentation. See [the SDK integration guide](docs/SDK_INTEGRATION.md) for Hilt setup and the `SimCallRecorderSdk` facade.
+
+### Downloadable releases
+
+Push a version tag such as `v0.2.0-beta.1` to build and publish a GitHub Release automatically. The workflow runs module tests and lint, compiles app instrumentation tests, assembles the release AAR and debug-signed sample APK, then attaches both files and SHA-256 checksums to the Release page. The APK is suitable for beta sideloading; production signing requires a protected release-keystore secret and is not committed to the repository.
+
 ## Build
 
 Requirements: JDK 21, Android SDK Platform 37, Build Tools 37.0.0, and Gradle 9.6.0.
 
 ```bash
-gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+gradle --no-daemon :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug
 ```
 
-GitHub Actions runs JUnit/Robolectric, lint, Compose UI instrumentation tests on an Android 35 emulator, and debug APK assembly for pull requests to `main` and pushes to `main`. A Gradle Wrapper is not checked in yet; it will be added after the toolchain is validated in CI.
+GitHub Actions runs JUnit/Robolectric tests in both modules, lint, SDK release-AAR assembly, app debug-APK assembly, and Compose UI instrumentation tests on Android emulators for pull requests to `main` and pushes to `main`. A Gradle Wrapper is not checked in yet; CI pins Gradle 9.6.0.
 
 ## Call-audio capture
 

@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "sim-call-recorder"
-include(":app")
+include(":app", ":callrecorder-sdk")

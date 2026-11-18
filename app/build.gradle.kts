@@ -14,22 +14,13 @@ android {
         minSdk = 26
         // Keep targetSdk 36 until Android 17 foreground-service and call-audio behavior is validated.
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.0-beta.1"
-        val shizukuCaptureEnabled = providers.gradleProperty("enableShizukuCallCapture")
-            .map { it.toBoolean() }
-            .getOrElse(true)
-        buildConfigField("boolean", "ENABLE_SHIZUKU_CALL_CAPTURE", shizukuCaptureEnabled.toString())
-
+        versionCode = providers.gradleProperty("appVersionCode").map(String::toInt).getOrElse(2)
+        versionName = providers.gradleProperty("appVersion").getOrElse("0.1.0-beta.1")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
 
-    buildFeatures {
-        compose = true
-        aidl = true
-        buildConfig = true
-    }
+    buildFeatures { compose = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -43,22 +34,16 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = false
-        // Robolectric's API 36+ FileDescriptor interceptor uses JDK SharedSecrets.
-        // Keep the narrowly-scoped module export on the test JVM only.
         unitTests.all {
-            // Robolectric loads large instrumented framework resource archives across SDKs.
-            // The default Gradle test-worker heap is too small for the API 26–37 matrix.
             it.maxHeapSize = "2g"
             it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
         }
     }
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
-
 dependencies {
+    implementation(project(":callrecorder-sdk"))
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -70,18 +55,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
+    // The app owns the Hilt application component; SDK bindings are contributed by the library.
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.media3.exoplayer)
-    ksp(libs.androidx.room.compiler)
-
-    // MIT-licensed API: user-authorized shell/root UserService, kept optional at runtime.
-    implementation(libs.shizuku.api)
-    implementation(libs.shizuku.provider)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
