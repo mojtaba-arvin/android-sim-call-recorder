@@ -10,14 +10,17 @@ import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 class RecordingServiceStateMachine {
     enum class State { IDLE, STARTING, RECORDING, STOPPING, FAILED }
 
+    @Volatile
     var state: State = State.IDLE
         private set
 
+    @Volatile
     var activeSimSlotIndex: Int? = null
         private set
 
     private var hasObservedOffhook = false
 
+    @Synchronized
     fun beginStart(request: RecordingStartRequest): Boolean {
         if (state != State.IDLE && state != State.FAILED) return false
         if (!request.participantConsentConfirmed) return false
@@ -29,12 +32,14 @@ class RecordingServiceStateMachine {
         return true
     }
 
+    @Synchronized
     fun recordingStarted(): Boolean {
         if (state != State.STARTING) return false
         state = State.RECORDING
         return true
     }
 
+    @Synchronized
     fun startFailed() {
         if (state == State.STARTING) {
             state = State.FAILED
@@ -43,6 +48,7 @@ class RecordingServiceStateMachine {
         }
     }
 
+    @Synchronized
     fun shouldStopFor(event: CallStateEvent): Boolean {
         if (state != State.RECORDING || event.simSlotIndex != activeSimSlotIndex) return false
         if (event.state == CallState.OFFHOOK) {
@@ -52,12 +58,14 @@ class RecordingServiceStateMachine {
         return event.state == CallState.IDLE && hasObservedOffhook
     }
 
+    @Synchronized
     fun beginStop(): Boolean {
         if (state != State.RECORDING) return false
         state = State.STOPPING
         return true
     }
 
+    @Synchronized
     fun stopCompleted() {
         if (state == State.STOPPING || state == State.FAILED) {
             state = State.IDLE
