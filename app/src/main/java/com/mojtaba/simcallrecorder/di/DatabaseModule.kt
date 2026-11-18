@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.mojtaba.simcallrecorder.data.local.AppDatabase
 import com.mojtaba.simcallrecorder.data.local.MIGRATION_1_2
+import com.mojtaba.simcallrecorder.data.local.MIGRATION_2_3
 import com.mojtaba.simcallrecorder.data.local.dao.CallRecordDao
 import dagger.Module
 import dagger.Provides
@@ -24,7 +25,7 @@ object DatabaseModule {
         AppDatabase::class.java,
         "recordings.db",
     )
-        .addMigrations(MIGRATION_1_2)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
         .setJournalMode(AppDatabase.JOURNAL_MODE)
         .build()
 
