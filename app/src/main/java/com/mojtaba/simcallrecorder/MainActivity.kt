@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.mojtaba.simcallrecorder.core.permissions.CallPermissionManager
 import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
+import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfileProvider
+import com.mojtaba.simcallrecorder.recording.RecordingCoordinator
 import com.mojtaba.simcallrecorder.recording.AudioRecordingDiagnostics
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose
@@ -76,12 +78,19 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var recorderSettingsRepository: RecorderSettingsRepository
 
+    @Inject
+    lateinit var captureDeviceProfileProvider: CaptureDeviceProfileProvider
+
+    @Inject
+    lateinit var recordingCoordinator: RecordingCoordinator
+
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var monitorJob: Job? = null
     private var pendingMicrophoneStart: Boolean = false
     private var pendingAutomaticArm: Boolean = false
     private var pendingAutomaticNotification: Boolean = false
+    private var pendingAutomaticMode: RecordingMode? = null
 
     private var missingPermissions by mutableStateOf(emptyList<String>())
     private var activeSims by mutableStateOf(emptyList<SimSlot>())
@@ -121,18 +130,15 @@ class MainActivity : ComponentActivity() {
             if (pendingAutomaticArm) {
                 pendingAutomaticArm = false
                 val callStateGranted = permissionManager.hasCallStatePermission()
-                val microphoneGranted = ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.RECORD_AUDIO,
-                ) == PackageManager.PERMISSION_GRANTED
-                if (callStateGranted && microphoneGranted) {
-                    requestArmAutomaticRecording()
+                val microphoneWasRequested = grants.containsKey(android.Manifest.permission.RECORD_AUDIO)
+                val microphoneDenied = microphoneWasRequested &&
+                    grants[android.Manifest.permission.RECORD_AUDIO] != true
+                if (!callStateGranted) {
+                    recorderCaptureStatus = "Automatic recording requires call-state permission."
+                } else if (microphoneDenied) {
+                    recorderCaptureStatus = "Microphone permission was denied; Shizuku may still be available as a separate capture path."
                 } else {
-                    recorderCaptureStatus = if (!callStateGranted) {
-                        "Automatic recording requires call-state permission."
-                    } else {
-                        "Automatic recording requires microphone permission."
-                    }
+                    requestArmAutomaticRecording()
                 }
             }
         }
@@ -143,12 +149,16 @@ class MainActivity : ComponentActivity() {
             if (granted) {
                 if (pendingAutomaticNotification) {
                     pendingAutomaticNotification = false
-                    launchAutomaticMonitoringService()
+                    val mode = pendingAutomaticMode
+                    pendingAutomaticMode = null
+                    if (mode != null) launchAutomaticMonitoringService(mode)
+                    else recorderCaptureStatus = "Automatic recording mode could not be resolved."
                 } else {
                     launchRecordingForegroundService()
                 }
             } else {
                 pendingAutomaticNotification = false
+                pendingAutomaticMode = null
                 recorderCaptureStatus = "Notification permission is required before recording."
             }
         }
@@ -229,7 +239,17 @@ class MainActivity : ComponentActivity() {
                                 activeCallSlotIndex = activeCallSlotIndex(),
                                 participantConsentConfirmed = participantConsentConfirmed,
                                 automaticRecordingArmed = automaticRecordingArmed,
-                                onParticipantConsentChanged = { participantConsentConfirmed = it },
+                                onParticipantConsentChanged = { confirmed ->
+                                    participantConsentConfirmed = confirmed
+                                    if (!confirmed && (automaticRecordingArmed || recorderCaptureStatus.startsWith("Recording active"))) {
+                                        startService(
+                                            Intent(this@MainActivity, CallRecordingForegroundService::class.java)
+                                                .setAction(CallRecordingForegroundService.ACTION_STOP),
+                                        )
+                                        automaticRecordingArmed = false
+                                        recorderCaptureStatus = "Recording stopped because the consent acknowledgement was withdrawn."
+                                    }
+                                },
                                 onArmAutomaticRecording = ::requestArmAutomaticRecording,
                                 onDisarmAutomaticRecording = ::disarmAutomaticRecording,
                                 onRequestPermissions = {
@@ -339,35 +359,50 @@ class MainActivity : ComponentActivity() {
             )
             return
         }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            pendingAutomaticArm = true
-            permissionLauncher.launch(arrayOf(android.Manifest.permission.RECORD_AUDIO))
+
+        val profile = captureDeviceProfileProvider.snapshot()
+        val best = recordingCoordinator.selectBest(profile)
+        if (best == null) {
+            if (!profile.recordAudioGranted) {
+                pendingAutomaticArm = true
+                permissionLauncher.launch(arrayOf(android.Manifest.permission.RECORD_AUDIO))
+            } else {
+                recorderCaptureStatus = "No eligible automatic capture strategy is available on this device/build."
+            }
             return
         }
+        val selectedMode = best.mode
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
+            pendingAutomaticMode = selectedMode
             pendingAutomaticNotification = true
             notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             return
         }
-        launchAutomaticMonitoringService()
+        launchAutomaticMonitoringService(selectedMode)
     }
 
-    private fun launchAutomaticMonitoringService() {
+    private fun launchAutomaticMonitoringService(mode: RecordingMode) {
         val intent = Intent(this, CallRecordingForegroundService::class.java)
             .setAction(CallRecordingForegroundService.ACTION_ARM_AUTOMATIC)
+            .putExtra(CallRecordingForegroundService.EXTRA_RECORDING_MODE, mode.name)
             .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
         try {
             ContextCompat.startForegroundService(this, intent)
             automaticRecordingArmed = true
-            recorderCaptureStatus = "Automatic acoustic recording is being armed."
+            recorderCaptureStatus = "Automatic ${automaticModeLabel(mode)} is being armed."
         } catch (exception: Exception) {
             automaticRecordingArmed = false
             recorderCaptureStatus = "Automatic recording could not start: ${exception.message}"
         }
+    }
+
+    private fun automaticModeLabel(mode: RecordingMode): String = when (mode) {
+        RecordingMode.SHIZUKU_VOICE_CALL -> "Shizuku VOICE_CALL"
+        RecordingMode.SPEAKERPHONE_MIC -> "Speakerphone + MIC acoustic capture"
+        else -> mode.name
     }
 
     private fun disarmAutomaticRecording() {
