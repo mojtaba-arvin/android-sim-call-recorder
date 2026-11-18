@@ -77,6 +77,7 @@ fun RecorderRootScreen(
     onDeleteRecord: (CallRecord) -> Unit,
     onStorageLimitChanged: (Int) -> Unit,
     onRecordingModeChanged: (RecordingMode) -> Unit,
+    onRequestMicrophonePermission: () -> Unit,
 ) {
     var destination by remember { mutableStateOf(RecorderDestination.RECORDINGS) }
     Scaffold(
@@ -120,6 +121,7 @@ fun RecorderRootScreen(
                     settings = settings,
                     onStorageLimitChanged = onStorageLimitChanged,
                     onRecordingModeChanged = onRecordingModeChanged,
+                    onRequestMicrophonePermission = onRequestMicrophonePermission,
                 )
                 RecorderDestination.PLAYER -> {
                     val record = selectedRecord
@@ -376,6 +378,7 @@ fun RecorderSettingsScreen(
     settings: RecorderSettings,
     onStorageLimitChanged: (Int) -> Unit,
     onRecordingModeChanged: (RecordingMode) -> Unit,
+    onRequestMicrophonePermission: () -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -394,28 +397,30 @@ fun RecorderSettingsScreen(
             Settings.Secure.ENABLED_NOTIFICATION_LISTENERS,
         ).orEmpty()
         val notificationListenerEnabled = enabledNotificationListeners.contains(context.packageName)
-        val profile = remember(
-            microphoneGranted,
-            shizukuAuthorized,
-            notificationListenerEnabled,
-        ) {
-            CaptureDeviceProfile(
-                sdkInt = Build.VERSION.SDK_INT,
-                manufacturer = Build.MANUFACTURER,
-                model = Build.MODEL,
-                recordAudioGranted = microphoneGranted,
-                shizukuAuthorized = shizukuAuthorized,
-                accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(context),
-                notificationListenerEnabled = notificationListenerEnabled,
-                voipCallNotificationPresent = VoipCallNotificationRegistry.packageName != null,
-            )
-        }
-        val options = remember(profile) { CaptureStrategySelector.evaluate(profile) }
+        val profile = CaptureDeviceProfile(
+            sdkInt = Build.VERSION.SDK_INT,
+            manufacturer = Build.MANUFACTURER,
+            model = Build.MODEL,
+            recordAudioGranted = microphoneGranted,
+            shizukuAuthorized = shizukuAuthorized,
+            accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(context),
+            notificationListenerEnabled = notificationListenerEnabled,
+            voipCallNotificationPresent = VoipCallNotificationRegistry.packageName != null,
+        )
+        val options = CaptureStrategySelector.evaluate(profile)
         val recommendedMode = options.firstOrNull { it.recommended }?.mode
         Text(
             "Device: ${Build.MANUFACTURER} ${Build.MODEL} · Android API ${Build.VERSION.SDK_INT}",
             style = MaterialTheme.typography.bodySmall,
         )
+        if (!microphoneGranted) {
+            Button(
+                onClick = onRequestMicrophonePermission,
+                modifier = Modifier.fillMaxWidth().testTag("capture-request-microphone"),
+            ) {
+                Text("Grant microphone permission")
+            }
+        }
         if (recommendedMode != null) {
             Button(
                 onClick = { onRecordingModeChanged(recommendedMode) },
