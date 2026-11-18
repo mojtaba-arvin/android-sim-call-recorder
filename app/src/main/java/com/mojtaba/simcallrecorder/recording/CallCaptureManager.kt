@@ -30,11 +30,11 @@ object CaptureStrategySelector {
             CaptureStrategyAvailability(
                 mode = RecordingMode.SHIZUKU_VOICE_CALL,
                 displayName = "Shizuku · privileged VOICE_CALL",
-                available = profile.sdkInt >= 30 && profile.shizukuAuthorized,
+                available = profile.sdkInt >= 24 && profile.shizukuAuthorized,
                 recommended = false,
                 capability = "Potential full-duplex cellular call mix (unverified)",
                 reason = when {
-                    profile.sdkInt < 30 -> "The integrated UserService requires Android 11 or newer."
+                    profile.sdkInt < 24 -> "The Shizuku API/UserService requires Android 7.0 (API 24) or newer."
                     !profile.shizukuAuthorized -> "Start Shizuku, authorize this app, and connect its recorder UserService."
                     else -> "Privileged source access is available; the modem/audio HAL still needs device testing."
                 },
