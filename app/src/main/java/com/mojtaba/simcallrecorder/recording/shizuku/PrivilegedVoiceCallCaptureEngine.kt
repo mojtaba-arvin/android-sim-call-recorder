@@ -1,5 +1,6 @@
 package com.mojtaba.simcallrecorder.recording.shizuku
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -50,6 +51,13 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
     override val isCapturing: Boolean
         get() = active
 
+    /**
+     * This capture engine is instantiated only after Shizuku authorization in a shell/root
+     * UserService. Permission checks must therefore be evaluated for that process identity,
+     * not for the app UID; Android may still reject the protected VOICE_CALL source, which is
+     * handled below as a normal capture failure.
+     */
+    @SuppressLint("MissingPermission")
     override fun start(
         output: ParcelFileDescriptor,
         sampleRate: Int,
