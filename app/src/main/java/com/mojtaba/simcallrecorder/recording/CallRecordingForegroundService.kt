@@ -44,8 +44,8 @@ class CallRecordingForegroundService : Service() {
     private val stateMachine = RecordingServiceStateMachine()
     private val automaticPolicy = AutomaticCallRecordingPolicy()
     private var automaticMonitorJob: Job? = null
-    private var automaticArmed = false
-    private var stopRequestedDuringStart = false
+    @Volatile private var automaticArmed = false
+    @Volatile private var stopRequestedDuringStart = false
     private var activeMode: RecordingMode? = null
     private var activeRecordId: Long? = null
     private var watchCaptureStatusJob: Job? = null
