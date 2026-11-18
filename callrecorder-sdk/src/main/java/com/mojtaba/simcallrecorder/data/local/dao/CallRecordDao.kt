@@ -8,7 +8,7 @@ import com.mojtaba.simcallrecorder.data.local.entity.CallRecordEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface CallRecordDao {
+internal interface CallRecordDao {
     @Query(
         """
         SELECT * FROM call_records

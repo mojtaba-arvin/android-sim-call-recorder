@@ -10,7 +10,7 @@ import com.mojtaba.simcallrecorder.data.local.entity.CallRecordEntity
     version = 3,
     exportSchema = true,
 )
-abstract class AppDatabase : RoomDatabase() {
+internal abstract class AppDatabase : RoomDatabase() {
     abstract fun callRecordDao(): CallRecordDao
 
     companion object {

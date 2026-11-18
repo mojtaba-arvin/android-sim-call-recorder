@@ -13,14 +13,14 @@ import javax.inject.Singleton
  * Permission groups are requested only when the corresponding capability is entered.
  * Holding RECORD_AUDIO or POST_NOTIFICATIONS is not required just to observe call state.
  */
-enum class PermissionPurpose {
+internal enum class PermissionPurpose {
     CALL_STATE,
     MICROPHONE_CAPTURE,
     FOREGROUND_NOTIFICATIONS,
 }
 
 @Singleton
-class CallPermissionManager @Inject constructor(
+internal class CallPermissionManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     fun permissionsFor(purpose: PermissionPurpose): List<String> =

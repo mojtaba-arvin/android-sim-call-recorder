@@ -12,7 +12,7 @@ import androidx.room.PrimaryKey
         Index(value = ["status"]),
     ],
 )
-data class CallRecordEntity(
+internal data class CallRecordEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val startedAtEpochMillis: Long,

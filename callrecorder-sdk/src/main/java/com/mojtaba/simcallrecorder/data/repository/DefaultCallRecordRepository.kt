@@ -18,7 +18,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class DefaultCallRecordRepository @Inject constructor(
+internal class DefaultCallRecordRepository @Inject constructor(
     private val dao: CallRecordDao,
     @ApplicationContext private val context: Context,
 ) : CallRecordRepository {

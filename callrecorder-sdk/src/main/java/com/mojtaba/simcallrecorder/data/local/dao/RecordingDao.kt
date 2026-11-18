@@ -8,7 +8,7 @@ import com.mojtaba.simcallrecorder.data.local.entity.RecordingEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface RecordingDao {
+internal interface RecordingDao {
     @Query("SELECT * FROM recordings ORDER BY startedAtEpochMillis DESC")
     fun observeAll(): Flow<List<RecordingEntity>>
 

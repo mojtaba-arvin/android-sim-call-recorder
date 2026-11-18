@@ -11,7 +11,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class DefaultDeviceDiagnosticsRepository @Inject constructor(
+internal class DefaultDeviceDiagnosticsRepository @Inject constructor(
     private val telephonyDataSource: AndroidTelephonyCallStateDataSource,
     private val audioRouteDataSource: AndroidAudioRouteDataSource,
 ) : DeviceDiagnosticsRepository {

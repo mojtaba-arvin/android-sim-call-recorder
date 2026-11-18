@@ -13,7 +13,7 @@ import javax.inject.Singleton
  * The diagnostics feature should use per-subscription events instead.
  */
 @Singleton
-class DefaultCallStateRepository @Inject constructor(
+internal class DefaultCallStateRepository @Inject constructor(
     private val dataSource: AndroidTelephonyCallStateDataSource,
 ) : CallStateRepository {
     override fun observeCallState(): Flow<CallState> =

@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
     tableName = "recordings",
     indices = [Index(value = ["startedAtEpochMillis"])],
 )
-data class RecordingEntity(
+internal data class RecordingEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val startedAtEpochMillis: Long,
