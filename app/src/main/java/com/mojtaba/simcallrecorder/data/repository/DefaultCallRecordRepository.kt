@@ -40,6 +40,11 @@ class DefaultCallRecordRepository @Inject constructor(
         dao.insert(record.toEntity())
     }
 
+    override suspend fun updateCaptureDiagnostics(recordId: Long, diagnostics: String): Boolean =
+        withContext(Dispatchers.IO) {
+            dao.updateCaptureDiagnostics(recordId, diagnostics.take(MAX_DIAGNOSTICS_LENGTH)) == 1
+        }
+
     override suspend fun completeRecording(
         recordId: Long,
         completion: CallRecordCompletion,
@@ -133,6 +138,8 @@ class DefaultCallRecordRepository @Inject constructor(
         isSilent = isSilent,
         status = status,
         failureReason = failureReason,
+        captureProfile = captureProfile,
+        captureDiagnostics = captureDiagnostics,
     )
 
     private fun CallRecordEntity.toDomain() = CallRecord(
@@ -152,11 +159,14 @@ class DefaultCallRecordRepository @Inject constructor(
         isSilent = isSilent,
         status = status,
         failureReason = failureReason,
+        captureProfile = captureProfile,
+        captureDiagnostics = captureDiagnostics,
     )
 
     private companion object {
         const val STATUS_RECORDING = "RECORDING"
         const val STATUS_FAILED = "FAILED"
         const val MAX_FAILURE_REASON_LENGTH = 500
+        const val MAX_DIAGNOSTICS_LENGTH = 2_000
     }
 }
