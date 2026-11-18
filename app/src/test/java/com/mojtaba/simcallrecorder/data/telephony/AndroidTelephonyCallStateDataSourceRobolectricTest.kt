@@ -37,7 +37,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         get() = RuntimeEnvironment.getApplication()
 
     @Test
-    @Config(sdk = [31, 34, 35, 37])
+    @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun api31Plus_emitsRingingOffhookAndIdleForTheCorrectSubscription() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionId = 101
@@ -118,7 +118,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     }
 
     @Test
-    @Config(sdk = [31, 34, 35, 37])
+    @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun multipleSubscriptions_keepTheirOwnSlotAssociation() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
@@ -162,7 +162,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     }
 
     @Test
-    @Config(sdk = [31, 34, 35, 37])
+    @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun activeSimSlots_exposeSlotLabelsButNotSubscriptionIdentifiers() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
@@ -183,7 +183,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     }
 
     @Test
-    @Config(sdk = [31, 34, 35, 37])
+    @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun observer_withoutReadPhoneStatePermission_failsClosed() = runBlocking {
         (Shadow.extract(context) as ShadowApplication).denyPermissions(Manifest.permission.READ_PHONE_STATE)
 
