@@ -93,7 +93,7 @@ class CallCaptureManager(
 ) {
     private val byMode = strategies.associateBy { it.mode }
 
-    fun strategyFor(mode: RecordingMode): CallCaptureStrategy? {
+    fun strategyFor(mode: RecordingMode): CallAudioRecordingBackend? {
         if (mode == RecordingMode.SHIZUKU_VOICE_CALL && !shizukuCaptureEnabled) return null
         return byMode[mode]
     }
@@ -122,7 +122,7 @@ class CallCaptureManager(
     fun selectBest(
         profile: CaptureDeviceProfile,
         preferred: RecordingMode? = null,
-    ): CallCaptureStrategy? {
+    ): CallAudioRecordingBackend? {
         val options = availability(profile)
         // A failed privileged selection must never become an implicit microphone recording.
         if (preferred == RecordingMode.SHIZUKU_VOICE_CALL) {
