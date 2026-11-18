@@ -17,7 +17,7 @@ android {
         versionName = "0.1.0"
         val shizukuCaptureEnabled = providers.gradleProperty("enableShizukuCallCapture")
             .map { it.toBoolean() }
-            .getOrElse { true }
+            .getOrElse(true)
         buildConfigField("boolean", "ENABLE_SHIZUKU_CALL_CAPTURE", shizukuCaptureEnabled.toString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
