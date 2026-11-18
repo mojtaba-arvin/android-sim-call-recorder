@@ -6,7 +6,7 @@ import java.io.File
 import javax.inject.Inject
 
 /** Internal engine alias to the stable public SDK recording-mode contract. */
-internal typealias RecordingMode = com.mojtaba.simcallrecorder.sdk.SdkRecordingMode
+internal typealias RecordingMode = com.mojtaba.simcallrecorder.domain.model.RecordingMode
 
 /**
  * A capture strategy is a selectable implementation, not a promise that a device's modem or audio
