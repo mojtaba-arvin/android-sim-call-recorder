@@ -8,8 +8,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Legacy rows remain visible as COMPLETED; their old filename is retained as a relative path.
  */
 val MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(database: SupportSQLiteDatabase) {
-        database.execSQL(
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS call_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -31,7 +31,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             )
             """.trimIndent(),
         )
-        database.execSQL(
+        db.execSQL(
             """
             INSERT INTO call_records (
                 id, startedAtEpochMillis, durationMillis, phoneNumber, simSlotIndex,
@@ -45,14 +45,14 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
             FROM recordings
             """.trimIndent(),
         )
-        database.execSQL("DROP TABLE recordings")
-        database.execSQL(
+        db.execSQL("DROP TABLE recordings")
+        db.execSQL(
             "CREATE INDEX IF NOT EXISTS index_call_records_startedAtEpochMillis ON call_records(startedAtEpochMillis)",
         )
-        database.execSQL(
+        db.execSQL(
             "CREATE INDEX IF NOT EXISTS index_call_records_simSlotIndex_startedAtEpochMillis ON call_records(simSlotIndex, startedAtEpochMillis)",
         )
-        database.execSQL(
+        db.execSQL(
             "CREATE INDEX IF NOT EXISTS index_call_records_status ON call_records(status)",
         )
     }
