@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
-import rikka.shizuku.Shizuku
 import com.mojtaba.simcallrecorder.recording.CallAudioAccessibilityService
 import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfile
 import com.mojtaba.simcallrecorder.recording.CaptureStrategySelector
@@ -71,6 +70,7 @@ fun RecorderRootScreen(
     records: List<CallRecord>,
     settings: RecorderSettings,
     selectedRecord: CallRecord?,
+    shizukuServiceUid: Int? = null,
     diagnosticsContent: @Composable () -> Unit,
     onFilterChanged: (CallRecordFilter) -> Unit,
     onOpenRecord: (CallRecord) -> Unit,
@@ -119,6 +119,7 @@ fun RecorderRootScreen(
                 RecorderDestination.DIAGNOSTICS -> diagnosticsContent()
                 RecorderDestination.SETTINGS -> RecorderSettingsScreen(
                     settings = settings,
+                    shizukuServiceUid = shizukuServiceUid,
                     onStorageLimitChanged = onStorageLimitChanged,
                     onRecordingModeChanged = onRecordingModeChanged,
                     onRequestMicrophonePermission = onRequestMicrophonePermission,
@@ -376,6 +377,7 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
 @Composable
 fun RecorderSettingsScreen(
     settings: RecorderSettings,
+    shizukuServiceUid: Int?,
     onStorageLimitChanged: (Int) -> Unit,
     onRecordingModeChanged: (RecordingMode) -> Unit,
     onRequestMicrophonePermission: () -> Unit,
@@ -389,9 +391,9 @@ fun RecorderSettingsScreen(
         val context = LocalContext.current
         val microphoneGranted = context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        val shizukuAuthorized = runCatching {
-            Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        }.getOrDefault(false)
+        // A Shizuku permission grant is not enough: the authorized UserService must be
+        // connected and its actual host UID must be shell (2000) or root (0).
+        val shizukuAuthorized = shizukuServiceUid == 2000 || shizukuServiceUid == 0
         val enabledNotificationListeners = Settings.Secure.getString(
             context.contentResolver,
             "enabled_notification_listeners",
