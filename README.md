@@ -2,7 +2,7 @@
 
 A native Android (Kotlin) project investigating reliable SIM-call recording on real devices.
 
-> **Current status:** native diagnostics, an opt-in Shizuku `VOICE_CALL` prototype, and a user-armed automatic `Speakerphone + MIC` foreground-monitoring lifecycle. Automatic acoustic capture is not proof of two-way call audio; OEM/modem behavior must be validated.
+> **Current status:** native diagnostics, a Shizuku `VOICE_CALL` backend with shell-attribution readiness checks, and a user-armed automatic best-eligible strategy selector. It selects Shizuku when its live helper is ready, otherwise Speakerphone + MIC when microphone permission is available. Neither path is proof of two-way call audio; OEM/modem behavior must be validated.
 
 ## Project goals
 
@@ -45,7 +45,7 @@ The standard third-party app process does not have public-SDK access to cellular
 The application exposes multiple strategies through a common `CallCaptureStrategy` contract:
 
 - **Standard app-UID digital capture:** fails closed; it does not claim access to cellular uplink/downlink. The product-level Standard acoustic mode is the separate `Speakerphone + MIC` strategy and now supports explicit foreground arming with automatic OFFHOOK start and same-SIM IDLE finalization.
-- **Shizuku VOICE_CALL:** optional, manually started privileged capture prototype.
+- **Shizuku VOICE_CALL:** privileged full-duplex candidate; the automatic arm flow selects it when the live UserService, shell UID and attribution are ready.
 - **Accessibility-priority VOICE_RECOGNITION:** optional microphone/acoustic experiment; not digital downlink and not for Google Play distribution as a call-recording feature.
 - **Platform VOICE_RECOGNITION:** generic microphone experiment, not a vendor-specific OEM API.
 - **Speakerphone + MIC:** explicit acoustic capture mode with route and echo limitations; may be armed for automatic OFFHOOK recording with a persistent notification.
@@ -62,7 +62,7 @@ The Shizuku backend works as follows:
 
 This is a device-dependent privileged capture path, not a guarantee of two-sided audio on every model/carrier. CallVault and ShizuCallRecorder were reviewed as open-source references, but their GPL code was not copied. This project remains MIT-licensed. The Shizuku API itself is MIT-licensed.
 
-To use the prototype, install and start Shizuku/Sui separately, return to the app, tap **Connect / authorize Shizuku**, grant the request in Shizuku, then start a recording manually during a call. On a non-root phone, starting Shizuku normally requires ADB Wireless Debugging on Android 11+ and re-authorization after reboot. The Shizuku path remains manually started and does not automatically downgrade to microphone capture. The separate Standard acoustic mode can be armed from the Diagnostics screen; once armed, it starts on SIM OFFHOOK and stops on IDLE. Re-arm after reboot or force-stop.
+To use privileged automatic capture, install/start Shizuku/Sui separately, tap **Connect / authorize Shizuku**, and grant the request. Then arm **best available automatic recording** from Diagnostics before a call. If Shizuku's UserService and shell audio attribution are ready, the service fixes the session to privileged `VOICE_CALL`; otherwise it chooses Speakerphone + MIC if `RECORD_AUDIO` is granted. A Shizuku failure never downgrades to microphone capture. The chosen mode stays fixed until disarmed. On non-root phones, starting Shizuku normally requires ADB Wireless Debugging on Android 11+ and re-authorization after reboot. Re-arm after reboot or force-stop.
 
 Read the detailed research and safety constraints:
 
@@ -78,7 +78,7 @@ Read the detailed research and safety constraints:
 
 - **Recordings:** search, SIM-slot filter, date filter, and newest/oldest sorting.
 - **Player:** Media3 ExoPlayer with play/pause, seek/progress controls; only completed readable private WAVs are playable.
-- **Settings:** capture strategy candidates, Shizuku status, microphone permission, and local storage quota. Consent-gated automatic Standard acoustic capture can be armed from Diagnostics; its two-way audio performance remains unverified.
+- **Settings:** capture strategy candidates, Shizuku status, microphone permission, and local storage quota. Consent-gated automatic best-eligible capture can be armed from Diagnostics; its two-way audio performance remains unverified.
 - **Diagnostics:** the SIM-state, audio-route, and Shizuku connection panel remains available as a dedicated tab.
 
 ## Diagnostics implementation
@@ -100,6 +100,6 @@ Robolectric can verify framework callback wiring, state transitions, service pol
 
 - No READ_CALL_LOG, contacts, broad storage, or overlay permission is requested. The optional Accessibility experiment requires explicit enablement in Android Settings and is not suitable for a Google Play call-recording release.
 - No microphone permission prompt is needed for the privileged Shizuku UserService path. The explicitly selected microphone/acoustic strategies do capture microphone input and require RECORD_AUDIO.
-- Recording currently starts from a visible user action and shows an ongoing foreground notification with Stop. The accepted target is consent-gated automatic Standard-mode capture on OFFHOOK; see [the automatic lifecycle design](docs/AUTO_RECORDING_LIFECYCLE.md).
+- Recording currently starts from a visible user action and shows an ongoing foreground notification with Stop. The accepted target is consent-gated automatic best-eligible capture on OFFHOOK; see [the automatic lifecycle design](docs/AUTO_RECORDING_LIFECYCLE.md).
 - A Shizuku authorization is an additional privilege grant and must be understood by the user.
 - A permission grant is not consent from every call participant. The user must comply with applicable local law and obtain all required consent.
