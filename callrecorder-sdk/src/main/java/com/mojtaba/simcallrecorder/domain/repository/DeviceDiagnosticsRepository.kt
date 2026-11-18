@@ -5,7 +5,7 @@ import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import kotlinx.coroutines.flow.Flow
 
-interface DeviceDiagnosticsRepository {
+internal interface DeviceDiagnosticsRepository {
     suspend fun getActiveSimSlots(): List<SimSlot>
 
     fun observeCallStateEvents(): Flow<CallStateEvent>

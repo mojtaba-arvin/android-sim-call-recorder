@@ -26,7 +26,7 @@ private val Context.recorderSettingsDataStore: DataStore<Preferences> by prefere
 )
 
 @Singleton
-class DefaultRecorderSettingsRepository @Inject constructor(
+internal class DefaultRecorderSettingsRepository @Inject constructor(
     @ApplicationContext context: Context,
 ) : RecorderSettingsRepository {
     private val dataStore = context.recorderSettingsDataStore

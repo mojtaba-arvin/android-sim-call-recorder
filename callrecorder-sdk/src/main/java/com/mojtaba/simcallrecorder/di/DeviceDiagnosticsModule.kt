@@ -12,7 +12,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class DeviceDiagnosticsModule {
+internal abstract class DeviceDiagnosticsModule {
     @Binds
     @Singleton
     abstract fun bindDeviceDiagnosticsRepository(

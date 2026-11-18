@@ -10,7 +10,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class CallStateModule {
+internal abstract class CallStateModule {
     @Binds
     @Singleton
     abstract fun bindCallStateRepository(

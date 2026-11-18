@@ -5,7 +5,7 @@ import com.mojtaba.simcallrecorder.domain.model.CallRecordCompletion
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import kotlinx.coroutines.flow.Flow
 
-interface CallRecordRepository {
+internal interface CallRecordRepository {
     fun observeRecords(filter: CallRecordFilter = CallRecordFilter()): Flow<List<CallRecord>>
     suspend fun createActiveRecording(record: CallRecord): Long
     suspend fun appendCaptureDiagnostic(recordId: Long, diagnostic: String): Boolean
