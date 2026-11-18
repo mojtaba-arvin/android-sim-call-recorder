@@ -10,7 +10,7 @@ A strategy being selectable or successfully opening an audio source does not mea
 
 | Strategy | Current implementation | Eligibility | Audio semantics | Current confidence |
 |---|---|---|---|---|
-| Shizuku privileged `VOICE_CALL` | Implemented through a narrow Shizuku UserService | Android 11+; Shizuku running and explicitly authorized; actual UserService binder must be connected and report shell UID (2000) or root UID (0) | Requests privileged cellular-call uplink + downlink | Highest-potential path; device/OEM/HAL dependent; no physical validation recorded |
+| Shizuku privileged `VOICE_CALL` | Implemented through a narrow Shizuku UserService with shell-attribution setup and a fail-closed readiness check | Android 11+; Shizuku running and explicitly authorized; actual UserService binder must be connected, report shell UID (2000) or root UID (0), and report successful shell audio-attribution initialization | Requests only the full-duplex `VOICE_CALL` source; one-sided UPLINK/DOWNLINK sources are rejected | Highest-potential path; device/OEM/HAL dependent; no physical validation recorded |
 | Accessibility-priority `VOICE_RECOGNITION` | Implemented as a separate opt-in strategy | Android 10+; RECORD_AUDIO; user enables the app's Accessibility service | Microphone capture with speaker-route request; may acoustically capture remote speech | Experimental; not digital downlink; Google Play policy makes this unsuitable for a Play-distributed call-recording feature |
 | Platform `VOICE_RECOGNITION` | Implemented as a separate microphone experiment | RECORD_AUDIO | Ordinary microphone input with communication-mode configuration | Generic microphone experiment, **not** a vendor-specific OEM API |
 | Speakerphone + MIC | Implemented as a separate explicit strategy | RECORD_AUDIO | Acoustic capture after requesting speaker route | Limited; susceptible to echo, noise, route changes, headset and Bluetooth behavior |
@@ -24,7 +24,7 @@ A strategy being selectable or successfully opening an audio source does not mea
 
 ## Selection and fallback policy
 
-1. Probe the actual runtime prerequisites before selecting a strategy: Android API, microphone permission, Shizuku binder and authorization, live UserService binder plus validated host UID (shell 2000/root 0), Accessibility enablement, and active SIM slot. A Shizuku permission grant or running server alone is not capture readiness.
+1. Probe the actual runtime prerequisites before selecting a strategy: Android API, microphone permission, Shizuku binder and authorization, live UserService binder plus validated host UID (shell 2000/root 0) and successful shell audio-attribution initialization, Accessibility enablement, and active SIM slot. A Shizuku permission grant or running server alone is not capture readiness.
 2. Rank only eligible strategies. A ranking is a **candidate recommendation**, not proof of compatibility.
 3. Prefer the Shizuku privileged source when its helper is actually connected and authorized.
 4. Offer the explicitly labelled microphone/acoustic experiments only as separate modes; never silently relabel them as digital two-way capture.
@@ -32,7 +32,7 @@ A strategy being selectable or successfully opening an audio source does not mea
 6. Record the actual strategy, source, sample rate, channel count, signal metrics, device profile, and validation outcome with each session.
 7. Promote a device/route to "verified two-way" only after independent local and remote test phrases are intelligible in repeated incoming and outgoing calls.
 
-**Current implementation gaps:** the Settings UI now treats Shizuku as eligible only when the actual UserService binder is alive and its host UID is validated; the foreground recording start path now checks live runtime eligibility for the explicitly selected strategy. It does not yet automatically choose between Shizuku and acoustic modes. Standard acoustic OFFHOOK auto-start and persistent foreground monitoring are implemented behind an explicit Arm action; the service uses Speakerphone + MIC only. Physical two-way capture remains unverified. AudioRecordingCallback/client-silenced diagnostics are now surfaced live for microphone sessions; persistence and transition history remain outstanding. No physical-device compatibility result exists.
+**Current implementation gaps:** the Settings UI now treats Shizuku as eligible only when the actual UserService binder is alive, its host UID is validated, and shell audio attribution reports ready; the foreground recording start path now checks live runtime eligibility for the explicitly selected strategy. It does not yet automatically choose between Shizuku and acoustic modes. Standard acoustic OFFHOOK auto-start and persistent foreground monitoring are implemented behind an explicit Arm action; the service uses Speakerphone + MIC only. Physical two-way capture remains unverified. AudioRecordingCallback/client-silenced diagnostics are now surfaced live for microphone sessions; persistence and transition history remain outstanding. No physical-device compatibility result exists.
 
 ## Physical-device acceptance matrix
 
