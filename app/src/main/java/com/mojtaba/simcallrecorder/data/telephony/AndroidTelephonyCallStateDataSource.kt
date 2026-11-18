@@ -124,6 +124,7 @@ class AndroidTelephonyCallStateDataSource @Inject constructor(
             } else {
                 val listener = withContext(Dispatchers.Main.immediate) {
                     object : PhoneStateListener() {
+                        @Suppress("OVERRIDE_DEPRECATION")
                         override fun onCallStateChanged(state: Int, phoneNumber: String?) {
                             // The number is deliberately ignored and never persisted.
                             trySend(
