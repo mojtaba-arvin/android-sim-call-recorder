@@ -68,7 +68,8 @@ Read the detailed research and safety constraints:
 
 - [Android call-audio constraints and implementation decision](docs/ANDROID_CALL_AUDIO_CONSTRAINTS.md)
 - [Architecture and module boundaries](docs/ARCHITECTURE.md)
-- [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)\n- [Capture compatibility matrix and strategy-selection policy](docs/COMPATIBILITY_MATRIX.md)
+- [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)
+- [Capture compatibility matrix and strategy-selection policy](docs/COMPATIBILITY_MATRIX.md)
 
 ## Application screens
 
