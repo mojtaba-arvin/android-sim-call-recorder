@@ -179,17 +179,24 @@ jobs:
           # Keep Quick Boot snapshots enabled; forcing cold boots added several minutes per PR run.
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
+          # The emulator runner executes script lines in separate shell processes.
+          # Keep status capture and diagnostics in one nested shell so the test exit code survives.
           script: |
-            set +e
-            mkdir -p app/build/reports/emulator
-            # Some API 26 emulator images reject logcat buffer clearing. Diagnostics are best-effort.
-            adb logcat -c || true
-            gradle --console=plain :app:connectedDebugAndroidTest
-            test_exit_code=$?
-            adb logcat -d -t 5000 > app/build/reports/emulator/logcat.txt || true
-            adb shell dumpsys activity services > app/build/reports/emulator/services.txt || true
-            adb shell dumpsys audio > app/build/reports/emulator/audio.txt || true
-            exit "$test_exit_code"
+            bash -c '
+              set -uo pipefail
+              mkdir -p app/build/reports/emulator
+              # Some API 26 emulator images reject logcat buffer clearing. Diagnostics are best-effort.
+              adb logcat -c || true
+              if gradle --console=plain :app:connectedDebugAndroidTest; then
+                test_exit_code=0
+              else
+                test_exit_code=$?
+              fi
+              adb logcat -d -t 5000 > app/build/reports/emulator/logcat.txt || true
+              adb shell dumpsys activity services > app/build/reports/emulator/services.txt || true
+              adb shell dumpsys audio > app/build/reports/emulator/audio.txt || true
+              exit "$test_exit_code"
+            '
 
       - name: Upload instrumented test reports
         if: always()
