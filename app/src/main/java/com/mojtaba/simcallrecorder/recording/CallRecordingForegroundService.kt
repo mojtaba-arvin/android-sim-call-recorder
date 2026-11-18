@@ -128,7 +128,6 @@ class CallRecordingForegroundService : Service() {
                     sawOffhook = true
                 } else if (sawOffhook && event.state == CallState.IDLE) {
                     stopCapture(latestStartId, "Call ended")
-                    return@launch
                 }
             }
         }
