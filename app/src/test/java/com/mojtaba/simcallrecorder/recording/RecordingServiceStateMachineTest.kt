@@ -48,6 +48,47 @@ class RecordingServiceStateMachineTest {
         assertTrue(machine.recordingStarted())
     }
 
+    @Test
+    fun rejectsConcurrentStartUntilTheCurrentSessionIsFinalized() {
+        val machine = RecordingServiceStateMachine()
+
+        assertTrue(machine.beginStart(request(slot = 0)))
+        assertFalse(machine.beginStart(request(slot = 1)))
+        assertTrue(machine.recordingStarted())
+        assertTrue(machine.beginStop())
+        assertFalse(machine.beginStart(request(slot = 1)))
+
+        machine.stopCompleted()
+
+        assertTrue(machine.beginStart(request(slot = 1)))
+        assertEquals(1, machine.activeSimSlotIndex)
+    }
+
+    @Test
+    fun callEndCannotStopARecordingWhileItIsStillStarting() {
+        val machine = RecordingServiceStateMachine()
+        assertTrue(machine.beginStart(request(slot = 1)))
+
+        assertFalse(machine.shouldStopFor(event(slot = 1, state = CallState.IDLE)))
+        assertEquals(RecordingServiceStateMachine.State.STARTING, machine.state)
+
+        assertTrue(machine.recordingStarted())
+        assertTrue(machine.shouldStopFor(event(slot = 1, state = CallState.IDLE)))
+    }
+
+    @Test
+    fun failedStartClearsTheSelectedSimAndAllowsAnotherSimToRetry() {
+        val machine = RecordingServiceStateMachine()
+        assertTrue(machine.beginStart(request(slot = 0)))
+
+        machine.startFailed()
+
+        assertEquals(RecordingServiceStateMachine.State.FAILED, machine.state)
+        assertEquals(null, machine.activeSimSlotIndex)
+        assertTrue(machine.beginStart(request(slot = 1)))
+        assertEquals(1, machine.activeSimSlotIndex)
+    }
+
     private fun request(
         slot: Int = 0,
         callState: CallState = CallState.OFFHOOK,
