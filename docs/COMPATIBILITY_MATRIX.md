@@ -73,3 +73,17 @@ Test earpiece, loudspeaker, wired headset, and Bluetooth independently. Test bot
 - [Official Shizuku setup and Android-version requirements](https://shizuku.rikka.app/guide/setup/)
 
 No GPL implementation code is copied into this MIT-licensed project.
+
+
+## Android 17 background-audio hardening gate
+
+Android 17 (API 37) applies background-audio hardening to all apps: audio interactions must occur with a visible activity or a non-short foreground service. Apps targeting API 37 have an additional while-in-use foreground-service capability requirement when interacting with audio in the background. The recorder starts its foreground service from a visible, user-initiated UI action; this is the intended path, but it is not considered device-verified yet.
+
+Before raising `targetSdk` from 36 to 37:
+
+1. Run the API 37 emulator matrix and physical-device tests with the app starting monitoring from a visible activity.
+2. Background the app and turn the screen off while a cellular call is active; verify the service remains foreground and both audio directions remain intelligible.
+3. On an API 37 test device, enable hardening with `adb shell cmd audio set-enable-hardening enable`; inspect `dumpsys audio` and logcat for `AudioHardening` entries.
+4. Verify that no path starts audio capture from boot, a background receiver, or a non-user-initiated background action.
+
+The current `targetSdk = 36` is intentionally held until this gate passes. See the [Android 17 background-audio hardening guidance](https://developer.android.com/about/versions/17/changes/bg-audio).
