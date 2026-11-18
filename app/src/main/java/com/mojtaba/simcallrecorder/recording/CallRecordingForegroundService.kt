@@ -38,6 +38,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class CallRecordingForegroundService : Service() {
     @Inject lateinit var recordingCoordinator: RecordingCoordinator
+    @Inject lateinit var captureDeviceProfileProvider: CaptureDeviceProfileProvider
     @Inject lateinit var recorderClient: ShizukuAudioRecorderClient
     @Inject lateinit var diagnosticsRepository: DeviceDiagnosticsRepository
     @Inject lateinit var callRecordRepository: CallRecordRepository
@@ -95,33 +96,43 @@ class CallRecordingForegroundService : Service() {
             return
         }
         val consent = intent.getBooleanExtra(EXTRA_PARTICIPANT_CONSENT, false)
-        val microphoneGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val profile = captureDeviceProfileProvider.snapshot()
+        val requestedMode = intent.getStringExtra(EXTRA_RECORDING_MODE)
+            ?.let { runCatching { RecordingMode.valueOf(it) }.getOrNull() }
+        val selectedMode = requestedMode ?: recordingCoordinator.selectBest(profile)?.mode
         val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED
+        val strategyAvailable = selectedMode?.let { recordingCoordinator.isAvailable(it, profile) } == true
 
-        if (!automaticPolicy.arm(
+        if (selectedMode == null || !automaticPolicy.arm(
                 enabled = true,
                 participantConsentConfirmed = consent,
-                selectedMode = RecordingMode.SPEAKERPHONE_MIC,
-                recordAudioGranted = microphoneGranted && notificationsGranted,
+                selectedMode = selectedMode,
+                strategyAvailable = strategyAvailable && notificationsGranted,
+                recordAudioGranted = profile.recordAudioGranted,
             )
         ) {
             updateNotification(
-                "Automatic recording not armed · explicit consent, microphone and notification permissions are required.",
+                when {
+                    !consent -> "Automatic recording not armed · participant authorization and consent are required."
+                    !notificationsGranted -> "Automatic recording not armed · notification permission is required."
+                    selectedMode == null -> "Automatic recording not armed · no eligible capture strategy is available."
+                    else -> "Automatic recording not armed · selected strategy is unavailable or lacks permission."
+                },
             )
             stopSelf()
             return
         }
 
         setAutomaticMonitoringArmed(true)
+        val modeLabel = automaticModeLabel(selectedMode)
         try {
-            // The app starts this microphone FGS from a visible activity. It remains visible and
-            // user-stoppable while waiting for OFFHOOK; no background FGS start is attempted.
+            // The app starts the mode-specific foreground service from the visible activity.
+            // Shizuku uses its special-use type; acoustic mode uses microphone type.
             startForegroundCompat(
-                buildNotification("Automatic acoustic recording armed · waiting for a SIM call"),
-                RecordingMode.SPEAKERPHONE_MIC,
+                buildNotification("Automatic $modeLabel armed · waiting for a SIM call"),
+                selectedMode,
             )
         } catch (exception: Exception) {
             disarmAutomaticMonitoring()
@@ -138,7 +149,7 @@ class CallRecordingForegroundService : Service() {
                         AutomaticCallRecordingPolicy.Decision.START -> {
                             val startIntent = Intent(this@CallRecordingForegroundService, CallRecordingForegroundService::class.java)
                                 .setAction(ACTION_START)
-                                .putExtra(EXTRA_RECORDING_MODE, RecordingMode.SPEAKERPHONE_MIC.name)
+                                .putExtra(EXTRA_RECORDING_MODE, automaticPolicy.selectedMode?.name ?: return@collect)
                                 .putExtra(EXTRA_CALL_STATE, CallState.OFFHOOK.name)
                                 .putExtra(EXTRA_SIM_SLOT_INDEX, event.simSlotIndex)
                                 .putExtra(EXTRA_PARTICIPANT_CONSENT, true)
@@ -306,19 +317,15 @@ class CallRecordingForegroundService : Service() {
         }
     }
 
+    private fun automaticModeLabel(mode: RecordingMode): String = when (mode) {
+        RecordingMode.SHIZUKU_VOICE_CALL -> "Shizuku privileged VOICE_CALL"
+        RecordingMode.SPEAKERPHONE_MIC -> "Speakerphone + MIC acoustic capture"
+        else -> mode.name
+    }
+
     private fun captureDeviceProfile(): CaptureDeviceProfile {
         val helperUid = recorderClient.authorizedHostUid
-        return CaptureDeviceProfile(
-            sdkInt = Build.VERSION.SDK_INT,
-            manufacturer = Build.MANUFACTURER,
-            model = Build.MODEL,
-            recordAudioGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED,
-            shizukuAuthorized = helperUid == 2_000 || helperUid == 0,
-            accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(this),
-            notificationListenerEnabled = false,
-            voipCallNotificationPresent = false,
-        )
+        return captureDeviceProfileProvider.snapshot()
     }
 
     private fun watchCallEnd(simSlotIndex: Int) {
