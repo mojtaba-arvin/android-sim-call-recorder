@@ -111,7 +111,7 @@ class RecordingCoordinator(
     fun selectBest(
         profile: CaptureDeviceProfile,
         preferred: RecordingMode? = null,
-    ): CallAudioRecordingBackend? = captureManager.selectBest(profile, preferred) as? CallAudioRecordingBackend
+    ): CallAudioRecordingBackend? = captureManager.selectBest(profile, preferred)
 
     fun isAvailable(mode: RecordingMode, profile: CaptureDeviceProfile): Boolean =
         captureManager.availability(profile).any { it.mode == mode && it.available } &&
