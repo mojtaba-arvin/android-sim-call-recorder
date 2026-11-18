@@ -324,8 +324,12 @@ class CallRecordingForegroundService : Service() {
             activeMode = null
             activeRecordId = null
             stateMachine.stopCompleted()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf(startId)
+            if (automaticArmed && reason == "Call ended") {
+                updateNotification("Automatic acoustic recording armed · waiting for a SIM call")
+            } else {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf(startId)
+            }
         }
     }
 
