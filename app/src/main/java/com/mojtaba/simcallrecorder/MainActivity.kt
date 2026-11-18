@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 if (!callStateGranted) {
                     recorderCaptureStatus = "Automatic recording requires call-state permission."
                 } else if (microphoneDenied) {
-                    if (recorderSdk.isSdkRecordingModeAvailable(SdkRecordingMode.SHIZUKU_VOICE_CALL)) {
+                    if (recorderSdk.isRecordingModeAvailable(SdkRecordingMode.SHIZUKU_VOICE_CALL)) {
                         requestArmAutomaticRecording()
                     } else {
                         recorderCaptureStatus = "Microphone permission was denied and no ready Shizuku capture path is available."
@@ -194,9 +194,9 @@ class MainActivity : ComponentActivity() {
                                 recorderSdk.updateStorageLimit(limit)
                             }
                         },
-                        onSdkRecordingModeChanged = { mode ->
+                        onRecordingModeChanged = { mode ->
                             lifecycleScope.launch(Dispatchers.IO) {
-                                recorderSdk.updateSdkRecordingMode(mode.name)
+                                recorderSdk.updateRecordingMode(mode.name)
                             }
                         },
                         onRequestMicrophonePermission = {
@@ -347,7 +347,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val selectedMode = recorderSdk.selectBestSdkRecordingMode()
+        val selectedMode = recorderSdk.selectBestRecordingMode()
         if (selectedMode == null) {
             if (!recorderSdk.hasMicrophonePermission()) {
                 pendingAutomaticArm = true
