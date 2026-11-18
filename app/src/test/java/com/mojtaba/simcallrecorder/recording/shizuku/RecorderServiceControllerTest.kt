@@ -82,7 +82,7 @@ class RecorderServiceControllerTest {
     @Test
     fun failedEngineStart_canBeRetriedAfterTheFailure() {
         val engine = FakeCaptureEngine(startResult = 0, error = "permission denied")
-        val controller = RecorderServiceController(engine) { 2_000 }
+        val controller = RecorderServiceController(engine, hostUid = { 2_000 })
         val firstPipe = ParcelFileDescriptor.createPipe()
 
         assertEquals(0, controller.start(firstPipe[1], 48_000, 2))
