@@ -121,6 +121,24 @@ class WavPcmFileWriterTest {
         assertFalse(File(destination.parentFile, destination.name + ".part").exists())
     }
 
+    @Test
+    fun closeFailureAfterEofDoesNotInvalidateFinalizedWave() {
+        val destination = File(temporaryFolder.root, "close-failure.wav")
+        val pcm = byteArrayOf(0x12, 0x34)
+        val input = object : ByteArrayInputStream(pcm) {
+            override fun close() {
+                throw java.io.IOException("simulated descriptor close failure")
+            }
+        }
+
+        val result = WavPcmFileWriter.copyPcm(input, destination, 8_000, 1)
+
+        assertEquals(2L, result.dataBytes)
+        assertTrue(destination.exists())
+        assertEquals("RIFF", String(destination.readBytes(), 0, 4, Charsets.US_ASCII))
+        assertArrayEquals(pcm, destination.readBytes().copyOfRange(44, 46))
+    }
+
     private fun readIntLittleEndian(bytes: ByteArray, offset: Int): Int =
         (bytes[offset].toInt() and 0xff) or
             ((bytes[offset + 1].toInt() and 0xff) shl 8) or
