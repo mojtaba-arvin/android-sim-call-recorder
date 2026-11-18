@@ -98,7 +98,7 @@ class CallRecordingForegroundService : Service() {
             var startedMode: RecordingMode? = null
             var insertedRecordId: Long? = null
             try {
-                val output = recordingCoordinator.start(request)
+                val output = recordingCoordinator.start(request, captureDeviceProfile())
                 startedMode = request.mode
                 activeMode = request.mode
 
@@ -169,6 +169,19 @@ class CallRecordingForegroundService : Service() {
             }
         }
     }
+
+    private fun captureDeviceProfile() = CaptureDeviceProfile(
+        sdkInt = Build.VERSION.SDK_INT,
+        manufacturer = Build.MANUFACTURER,
+        model = Build.MODEL,
+        recordAudioGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED,
+        shizukuAuthorized = recorderClient.authorizedHostUid == 2_000 ||
+            recorderClient.authorizedHostUid == 0,
+        accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(this),
+        notificationListenerEnabled = false,
+        voipCallNotificationPresent = false,
+    )
 
     private fun watchCallEnd(simSlotIndex: Int) {
         watchCallEndJob?.cancel()
