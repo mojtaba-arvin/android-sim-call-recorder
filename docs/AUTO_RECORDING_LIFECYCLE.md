@@ -82,10 +82,11 @@ Official references:
 
 For Standard mode only, evaluate a bounded microphone/acoustic chain. Do not mix it with the Shizuku path.
 
-- Use `AudioManager.registerAudioRecordingCallback()` to observe the active recording configuration.
-- On API 29+, inspect `AudioRecordingConfiguration.isClientSilenced()` and correlate by audio session ID.
+- Standard acoustic capture now tries a bounded initialization chain: `MIC` → `VOICE_COMMUNICATION` → `VOICE_RECOGNITION`. It advances only when the preceding source cannot initialize or enter recording state; it does not switch sources after a session has started.
+- On API 29+, `AudioManager.registerAudioRecordingCallback()` observes the active configuration and correlates by audio session ID.
+- Live diagnostics report client-selected source, framework active source, input device, client/device formats and `isClientSilenced()`.
 - A silenced input is a clear failure signal for that moment. It is not proof that an unsilenced stream contains both participants.
-- Persist client source, actual active source, input device, client/device format, sample rate, channels, silence transitions, peak/RMS and fallback reason.
+- The actual selected source and initialization fallback reason are written into the recording's source label. Persisting callback transitions and full diagnostics in Room remains outstanding.
 - A non-zero waveform or non-silent WAV is not proof of two-way speech. Two-way support still requires separate known phrases from both participants in repeated real calls.
 
 ## Current implementation gaps
@@ -94,7 +95,7 @@ For Standard mode only, evaluate a bounded microphone/acoustic chain. Do not mix
 - Automatic mode currently uses only `SPEAKERPHONE_MIC`; it does not prove or guarantee remote-party capture, and there is no bounded AudioSource fallback chain yet.
 - Shizuku remains a separate manually initiated strategy. Automatic Shizuku capture is not enabled.
 - Runtime capability checks now gate the explicitly selected backend at service start. The candidate selector is not yet an automatic Shizuku-vs-acoustic chooser.
-- AudioRecordingCallback / client-silenced diagnostics are not implemented.
+- AudioRecordingCallback / client-silenced diagnostics are visible live but are not yet persisted as a complete timeline in Room.
 - No physical modem/OEM/carrier two-way result has been recorded.
 
 Tracked work:
