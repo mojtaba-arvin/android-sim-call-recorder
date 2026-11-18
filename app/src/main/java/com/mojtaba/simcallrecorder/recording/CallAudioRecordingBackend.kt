@@ -108,6 +108,15 @@ class RecordingCoordinator(
         return backend.start(request)
     }
 
+    fun selectBest(
+        profile: CaptureDeviceProfile,
+        preferred: RecordingMode? = null,
+    ): CallAudioRecordingBackend? = captureManager.selectBest(profile, preferred) as? CallAudioRecordingBackend
+
+    fun isAvailable(mode: RecordingMode, profile: CaptureDeviceProfile): Boolean =
+        captureManager.availability(profile).any { it.mode == mode && it.available } &&
+            captureManager.strategyFor(mode) != null
+
     fun audioSourceLabel(mode: RecordingMode): String =
         captureManager.strategyFor(mode)?.audioSourceLabel ?: mode.name
 
