@@ -6,9 +6,11 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
         android:name=".SimCallRecorderApplication"
@@ -29,10 +31,33 @@
         <service
             android:name=".recording.CallRecordingForegroundService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|microphone">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-initiated cellular-call audio capture through an explicitly authorized Shizuku shell service, with a persistent stop notification." />
+        </service>
+
+        <service
+            android:name=".recording.CallAudioAccessibilityService"
+            android:exported="true"
+            android:label="SIM Call Recorder audio compatibility"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/call_audio_accessibility_service" />
+        </service>
+
+        <service
+            android:name=".recording.VoipCallNotificationListenerService"
+            android:exported="true"
+            android:label="SIM Call Recorder VoIP call detection"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
         </service>
 
         <provider
