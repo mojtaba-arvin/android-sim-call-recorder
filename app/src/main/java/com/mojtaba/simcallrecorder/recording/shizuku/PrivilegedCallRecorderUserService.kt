@@ -1,6 +1,7 @@
 package com.mojtaba.simcallrecorder.recording.shizuku
 
 import android.content.Context
+import android.os.Binder
 import android.os.ParcelFileDescriptor
 import android.os.Process
 import androidx.annotation.Keep
@@ -30,15 +31,31 @@ class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub {
         output: ParcelFileDescriptor,
         sampleRate: Int,
         preferredChannels: Int,
-    ): Int = controller.start(output, sampleRate, preferredChannels)
+    ): Int {
+        // AIDL enters this method with the app UID as Binder.getCallingUid(). AudioRecord must
+        // perform permission/AppOps checks as the actual Shizuku shell/root process instead.
+        val identity = Binder.clearCallingIdentity()
+        return try {
+            controller.start(output, sampleRate, preferredChannels)
+        } finally {
+            Binder.restoreCallingIdentity(identity)
+        }
+    }
 
     override fun stopVoiceCallCapture() {
-        controller.stop()
+        val identity = Binder.clearCallingIdentity()
+        try {
+            controller.stop()
+        } finally {
+            Binder.restoreCallingIdentity(identity)
+        }
     }
 
     override fun isCapturing(): Boolean = controller.isRecording
 
     override fun getLastError(): String = controller.lastError
+
+    override fun isCaptureReady(): Boolean = controller.isCaptureReady
 
     override fun destroy() {
         controller.stop()
