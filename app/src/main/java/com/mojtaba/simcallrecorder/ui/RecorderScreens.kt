@@ -426,11 +426,11 @@ fun RecorderSettingsScreen(
                 onClick = { onRecordingModeChanged(recommendedMode) },
                 modifier = Modifier.fillMaxWidth().testTag("capture-use-recommended"),
             ) {
-                Text("Use recommended: ${options.first { it.mode == recommendedMode }.displayName}")
+                Text("Use best available candidate (unverified): ${options.first { it.mode == recommendedMode }.displayName}")
             }
         } else {
             Text(
-                "No strategy is currently eligible. Grant microphone permission, enable Accessibility, or authorize Shizuku.",
+                "No strategy is currently eligible. Grant microphone permission, enable the optional Accessibility experiment, or authorize Shizuku.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -447,7 +447,7 @@ fun RecorderSettingsScreen(
                         Text(
                             when {
                                 !option.available -> "Unavailable"
-                                option.recommended -> "Recommended"
+                                option.recommended -> "Best candidate"
                                 else -> "Experimental"
                             },
                             style = MaterialTheme.typography.labelMedium,
