@@ -164,6 +164,9 @@ class MainActivity : ComponentActivity() {
                                 recorderSettingsRepository.updateRecordingMode(mode.name)
                             }
                         },
+                        onRequestMicrophonePermission = {
+                            permissionLauncher.launch(arrayOf(android.Manifest.permission.RECORD_AUDIO))
+                        },
                         diagnosticsContent = {
                             DiagnosticsScreen(
                                 missingPermissions = missingPermissions,
