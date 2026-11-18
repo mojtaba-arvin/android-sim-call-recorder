@@ -119,11 +119,15 @@ jobs:
           retention-days: 14
 
   instrumented:
-    name: Compose UI tests on Android emulator
+    name: Compose UI tests on Android emulator (API ${{ matrix.api-level }})
     needs: [changes, verify]
     if: needs.changes.outputs.code == 'true' && needs.verify.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 37]
 
     steps:
       - name: Check out source
@@ -149,7 +153,7 @@ jobs:
       - name: Run Compose UI tests on Android emulator
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           profile: pixel_2
@@ -162,7 +166,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compose-instrumented-test-reports
+          name: compose-instrumented-test-reports-api-${{ matrix.api-level }}
           path: |
             app/build/reports/androidTests/connected/**
             app/build/outputs/androidTest-results/connected/**
