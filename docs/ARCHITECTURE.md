@@ -59,11 +59,18 @@ The eventual service layer must own its own lifecycle, notification, error repor
 - The initial diagnostic implementation does not collect phone numbers, ICCIDs, subscription IDs for display/storage, or call content.
 - No destructive database migration fallback is configured.
 
+## Capture strategy boundary
+
+Capture implementations are registered behind the `CallCaptureStrategy` contract and exposed through a Hilt multibinding set. The current strategy selector evaluates runtime prerequisites and ranks candidates; it does not infer support from an OEM name. The current foreground-service start path still uses the saved selected mode, so end-to-end automatic runtime selection remains outstanding. A source failure is not silently retried with a different audio source.
+
+See [the capture compatibility matrix](COMPATIBILITY_MATRIX.md) for the implemented backends, distribution constraints, research references, and device acceptance rules.
+
 ## Next engineering gates
 
-1. Build and lint the diagnostic screen in CI.
-2. Run the documented call-state scenarios on at least one API 28–30 device and one API 31+ device.
-3. Validate per-subscription behavior on a physical dual-SIM handset.
-4. Prove an audio path on a small, named device/route matrix before implementing the recorder.
-5. Add a microphone foreground service only with a tested, user-initiated lifecycle and visible disclosure.
-6. Implement atomic file finalization, Room metadata insertion, crash recovery, retention, and deletion together.
+1. Make runtime capability probing authoritative and wire candidate selection into the foreground-service start path.
+2. Keep candidate availability separate from verified two-way support; persist the actual selected strategy and validation evidence.
+3. Add automated tests for selection order, missing Shizuku binding, feature-flag behavior, explicit fallback consent, and no silent source substitution.
+4. Run call-state scenarios on API 28–30 and API 31+ devices, then validate per-subscription behavior on a physical dual-SIM handset.
+5. Establish a physical device/route test matrix for Shizuku, Accessibility-priority microphone, generic VOICE_RECOGNITION, and speakerphone microphone capture.
+6. Add vendor-specific backends only when a documented API or reproducible implementation is found and can be tested.
+7. Validate crash recovery, process death, OEM power management, atomic file finalization, Room consistency, retention, and deletion on real devices.
