@@ -1,6 +1,15 @@
 package com.mojtaba.simcallrecorder.ui
 
 import android.net.Uri
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import rikka.shizuku.Shizuku
+import com.mojtaba.simcallrecorder.recording.CallAudioAccessibilityService
+import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfile
+import com.mojtaba.simcallrecorder.recording.CaptureStrategySelector
+import com.mojtaba.simcallrecorder.recording.VoipCallNotificationRegistry
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -373,21 +382,110 @@ fun RecorderSettingsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Recording backend", style = MaterialTheme.typography.titleMedium)
-        FilterChip(
-            selected = settings.recordingMode == RecordingMode.STANDARD,
-            onClick = { onRecordingModeChanged(RecordingMode.STANDARD) },
-            label = { Text("Standard (call capture unavailable)") },
-            modifier = Modifier.testTag("backend-standard"),
+        Text("Capture strategy matrix", style = MaterialTheme.typography.titleMedium)
+        val context = LocalContext.current
+        val microphoneGranted = context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        val shizukuAuthorized = runCatching {
+            Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        }.getOrDefault(false)
+        val enabledNotificationListeners = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_NOTIFICATION_LISTENERS,
+        ).orEmpty()
+        val notificationListenerEnabled = enabledNotificationListeners.contains(context.packageName)
+        val profile = remember(
+            microphoneGranted,
+            shizukuAuthorized,
+            notificationListenerEnabled,
+        ) {
+            CaptureDeviceProfile(
+                sdkInt = Build.VERSION.SDK_INT,
+                manufacturer = Build.MANUFACTURER,
+                model = Build.MODEL,
+                recordAudioGranted = microphoneGranted,
+                shizukuAuthorized = shizukuAuthorized,
+                accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(context),
+                notificationListenerEnabled = notificationListenerEnabled,
+                voipCallNotificationPresent = VoipCallNotificationRegistry.packageName != null,
+            )
+        }
+        val options = remember(profile) { CaptureStrategySelector.evaluate(profile) }
+        val recommendedMode = options.firstOrNull { it.recommended }?.mode
+        Text(
+            "Device: ${Build.MANUFACTURER} ${Build.MODEL} · Android API ${Build.VERSION.SDK_INT}",
+            style = MaterialTheme.typography.bodySmall,
         )
-        FilterChip(
-            selected = settings.recordingMode == RecordingMode.SHIZUKU_VOICE_CALL,
-            onClick = { onRecordingModeChanged(RecordingMode.SHIZUKU_VOICE_CALL) },
-            label = { Text("Advanced · Shizuku") },
-            modifier = Modifier.testTag("backend-shizuku"),
+        if (recommendedMode != null) {
+            Button(
+                onClick = { onRecordingModeChanged(recommendedMode) },
+                modifier = Modifier.fillMaxWidth().testTag("capture-use-recommended"),
+            ) {
+                Text("Use recommended: ${options.first { it.mode == recommendedMode }.displayName}")
+            }
+        } else {
+            Text(
+                "No strategy is currently eligible. Grant microphone permission, enable Accessibility, or authorize Shizuku.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        options.forEach { option ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row {
+                        Text(
+                            option.displayName,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            when {
+                                !option.available -> "Unavailable"
+                                option.recommended -> "Recommended"
+                                else -> "Experimental"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (option.available) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(option.capability, style = MaterialTheme.typography.bodySmall)
+                    Text(option.reason, style = MaterialTheme.typography.bodySmall)
+                    FilterChip(
+                        selected = settings.recordingMode == option.mode,
+                        enabled = option.available,
+                        onClick = { onRecordingModeChanged(option.mode) },
+                        label = { Text(if (settings.recordingMode == option.mode) "Selected" else "Select strategy") },
+                        modifier = Modifier.testTag("capture-mode-${option.mode.name.lowercase()}"),
+                    )
+                }
+            }
+        }
+        Text(
+            "OEM compatibility is not inferred from a brand name: test this exact model, OS build, SIM/carrier and route. MIC and VOICE_RECOGNITION are microphone inputs, not privileged digital downlink.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            }) { Text("Accessibility settings") }
+            OutlinedButton(onClick = {
+                runCatching { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+            }) { Text("Notification access") }
+        }
+        Text(
+            if (profile.notificationListenerEnabled && profile.voipCallNotificationPresent) {
+                "An ongoing VoIP call notification was observed. Only package/session presence is used; notification text and notification audio are not captured."
+            } else if (profile.notificationListenerEnabled) {
+                "Notification access is enabled. It detects CATEGORY_CALL notifications only and does not expose notification sound or digital call audio."
+            } else {
+                "Notification access is optional and used only to recognize an ongoing VoIP call notification. It does not grant audio playback capture."
+            },
+            style = MaterialTheme.typography.bodySmall,
         )
         Text(
-            "The standard app microphone is not a reliable cellular-call capture path; it deliberately refuses rather than saving misleading one-sided audio.",
+            "Accessibility is optional and user-enabled. The service does not inspect screen text, clicks, passwords or notification contents. A recording still requires the in-app consent acknowledgement and a manual Start action.",
             style = MaterialTheme.typography.bodySmall,
         )
         HorizontalDivider()
