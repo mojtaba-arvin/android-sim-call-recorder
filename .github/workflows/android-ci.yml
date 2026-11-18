@@ -95,7 +95,7 @@ jobs:
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
       - name: Run unit tests, lint, and assemble debug APK
-        run: gradle --continue --console=plain :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+        run: gradle --continue --console=plain :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin :app:lintDebug :app:assembleDebug
 
       - name: Upload unit test and lint reports
         if: always()
