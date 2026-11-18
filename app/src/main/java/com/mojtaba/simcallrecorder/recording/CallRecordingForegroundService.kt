@@ -293,18 +293,20 @@ class CallRecordingForegroundService : Service() {
         }
     }
 
-    private fun captureDeviceProfile() = CaptureDeviceProfile(
-        sdkInt = Build.VERSION.SDK_INT,
-        manufacturer = Build.MANUFACTURER,
-        model = Build.MODEL,
-        recordAudioGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED,
-        shizukuAuthorized = recorderClient.authorizedHostUid == 2_000 ||
-            recorderClient.authorizedHostUid == 0,
-        accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(this),
-        notificationListenerEnabled = false,
-        voipCallNotificationPresent = false,
-    )
+    private fun captureDeviceProfile(): CaptureDeviceProfile {
+        val helperUid = recorderClient.authorizedHostUid
+        return CaptureDeviceProfile(
+            sdkInt = Build.VERSION.SDK_INT,
+            manufacturer = Build.MANUFACTURER,
+            model = Build.MODEL,
+            recordAudioGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED,
+            shizukuAuthorized = helperUid == 2_000 || helperUid == 0,
+            accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(this),
+            notificationListenerEnabled = false,
+            voipCallNotificationPresent = false,
+        )
+    }
 
     private fun watchCallEnd(simSlotIndex: Int) {
         watchCallEndJob?.cancel()
