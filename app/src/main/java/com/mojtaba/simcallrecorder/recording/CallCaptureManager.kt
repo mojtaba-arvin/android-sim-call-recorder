@@ -124,6 +124,13 @@ class CallCaptureManager(
         preferred: RecordingMode? = null,
     ): CallCaptureStrategy? {
         val options = availability(profile)
+        // A failed privileged selection must never become an implicit microphone recording.
+        if (preferred == RecordingMode.SHIZUKU_VOICE_CALL) {
+            val privileged = options.firstOrNull {
+                it.mode == RecordingMode.SHIZUKU_VOICE_CALL && it.available
+            }
+            return privileged?.let { byMode[it.mode] }
+        }
         val selected = preferred?.let { mode -> options.firstOrNull { it.mode == mode && it.available } }
             ?: options.firstOrNull { it.recommended }
         return selected?.let { byMode[it.mode] }
