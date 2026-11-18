@@ -32,7 +32,7 @@ object CaptureStrategySelector {
                 displayName = "Shizuku · privileged VOICE_CALL",
                 available = profile.sdkInt >= 30 && profile.shizukuAuthorized,
                 recommended = false,
-                capability = "Potential cellular uplink + downlink",
+                capability = "Potential full-duplex cellular call mix (unverified)",
                 reason = when {
                     profile.sdkInt < 30 -> "The integrated UserService requires Android 11 or newer."
                     !profile.shizukuAuthorized -> "Start Shizuku, authorize this app, and connect its recorder UserService."
