@@ -20,7 +20,7 @@ data class RecordingStartRequest(
 interface CallAudioRecordingBackend {
     val mode: RecordingMode
     suspend fun start(request: RecordingStartRequest): File
-    suspend fun stop()
+    suspend fun stop(): FinalizedAudioCapture?
 }
 
 /**
@@ -42,7 +42,7 @@ class StandardCallRecordingBackend @Inject constructor() : CallAudioRecordingBac
         )
     }
 
-    override suspend fun stop() = Unit
+    override suspend fun stop(): FinalizedAudioCapture? = null
 }
 
 class ShizukuVoiceCallRecordingBackend @Inject constructor(
@@ -55,9 +55,7 @@ class ShizukuVoiceCallRecordingBackend @Inject constructor(
         return client.startRecording()
     }
 
-    override suspend fun stop() {
-        client.stopRecording()
-    }
+    override suspend fun stop(): FinalizedAudioCapture? = client.stopRecording()
 }
 
 /**
@@ -90,7 +88,6 @@ class RecordingCoordinator(
         return backend.start(request)
     }
 
-    suspend fun stop(mode: RecordingMode) {
+    suspend fun stop(mode: RecordingMode): FinalizedAudioCapture? =
         backendsByMode[mode]?.stop()
-    }
 }

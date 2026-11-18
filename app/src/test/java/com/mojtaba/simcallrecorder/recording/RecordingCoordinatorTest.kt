@@ -105,8 +105,9 @@ class RecordingCoordinatorTest {
             return File("test-recording.wav")
         }
 
-        override suspend fun stop() {
+        override suspend fun stop(): FinalizedAudioCapture? {
             stopCount++
+            return null
         }
     }
 }

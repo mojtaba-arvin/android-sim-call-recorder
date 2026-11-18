@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import androidx.annotation.MainThread
 import com.mojtaba.simcallrecorder.recording.WavCaptureResult
 import com.mojtaba.simcallrecorder.recording.WavPcmFileWriter
@@ -46,6 +47,15 @@ class ShizukuAudioRecorderClient @Inject constructor(
     private var activeReadPipe: ParcelFileDescriptor? = null
     private var activeFile: File? = null
     private var lastCaptureResult: WavCaptureResult? = null
+
+    @Volatile
+    private var lastCaptureChannels: Int = 0
+
+    @Volatile
+    private var activeCaptureStartedAtEpochMillis: Long? = null
+
+    @Volatile
+    private var activeCaptureStartedElapsedRealtime: Long? = null
 
     private val userServiceArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -199,12 +209,16 @@ class ShizukuAudioRecorderClient @Inject constructor(
         val readEnd = pipe[0]
         val writeEnd = pipe[1]
         val destination = createRecordingFile()
+        val startEpochMillis = System.currentTimeMillis()
+        val startElapsedRealtime = SystemClock.elapsedRealtime()
 
         val channels = try {
             api.startVoiceCallCapture(writeEnd, SAMPLE_RATE, PREFERRED_CHANNELS)
         } catch (exception: Exception) {
             runCatching { readEnd.close() }
             _captureStatus.value = "Capture request failed: ${exception.message}"
+            activeCaptureStartedAtEpochMillis = null
+            activeCaptureStartedElapsedRealtime = null
             throw exception
         } finally {
             runCatching { writeEnd.close() }
@@ -214,11 +228,16 @@ class ShizukuAudioRecorderClient @Inject constructor(
             runCatching { readEnd.close() }
             val reason = runCatching { api.lastError }.getOrNull().orEmpty()
             _captureStatus.value = "Capture failed: ${reason.ifBlank { "VOICE_CALL is unavailable on this device." }}"
+            activeCaptureStartedAtEpochMillis = null
+            activeCaptureStartedElapsedRealtime = null
             error(reason.ifBlank { "VOICE_CALL capture could not be started." })
         }
 
         activeReadPipe = readEnd
         activeFile = destination
+        activeCaptureStartedAtEpochMillis = startEpochMillis
+        activeCaptureStartedElapsedRealtime = startElapsedRealtime
+        lastCaptureChannels = channels
         lastCaptureResult = null
         _captureStatus.value = "Recording active · ${channels}-channel VOICE_CALL · tap Stop to finish"
 
@@ -245,7 +264,9 @@ class ShizukuAudioRecorderClient @Inject constructor(
         destination
     }
 
-    suspend fun stopRecording() = withContext(Dispatchers.IO) {
+    suspend fun stopRecording(): FinalizedAudioCapture? = withContext(Dispatchers.IO) {
+        val startedAtEpochMillis = activeCaptureStartedAtEpochMillis
+        val startedAtElapsedRealtime = activeCaptureStartedElapsedRealtime
         val api = remote
         runCatching { api?.stopVoiceCallCapture() }
             .onFailure { _captureStatus.value = "Capture stop request failed: ${it.message}" }
@@ -256,12 +277,35 @@ class ShizukuAudioRecorderClient @Inject constructor(
         activeReadPipe = null
         copyJob?.join()
         copyJob = null
-        if (_captureStatus.value.startsWith("Recording active")) {
+
+        val wav = lastCaptureResult
+        val finalized = if (wav != null && startedAtEpochMillis != null && startedAtElapsedRealtime != null) {
+            FinalizedAudioCapture(
+                file = wav.file,
+                startedAtEpochMillis = startedAtEpochMillis,
+                durationMillis = (SystemClock.elapsedRealtime() - startedAtElapsedRealtime).coerceAtLeast(0L),
+                sampleRate = SAMPLE_RATE,
+                channelCount = if (wav.dataBytes > 0L) lastCaptureChannels else 0,
+                dataBytes = wav.dataBytes,
+                peakSample = wav.peakSample,
+                rmsSample = wav.rmsSample,
+                isSilent = wav.isSilent,
+            )
+        } else {
+            null
+        }
+
+        activeCaptureStartedAtEpochMillis = null
+        activeCaptureStartedElapsedRealtime = null
+        if (finalized == null && _captureStatus.value.startsWith("Recording active")) {
             _captureStatus.value = "Capture stopped. No finalized WAV result was reported."
         }
+        finalized
     }
 
     fun currentCaptureFile(): File? = lastCaptureResult?.file ?: activeFile
+
+    fun currentCaptureStartedAtEpochMillis(): Long? = activeCaptureStartedAtEpochMillis
 
     private fun createRecordingFile(): File {
         val folder = File(context.filesDir, "recordings")
