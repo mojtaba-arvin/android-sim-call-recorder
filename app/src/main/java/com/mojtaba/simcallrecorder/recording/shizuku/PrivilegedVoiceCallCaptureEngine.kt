@@ -9,6 +9,13 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 
+/**
+ * Only VOICE_CALL represents the full-duplex cellular call mix. UPLINK and DOWNLINK are
+ * one-sided sources and must never be accepted as a completed call recording.
+ */
+internal fun privilegedFullDuplexAudioSources(): List<Int> =
+    listOf(MediaRecorder.AudioSource.VOICE_CALL)
+
 internal interface VoiceCallCaptureEngine {
     fun start(
         output: ParcelFileDescriptor,
@@ -85,15 +92,9 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                 listOf(AudioFormat.CHANNEL_IN_MONO to 1)
             }
 
-            // These sources all remain protected by CAPTURE_AUDIO_OUTPUT. Shell/root identity
-            // is not a permission bypass; each candidate is merely attempted and may be rejected.
-            // VOICE_DOWNLINK/UPLINK are isolated one-direction experiments, never combined or
-            // represented as a full-duplex capture.
-            val sourceCandidates = listOf(
-                MediaRecorder.AudioSource.VOICE_CALL,
-                MediaRecorder.AudioSource.VOICE_DOWNLINK,
-                MediaRecorder.AudioSource.VOICE_UPLINK,
-            )
+            // Shell/root identity is not a permission bypass. Only VOICE_CALL is accepted here:
+            // isolated UPLINK or DOWNLINK would create a one-sided WAV and violate the product contract.
+            val sourceCandidates = privilegedFullDuplexAudioSources()
             for (audioSource in sourceCandidates) {
                 for ((channelMask, channelCount) in candidates) {
                 val minBufferBytes = try {
