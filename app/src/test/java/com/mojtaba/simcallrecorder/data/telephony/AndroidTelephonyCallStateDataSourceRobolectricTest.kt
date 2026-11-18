@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -58,7 +59,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
             dataSource.observeCallStateEvents().take(4).toList(events)
         }
 
-        shadowOf(Looper.getMainLooper()).idle()
+        awaitModernRegistration(perSubscriptionManager)
         val telephonyShadow = shadowOf(perSubscriptionManager)
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_RINGING)
         shadowOf(Looper.getMainLooper()).idle()
@@ -99,7 +100,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
             dataSource.observeCallStateEvents().take(4).toList(events)
         }
 
-        shadowOf(Looper.getMainLooper()).idle()
+        awaitLegacyRegistration(perSubscriptionManager)
         val telephonyShadow = shadowOf(perSubscriptionManager)
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_RINGING)
         shadowOf(Looper.getMainLooper()).idle()
@@ -148,7 +149,8 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
                 .toList(events)
         }
 
-        shadowOf(Looper.getMainLooper()).idle()
+        awaitModernRegistration(firstManager)
+        awaitModernRegistration(secondManager)
         shadowOf(firstManager).setCallState(TelephonyManager.CALL_STATE_RINGING)
         shadowOf(Looper.getMainLooper()).idle()
         shadowOf(secondManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
@@ -193,6 +195,29 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         }
 
         assertTrue(exception != null)
+    }
+
+    private suspend fun awaitModernRegistration(manager: TelephonyManager) {
+        val managerShadow = shadowOf(manager)
+        withTimeout(5_000) {
+            while (managerShadow.getLastTelephonyCallback() == null) {
+                shadowOf(Looper.getMainLooper()).idle()
+                yield()
+            }
+        }
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    @Suppress("DEPRECATION")
+    private suspend fun awaitLegacyRegistration(manager: TelephonyManager) {
+        val managerShadow = shadowOf(manager)
+        withTimeout(5_000) {
+            while (managerShadow.getListener() == null) {
+                shadowOf(Looper.getMainLooper()).idle()
+                yield()
+            }
+        }
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     private fun grantPhoneStatePermission() {
