@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.mojtaba.simcallrecorder.core.permissions.CallPermissionManager
 import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
+import com.mojtaba.simcallrecorder.recording.AudioRecordingDiagnostics
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
@@ -93,6 +94,7 @@ class MainActivity : ComponentActivity() {
     private var recorderCaptureStatus by mutableStateOf("Idle")
     private var participantConsentConfirmed by mutableStateOf(false)
     private var automaticRecordingArmed by mutableStateOf(false)
+    private var audioInputDiagnostics by mutableStateOf(AudioRecordingDiagnostics.status.value)
     private var callRecords by mutableStateOf(emptyList<CallRecord>())
     private var selectedRecord by mutableStateOf<CallRecord?>(null)
     private var recorderSettings by mutableStateOf(RecorderSettings())
@@ -158,6 +160,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             recorderClient.captureStatus.collect { recorderCaptureStatus = it }
         }
+        lifecycleScope.launch {
+            AudioRecordingDiagnostics.status.collect { audioInputDiagnostics = it }
+        }
 
         lifecycleScope.launch {
             recorderSettingsRepository.settings.collect { recorderSettings = it }
@@ -204,6 +209,7 @@ class MainActivity : ComponentActivity() {
                                 diagnosticsError = diagnosticsError,
                                 recorderConnectionStatus = recorderConnectionStatus,
                                 recorderCaptureStatus = recorderCaptureStatus,
+                                audioInputDiagnostics = audioInputDiagnostics,
                                 recorderConnected = recorderConnectionStatus.startsWith("Connected"),
                                 recorderActive = recorderCaptureStatus.startsWith("Recording active"),
                                 activeCallSlotIndex = activeCallSlotIndex(),
@@ -437,6 +443,7 @@ private fun DiagnosticsScreen(
     diagnosticsError: String?,
     recorderConnectionStatus: String,
     recorderCaptureStatus: String,
+    audioInputDiagnostics: String,
     recorderConnected: Boolean,
     recorderActive: Boolean,
     activeCallSlotIndex: Int?,
@@ -562,6 +569,12 @@ private fun DiagnosticsScreen(
                 "Arming starts a visible microphone foreground service while this app is open. " +
                     "After consent and permissions, it starts Speakerphone + MIC only on SIM OFFHOOK and stops on IDLE. " +
                     "This is acoustic capture, not guaranteed digital two-way audio. Re-arm after reboot or force-stop.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text("Microphone input diagnostics: $audioInputDiagnostics", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "clientSilenced=false only means Android did not report framework silencing for this capture session; " +
+                    "it does not prove that the remote participant is present in the recording.",
                 style = MaterialTheme.typography.bodySmall,
             )
             if (automaticRecordingArmed) {
