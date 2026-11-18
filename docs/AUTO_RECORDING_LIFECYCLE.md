@@ -4,10 +4,10 @@
 
 The target behavior is automatic capture when a cellular SIM call enters `OFFHOOK`, with two strictly separated modes:
 
-- **Standard automatic mode:** product-level Standard mode maps to the explicit `SPEAKERPHONE_MIC` strategy (plus a bounded microphone-source chain when implemented), after opt-in, disclosure and consent. It is acoustic capture, not digital call downlink, and must be labelled honestly. The enum value `STANDARD` remains a legacy fail-closed app-UID backend.
+- **Standard automatic mode:** product-level Standard mode maps to the explicit `SPEAKERPHONE_MIC` strategy with a bounded initialization chain (`MIC` → `VOICE_COMMUNICATION` → `VOICE_RECOGNITION`), after opt-in, disclosure and consent. It is acoustic capture, not digital call downlink, and must be labelled honestly. The enum value `STANDARD` remains a legacy fail-closed app-UID backend.
 - **Advanced Shizuku mode:** a separate privileged `VOICE_CALL` strategy that requires explicit Shizuku authorization, an active and validated UserService, accepted UID (shell 2000 or root 0), feature-flag enablement, known SIM slot, OFFHOOK, and recording consent. It must fail closed.
 
-The implementation now includes an explicit **Arm automatic recording** control. It starts the microphone foreground service while the activity is visible, then monitors SIM call-state events and starts `SPEAKERPHONE_MIC` on OFFHOOK, stopping and finalizing on the matching SIM's IDLE. This is an implemented software lifecycle, not evidence of two-way audio compatibility. `STANDARD` remains a legacy fail-closed digital backend; the bounded microphone-source chain is not implemented.
+The implementation now includes an explicit **Arm automatic recording** control. It starts the microphone foreground service while the activity is visible, then monitors SIM call-state events and starts `SPEAKERPHONE_MIC` on OFFHOOK, stopping and finalizing on the matching SIM's IDLE. This is an implemented software lifecycle, not evidence of two-way audio compatibility. `STANDARD` remains a legacy fail-closed digital backend; the bounded microphone-source chain is implemented for Standard acoustic capture only.
 
 ## Standard automatic mode state flow
 
@@ -92,8 +92,8 @@ For Standard mode only, evaluate a bounded microphone/acoustic chain. Do not mix
 ## Current implementation gaps
 
 - Automatic monitoring now runs in the same user-armed microphone foreground service, independent of the Diagnostics screen. It is intentionally not restored after reboot or force-stop; the user must re-arm from the visible app.
-- Automatic mode currently uses only `SPEAKERPHONE_MIC`; it does not prove or guarantee remote-party capture, and there is no bounded AudioSource fallback chain yet.
-- Shizuku remains a separate manually initiated strategy. Automatic Shizuku capture is not enabled.
+- Automatic mode currently uses only `SPEAKERPHONE_MIC`; it does not prove or guarantee remote-party capture. The bounded AudioSource chain advances only on initialization/start failure, not after a stream is running.
+- Shizuku remains a separate manually initiated strategy. Automatic Shizuku capture is not enabled; it now exposes shell-attribution readiness to the app and rejects non-full-duplex source fallbacks.
 - Runtime capability checks now gate the explicitly selected backend at service start. The candidate selector is not yet an automatic Shizuku-vs-acoustic chooser.
 - AudioRecordingCallback / client-silenced diagnostics are visible live but are not yet persisted as a complete timeline in Room.
 - No physical modem/OEM/carrier two-way result has been recorded.
