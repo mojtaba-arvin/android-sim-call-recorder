@@ -434,6 +434,7 @@ class CallRecordingForegroundService : Service() {
     }
 
     private fun updateNotification(message: String) {
+        _serviceStatus.value = message
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(message))
     }
 
@@ -493,6 +494,7 @@ class CallRecordingForegroundService : Service() {
         automaticMonitorJob?.cancel()
         automaticPolicy.disarm()
         setAutomaticMonitoringArmed(false)
+        _serviceStatus.value = "Service stopped"
         watchCaptureStatusJob?.cancel()
         watchCallEndJob?.cancel()
         val mode = activeMode
@@ -528,6 +530,9 @@ class CallRecordingForegroundService : Service() {
 
         private val _automaticMonitoringState = MutableStateFlow(false)
         val automaticMonitoringState: StateFlow<Boolean> = _automaticMonitoringState.asStateFlow()
+
+        private val _serviceStatus = MutableStateFlow("Idle")
+        val serviceStatus: StateFlow<String> = _serviceStatus.asStateFlow()
 
         @Volatile
         var automaticMonitoringArmed: Boolean = false
