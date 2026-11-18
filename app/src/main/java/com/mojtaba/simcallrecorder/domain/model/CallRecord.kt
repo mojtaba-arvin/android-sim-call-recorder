@@ -17,6 +17,8 @@ data class CallRecord(
     val isSilent: Boolean?,
     val status: String,
     val failureReason: String?,
+    val captureProfile: String? = null,
+    val captureDiagnostics: String? = null,
 )
 
 data class CallRecordFilter(
