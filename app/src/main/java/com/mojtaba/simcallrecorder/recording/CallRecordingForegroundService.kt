@@ -27,6 +27,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -112,8 +115,7 @@ class CallRecordingForegroundService : Service() {
             return
         }
 
-        automaticArmed = true
-        automaticMonitoringArmed = true
+        setAutomaticMonitoringArmed(true)
         try {
             // The app starts this microphone FGS from a visible activity. It remains visible and
             // user-stoppable while waiting for OFFHOOK; no background FGS start is attempted.
@@ -166,9 +168,14 @@ class CallRecordingForegroundService : Service() {
         }
     }
 
+    private fun setAutomaticMonitoringArmed(armed: Boolean) {
+        automaticArmed = armed
+        automaticMonitoringArmed = armed
+        _automaticMonitoringState.value = armed
+    }
+
     private fun disarmAutomaticMonitoring() {
-        automaticArmed = false
-        automaticMonitoringArmed = false
+        setAutomaticMonitoringArmed(false)
         automaticPolicy.disarm()
         automaticMonitorJob?.cancel()
         automaticMonitorJob = null
@@ -478,7 +485,7 @@ class CallRecordingForegroundService : Service() {
     override fun onDestroy() {
         automaticMonitorJob?.cancel()
         automaticPolicy.disarm()
-        automaticMonitoringArmed = false
+        setAutomaticMonitoringArmed(false)
         watchCaptureStatusJob?.cancel()
         watchCallEndJob?.cancel()
         val mode = activeMode
@@ -511,6 +518,9 @@ class CallRecordingForegroundService : Service() {
         const val ACTION_START = "com.mojtaba.simcallrecorder.action.START_CALL_CAPTURE"
         const val ACTION_ARM_AUTOMATIC = "com.mojtaba.simcallrecorder.action.ARM_AUTOMATIC_CAPTURE"
         const val ACTION_STOP = "com.mojtaba.simcallrecorder.action.STOP_CALL_CAPTURE"
+
+        private val _automaticMonitoringState = MutableStateFlow(false)
+        val automaticMonitoringState: StateFlow<Boolean> = _automaticMonitoringState.asStateFlow()
 
         @Volatile
         var automaticMonitoringArmed: Boolean = false
