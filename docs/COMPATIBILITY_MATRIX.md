@@ -10,7 +10,7 @@ A strategy being selectable or successfully opening an audio source does not mea
 
 | Strategy | Current implementation | Eligibility | Audio semantics | Current confidence |
 |---|---|---|---|---|
-| Shizuku privileged `VOICE_CALL` | Implemented through a narrow Shizuku UserService with shell-attribution setup and a fail-closed readiness check | Android 11+; Shizuku running and explicitly authorized; actual UserService binder must be connected, report shell UID (2000) or root UID (0), and report successful shell audio-attribution initialization | Requests only the full-duplex `VOICE_CALL` source; one-sided UPLINK/DOWNLINK sources are rejected | Highest-potential path; device/OEM/HAL dependent; no physical validation recorded |
+| Shizuku privileged `VOICE_CALL` | Implemented through a narrow Shizuku UserService with shell-attribution setup and a fail-closed readiness check | API 24+; Shizuku/Sui already running and explicitly authorized; actual UserService binder must be connected, report shell UID (2000) or root UID (0), and report successful shell audio-attribution initialization. Wireless-debugging startup is Android 11+; Android 10 and below require root/Sui or starting Shizuku from a computer via USB ADB. | Requests only the full-duplex `VOICE_CALL` source; one-sided UPLINK/DOWNLINK sources are rejected | Highest-potential path; device/OEM/HAL dependent; no physical validation recorded |
 | Accessibility-priority `VOICE_RECOGNITION` | Implemented as a separate opt-in strategy | Android 10+; RECORD_AUDIO; user enables the app's Accessibility service | Microphone capture with speaker-route request; may acoustically capture remote speech | Experimental; not digital downlink; Google Play policy makes this unsuitable for a Play-distributed call-recording feature |
 | Platform `VOICE_RECOGNITION` | Implemented as a separate microphone experiment | RECORD_AUDIO | Ordinary microphone input with communication-mode configuration | Generic microphone experiment, **not** a vendor-specific OEM API |
 | Speakerphone + MIC | Implemented as a separate explicit strategy | RECORD_AUDIO | Acoustic capture after requesting speaker route | Limited; susceptible to echo, noise, route changes, headset and Bluetooth behavior |
@@ -59,5 +59,6 @@ Test earpiece, loudspeaker, wired headset, and Bluetooth independently. Test bot
 - ACR Phone Helper documentation and Accessibility/Play distribution constraints: https://acr.app/
 - [OEM integration research and evidence gate](OEM_INTEGRATION_RESEARCH.md)
 - [Embedded ADB shell capture research](EMBEDDED_ADB_CAPTURE_RESEARCH.md)
+- [Official Shizuku setup and Android-version requirements](https://shizuku.rikka.app/guide/setup/)
 
 No GPL implementation code is copied into this MIT-licensed project.
