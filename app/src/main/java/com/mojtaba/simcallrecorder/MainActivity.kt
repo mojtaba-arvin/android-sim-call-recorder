@@ -79,6 +79,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var monitorJob: Job? = null
     private var pendingMicrophoneStart: Boolean = false
+    private var pendingAutomaticArm: Boolean = false
+    private var pendingAutomaticNotification: Boolean = false
 
     private var missingPermissions by mutableStateOf(emptyList<String>())
     private var activeSims by mutableStateOf(emptyList<SimSlot>())
@@ -90,6 +92,7 @@ class MainActivity : ComponentActivity() {
     private var recorderServiceUid by mutableStateOf<Int?>(null)
     private var recorderCaptureStatus by mutableStateOf("Idle")
     private var participantConsentConfirmed by mutableStateOf(false)
+    private var automaticRecordingArmed by mutableStateOf(false)
     private var callRecords by mutableStateOf(emptyList<CallRecord>())
     private var selectedRecord by mutableStateOf<CallRecord?>(null)
     private var recorderSettings by mutableStateOf(RecorderSettings())
@@ -101,6 +104,7 @@ class MainActivity : ComponentActivity() {
         permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
         ) { grants ->
+            automaticRecordingArmed = CallRecordingForegroundService.automaticMonitoringArmed
             refreshPermissionState()
             refreshDiagnostics()
             recorderClient.refreshConnectionStatus()
@@ -112,15 +116,36 @@ class MainActivity : ComponentActivity() {
                     recorderCaptureStatus = "Microphone permission was denied."
                 }
             }
+            if (pendingAutomaticArm) {
+                pendingAutomaticArm = false
+                if (permissionManager.hasCallStatePermission() &&
+                    ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    requestArmAutomaticRecording()
+                } else {
+                    recorderCaptureStatus = "Automatic recording requires call-state and microphone permissions."
+                }
+            }
         }
 
         notificationPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission(),
         ) { granted ->
-            if (granted) launchRecordingForegroundService()
-            else recorderCaptureStatus = "Notification permission is required before recording."
+            if (granted) {
+                if (pendingAutomaticNotification) {
+                    pendingAutomaticNotification = false
+                    launchAutomaticMonitoringService()
+                } else {
+                    launchRecordingForegroundService()
+                }
+            } else {
+                pendingAutomaticNotification = false
+                recorderCaptureStatus = "Notification permission is required before recording."
+            }
         }
 
+        automaticRecordingArmed = CallRecordingForegroundService.automaticMonitoringArmed
         refreshPermissionState()
         refreshDiagnostics()
         lifecycleScope.launch(Dispatchers.IO) {
@@ -186,7 +211,10 @@ class MainActivity : ComponentActivity() {
                                 recorderActive = recorderCaptureStatus.startsWith("Recording active"),
                                 activeCallSlotIndex = activeCallSlotIndex(),
                                 participantConsentConfirmed = participantConsentConfirmed,
+                                automaticRecordingArmed = automaticRecordingArmed,
                                 onParticipantConsentChanged = { participantConsentConfirmed = it },
+                                onArmAutomaticRecording = ::requestArmAutomaticRecording,
+                                onDisarmAutomaticRecording = ::disarmAutomaticRecording,
                                 onRequestPermissions = {
                                     permissionLauncher.launch(
                                         permissionManager.permissionsFor(PermissionPurpose.CALL_STATE)
@@ -282,6 +310,53 @@ class MainActivity : ComponentActivity() {
         monitoring = false
     }
 
+    private fun requestArmAutomaticRecording() {
+        if (!participantConsentConfirmed) {
+            recorderCaptureStatus = "Confirm that you are authorized to record and have obtained all required participant consent."
+            return
+        }
+        if (!permissionManager.hasCallStatePermission()) {
+            pendingAutomaticArm = true
+            permissionLauncher.launch(
+                permissionManager.permissionsFor(PermissionPurpose.CALL_STATE).toTypedArray(),
+            )
+            return
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingAutomaticArm = true
+            permissionLauncher.launch(arrayOf(android.Manifest.permission.RECORD_AUDIO))
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingAutomaticNotification = true
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        launchAutomaticMonitoringService()
+    }
+
+    private fun launchAutomaticMonitoringService() {
+        val intent = Intent(this, CallRecordingForegroundService::class.java)
+            .setAction(CallRecordingForegroundService.ACTION_ARM_AUTOMATIC)
+            .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
+        ContextCompat.startForegroundService(this, intent)
+        automaticRecordingArmed = true
+        recorderCaptureStatus = "Automatic acoustic recording is being armed."
+    }
+
+    private fun disarmAutomaticRecording() {
+        startService(
+            Intent(this, CallRecordingForegroundService::class.java)
+                .setAction(CallRecordingForegroundService.ACTION_STOP),
+        )
+        automaticRecordingArmed = false
+        recorderCaptureStatus = "Automatic recording disabled."
+    }
+
     private fun requestStartRecording() {
         if (!participantConsentConfirmed) {
             recorderCaptureStatus = "Confirm participant consent before starting a recording."
@@ -364,7 +439,10 @@ private fun DiagnosticsScreen(
     recorderActive: Boolean,
     activeCallSlotIndex: Int?,
     participantConsentConfirmed: Boolean,
+    automaticRecordingArmed: Boolean,
     onParticipantConsentChanged: (Boolean) -> Unit,
+    onArmAutomaticRecording: () -> Unit,
+    onDisarmAutomaticRecording: () -> Unit,
     onRequestPermissions: () -> Unit,
     onRefresh: () -> Unit,
     onStartMonitoring: () -> Unit,
@@ -475,6 +553,27 @@ private fun DiagnosticsScreen(
                     "cellular call audio. The selected communication route is reported separately.",
                 style = MaterialTheme.typography.bodySmall,
             )
+        }
+
+        DiagnosticCard(title = "Automatic Standard acoustic recording") {
+            Text(
+                "Arming starts a visible microphone foreground service while this app is open. " +
+                    "After consent and permissions, it starts Speakerphone + MIC only on SIM OFFHOOK and stops on IDLE. " +
+                    "This is acoustic capture, not guaranteed digital two-way audio. Re-arm after reboot or force-stop.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (automaticRecordingArmed) {
+                OutlinedButton(onClick = onDisarmAutomaticRecording) {
+                    Text("Disable automatic recording")
+                }
+            } else {
+                Button(
+                    onClick = onArmAutomaticRecording,
+                    enabled = participantConsentConfirmed,
+                ) {
+                    Text("Arm automatic recording")
+                }
+            }
         }
 
         DiagnosticCard(title = "Call-audio recording modes") {
