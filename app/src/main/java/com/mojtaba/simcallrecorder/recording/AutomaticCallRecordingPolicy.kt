@@ -54,7 +54,7 @@ class AutomaticCallRecordingPolicy {
                     Decision.NONE
                 }
             }
-            CallState.RINGING -> Decision.NONE
+            CallState.RINGING, CallState.UNKNOWN -> Decision.NONE
         }
     }
 
