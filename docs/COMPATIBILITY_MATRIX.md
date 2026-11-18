@@ -69,6 +69,7 @@ Test earpiece, loudspeaker, wired headset, and Bluetooth independently. Test bot
 - ACR Phone Helper documentation and Accessibility/Play distribution constraints: https://acr.app/
 - [OEM integration research and evidence gate](OEM_INTEGRATION_RESEARCH.md)
 - [Embedded ADB shell capture research](EMBEDDED_ADB_CAPTURE_RESEARCH.md)
+- [Android 16+ protected call-audio interception API research](ANDROID_CALL_AUDIO_INTERCEPTION_RESEARCH.md)
 - [Official Shizuku setup and Android-version requirements](https://shizuku.rikka.app/guide/setup/)
 
 No GPL implementation code is copied into this MIT-licensed project.
