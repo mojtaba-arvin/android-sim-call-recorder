@@ -18,6 +18,7 @@ import com.mojtaba.simcallrecorder.domain.model.CallState
 import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 import com.mojtaba.simcallrecorder.domain.repository.CallRecordRepository
 import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
+import com.mojtaba.simcallrecorder.domain.repository.RecorderSettingsRepository
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -26,23 +27,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class CallRecordingForegroundService : Service() {
-    @Inject
-    lateinit var recordingCoordinator: RecordingCoordinator
-
-    @Inject
-    lateinit var recorderClient: ShizukuAudioRecorderClient
-
-    @Inject
-    lateinit var diagnosticsRepository: DeviceDiagnosticsRepository
-
-    @Inject
-    lateinit var callRecordRepository: CallRecordRepository
+    @Inject lateinit var recordingCoordinator: RecordingCoordinator
+    @Inject lateinit var recorderClient: ShizukuAudioRecorderClient
+    @Inject lateinit var diagnosticsRepository: DeviceDiagnosticsRepository
+    @Inject lateinit var callRecordRepository: CallRecordRepository
+    @Inject lateinit var recorderSettingsRepository: RecorderSettingsRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val stateMachine = RecordingServiceStateMachine()
@@ -113,11 +108,7 @@ class CallRecordingForegroundService : Service() {
                         simSlotIndex = request.simSlotIndex,
                         filePath = output.absolutePath,
                         recordingMode = request.mode.name,
-                        audioSource = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) {
-                            "VOICE_CALL"
-                        } else {
-                            request.mode.name
-                        },
+                        audioSource = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) "VOICE_CALL" else request.mode.name,
                         sampleRate = 48_000,
                         channelCount = 0,
                         dataBytes = 0L,
@@ -135,10 +126,7 @@ class CallRecordingForegroundService : Service() {
                 watchCaptureStatusJob?.cancel()
                 watchCaptureStatusJob = serviceScope.launch {
                     recorderClient.captureStatus.collect { status ->
-                        if (
-                            status.startsWith("Saved ") ||
-                            status.startsWith("Recording file was not saved:")
-                        ) {
+                        if (status.startsWith("Saved ") || status.startsWith("Recording file was not saved:")) {
                             stopCapture(latestStartId, "Capture stream finished")
                         }
                     }
@@ -150,10 +138,7 @@ class CallRecordingForegroundService : Service() {
                     if (insertedRecordId != null) {
                         if (finalized != null) {
                             runCatching {
-                                callRecordRepository.completeRecording(
-                                    insertedRecordId,
-                                    finalized.toCompletion(),
-                                )
+                                callRecordRepository.completeRecording(insertedRecordId, finalized.toCompletion())
                             }
                         } else {
                             runCatching {
@@ -216,16 +201,16 @@ class CallRecordingForegroundService : Service() {
             val finalized = recordingCoordinator.stop(mode)
             if (recordId != null) {
                 if (finalized == null) {
-                    callRecordRepository.markRecordingFailed(
-                        recordId,
-                        "Capture ended without a valid finalized WAV file.",
-                    )
+                    callRecordRepository.markRecordingFailed(recordId, "Capture ended without a valid finalized WAV file.")
                     updateNotification("Recording was not finalized")
                 } else {
                     val saved = callRecordRepository.completeRecording(recordId, finalized.toCompletion())
                     if (saved) {
+                        val limitMb = recorderSettingsRepository.settings.first().storageLimitMb
+                        val removed = callRecordRepository.enforceStorageLimit(limitMb.toLong() * 1024L * 1024L)
                         val signal = if (finalized.isSilent) " · digital silence" else ""
-                        updateNotification("Saved ${finalized.file.name}$signal")
+                        val retention = if (removed > 0) " · removed $removed older file(s)" else ""
+                        updateNotification("Saved ${finalized.file.name}$signal$retention")
                     } else {
                         updateNotification("Audio finalized, but metadata update failed")
                     }
@@ -234,17 +219,12 @@ class CallRecordingForegroundService : Service() {
         } catch (exception: Exception) {
             if (recordId != null) {
                 runCatching {
-                    callRecordRepository.markRecordingFailed(
-                        recordId,
-                        exception.message ?: "Could not finalize recording.",
-                    )
+                    callRecordRepository.markRecordingFailed(recordId, exception.message ?: "Could not finalize recording.")
                 }
             }
             updateNotification("Finalization failed · ${exception.message ?: "unknown error"}")
         }
-        if (reason == "Call ended" || reason == "Stopped by user") {
-            updateNotification(reason)
-        }
+        if (reason == "Call ended" || reason == "Stopped by user") updateNotification(reason)
     }
 
     private fun FinalizedAudioCapture.toCompletion() = CallRecordCompletion(
@@ -275,8 +255,7 @@ class CallRecordingForegroundService : Service() {
     }
 
     private fun updateNotification(message: String) {
-        getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, buildNotification(message))
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(message))
     }
 
     private fun buildNotification(message: String): Notification {
@@ -328,9 +307,22 @@ class CallRecordingForegroundService : Service() {
         watchCaptureStatusJob?.cancel()
         watchCallEndJob?.cancel()
         val mode = activeMode
+        val recordId = activeRecordId
         if (mode != null && stateMachine.beginStop()) {
-            runBlocking(Dispatchers.IO) {
-                finalizeSession(mode, "Service destroyed")
+            // onDestroy must not block the main thread. If the OS kills the process before this
+            // detached IO cleanup finishes, launch recovery will retain the record as INTERRUPTED.
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                runCatching { finalizeSession(mode, "Service destroyed") }
+                    .onFailure { error ->
+                        if (recordId != null) {
+                            runCatching {
+                                callRecordRepository.markRecordingFailed(
+                                    recordId,
+                                    error.message ?: "Service destroyed before finalization.",
+                                )
+                            }
+                        }
+                    }
             }
             activeMode = null
             activeRecordId = null

@@ -77,6 +77,9 @@ interface CallRecordDao {
     @Query("DELETE FROM call_records WHERE id = :recordId")
     suspend fun deleteById(recordId: Long): Int
 
+    @Query("SELECT * FROM call_records WHERE status = 'COMPLETED' ORDER BY startedAtEpochMillis ASC, id ASC")
+    suspend fun getOldestCompleted(): List<CallRecordEntity>
+
     @Query("SELECT COUNT(*) FROM call_records")
     suspend fun countAll(): Int
 }

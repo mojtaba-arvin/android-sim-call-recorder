@@ -25,6 +25,7 @@ object DatabaseModule {
         "recordings.db",
     )
         .addMigrations(MIGRATION_1_2)
+        .setJournalMode(AppDatabase.JOURNAL_MODE)
         .build()
 
     @Provides

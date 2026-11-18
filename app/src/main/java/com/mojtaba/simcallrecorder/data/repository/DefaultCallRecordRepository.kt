@@ -29,7 +29,7 @@ class DefaultCallRecordRepository @Inject constructor(
             fromEpochMillis = filter.fromEpochMillis,
             toEpochMillisExclusive = filter.toEpochMillisExclusive,
             query = filter.query.trim(),
-        ).map { entities -> entities.map { entity -> entity.toDomain() } }
+        ).map { entities -> entities.map { it.toDomain() } }
             .flowOn(Dispatchers.IO)
 
     override suspend fun createActiveRecording(record: CallRecord): Long = withContext(Dispatchers.IO) {
@@ -66,16 +66,33 @@ class DefaultCallRecordRepository @Inject constructor(
 
     override suspend fun deleteRecording(recordId: Long): Boolean = withContext(Dispatchers.IO) {
         val entity = dao.findById(recordId) ?: return@withContext false
-        val deletedRows = dao.deleteById(recordId)
-        if (deletedRows != 1) return@withContext false
-
         val file = resolvePrivateRecordingPath(entity.filePath)
         if (file != null) {
             val partial = File(file.parentFile, file.name + ".part")
             if (file.exists() && !file.delete()) return@withContext false
-            if (partial.exists()) partial.delete()
+            if (partial.exists() && !partial.delete()) return@withContext false
         }
-        true
+        dao.deleteById(recordId) == 1
+    }
+
+    override suspend fun enforceStorageLimit(maxBytes: Long): Int = withContext(Dispatchers.IO) {
+        require(maxBytes > 0L) { "Storage limit must be positive." }
+        val completed = dao.getOldestCompleted()
+        var usedBytes = completed.sumOf { record ->
+            resolvePrivateRecordingPath(record.filePath)?.takeIf { it.isFile }?.length() ?: 0L
+        }
+        var removed = 0
+        for (record in completed) {
+            if (usedBytes <= maxBytes) break
+            val file = resolvePrivateRecordingPath(record.filePath) ?: continue
+            val size = if (file.isFile) file.length() else 0L
+            if (file.exists() && !file.delete()) continue
+            if (dao.deleteById(record.id) == 1) {
+                usedBytes = (usedBytes - size).coerceAtLeast(0L)
+                removed++
+            }
+        }
+        removed
     }
 
     override suspend fun countRecordings(): Int = withContext(Dispatchers.IO) {

@@ -12,4 +12,9 @@ import com.mojtaba.simcallrecorder.data.local.entity.CallRecordEntity
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun callRecordDao(): CallRecordDao
+
+    companion object {
+        /** Allows records screens to read while the recording service commits completion metadata. */
+        val JOURNAL_MODE = JournalMode.WRITE_AHEAD_LOGGING
+    }
 }
