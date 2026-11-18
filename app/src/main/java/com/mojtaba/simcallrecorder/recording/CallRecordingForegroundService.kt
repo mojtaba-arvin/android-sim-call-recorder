@@ -226,8 +226,12 @@ class CallRecordingForegroundService : Service() {
                         filePath = output.absolutePath,
                         recordingMode = request.mode.name,
                         audioSource = recordingCoordinator.audioSourceLabel(request.mode),
-                        sampleRate = 48_000,
-                        channelCount = 0,
+                        sampleRate = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) 48_000 else 16_000,
+                        channelCount = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) {
+                            recorderClient.currentCaptureChannels()
+                        } else {
+                            1
+                        },
                         dataBytes = 0L,
                         peakSample = 0,
                         rmsSample = 0,
