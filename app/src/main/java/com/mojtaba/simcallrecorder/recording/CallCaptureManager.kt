@@ -30,13 +30,14 @@ object CaptureStrategySelector {
             CaptureStrategyAvailability(
                 mode = RecordingMode.SHIZUKU_VOICE_CALL,
                 displayName = "Shizuku · privileged VOICE_CALL",
-                // ShizukuAudioRecorderClient.bindUserService() rejects API < 30; keep the UI gate identical.
-                available = profile.sdkInt >= 30 && profile.shizukuAuthorized,
+                // UserService works on the app's API 26 floor. Wireless-debugging startup is API 30+;
+                // Android 8–10 users must already have started Shizuku through root or computer ADB.
+                available = profile.sdkInt >= 26 && profile.shizukuAuthorized,
                 recommended = false,
                 capability = "Potential full-duplex cellular call mix (unverified)",
                 reason = when {
-                    profile.sdkInt < 30 -> "This app's Shizuku UserService capture path requires Android 11 (API 30) or newer."
-                    !profile.shizukuAuthorized -> "Start Shizuku, authorize this app, and connect its recorder UserService."
+                    profile.sdkInt < 26 -> "This app requires Android 8.0 (API 26) or newer."
+                    !profile.shizukuAuthorized -> "Start Shizuku via root, wireless debugging (Android 11+), or computer ADB (Android 10 and below), then authorize and connect this app."
                     else -> "Privileged source access is available; the modem/audio HAL still needs device testing."
                 },
             ),
