@@ -101,11 +101,13 @@ object WavPcmFileWriter {
             moveIntoPlace(temporary, destination)
             val rms = if (sampleCount == 0L) 0 else sqrt(sumSquares / sampleCount).toInt()
             return WavCaptureResult(destination, dataBytes, peak, rms)
-        } catch (exception: Exception) {
+        } catch (failure: Throwable) {
             temporary.delete()
-            throw exception
+            throw failure
         } finally {
-            input.close()
+            // Once EOF has been consumed and the WAV is finalized, a descriptor-close error
+            // must not turn a valid saved recording into a reported capture failure.
+            runCatching { input.close() }
         }
     }
 
