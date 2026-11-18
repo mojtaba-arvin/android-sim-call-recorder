@@ -694,6 +694,7 @@ private fun DiagnosticsScreen(
                     enabled = recorderConnected &&
                         activeCallSlotIndex != null &&
                         participantConsentConfirmed &&
+                        !automaticRecordingArmed &&
                         !recorderCaptureStatus.startsWith("Preparing"),
                 ) {
                     Text("Start visible call recording")
@@ -706,15 +707,16 @@ private fun DiagnosticsScreen(
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
-                "Recording is manually started only while the monitored SIM reports OFFHOOK. A foreground notification " +
-                    "stays visible, offers Stop, and the service stops when that SIM returns to IDLE. " +
-                    "A non-silent WAV is not proof that both parties were audible; OEM/modem behavior remains device-specific.",
+                "The manual Start button below is for isolated strategy testing while the monitored SIM reports OFFHOOK. " +
+                    "For hands-off per-call start, use the best-available automatic arm control above. A foreground " +
+                    "notification stays visible and the service stops when that SIM returns to IDLE. A non-silent WAV " +
+                    "is not proof that both parties were audible; OEM/modem behavior remains device-specific.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
 
         DiagnosticCard(title = "Hardware validation") {
-            Text("Automatic acoustic capture can be armed explicitly; digital two-way support remains unverified until physical-device tests.")
+            Text("Automatic best-eligible capture can be armed explicitly; digital two-way support remains unverified until physical-device tests.")
             Text(
                 "Robolectric verifies telephony listeners and recording policy. It cannot prove that a particular modem/audio HAL delivers both call directions.",
             )
