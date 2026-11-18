@@ -78,7 +78,7 @@ class RecordingCoordinator(
     backends: Set<CallAudioRecordingBackend>,
     private val shizukuCaptureEnabled: Boolean,
 ) {
-    private val backendsByMode = backends.associateBy { it.mode }
+    private val captureManager = CallCaptureManager(backends, shizukuCaptureEnabled)
 
     suspend fun start(request: RecordingStartRequest): File {
         require(request.participantConsentConfirmed) {
@@ -94,14 +94,14 @@ class RecordingCoordinator(
             throw UnsupportedOperationException("The Shizuku call-capture feature is disabled in this build.")
         }
 
-        val backend = backendsByMode[request.mode]
-            ?: throw UnsupportedOperationException("The selected recording strategy is not installed.")
+        val backend = captureManager.strategyFor(request.mode)
+            ?: throw UnsupportedOperationException("The selected recording strategy is unavailable or not installed.")
         return backend.start(request)
     }
 
     fun audioSourceLabel(mode: RecordingMode): String =
-        backendsByMode[mode]?.audioSourceLabel ?: mode.name
+        captureManager.strategyFor(mode)?.audioSourceLabel ?: mode.name
 
     suspend fun stop(mode: RecordingMode): FinalizedAudioCapture? =
-        backendsByMode[mode]?.stop()
+        captureManager.strategyFor(mode)?.stop()
 }
