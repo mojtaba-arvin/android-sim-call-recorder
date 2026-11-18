@@ -12,7 +12,7 @@ The app's declared `minSdk` is currently **26 (Android 8.0)** as an active compa
 
 Telephony observer Robolectric coverage is being expanded across:
 - API 26–30: legacy `PhoneStateListener` path.
-- API 31–37: `TelephonyCallback` path, including subscription-to-slot association and permission failure behavior.
+- API 31–36: `TelephonyCallback` path (Robolectric 4.17 coverage; API 37 remains pending emulator/device validation), including subscription-to-slot association and permission failure behavior.
 
 The Shizuku UserService can now be attempted from API 26 when a live server is already available. Wireless-debugging startup itself is Android 11+; Android 8–10 users must start Shizuku through root or a computer running ADB, then connect and authorize the app. No claim of cellular two-way audio support follows from this software API-floor experiment.
 
@@ -42,7 +42,7 @@ The Shizuku UserService can now be attempted from API 26 when a live server is a
 6. Record the actual strategy, source, sample rate, channel count, signal metrics, device profile, and validation outcome with each session.
 7. Promote a device/route to "verified two-way" only after independent local and remote test phrases are intelligible in repeated incoming and outgoing calls.
 
-**Current implementation gaps:** the Settings UI now treats Shizuku as eligible only when the actual UserService binder is alive, its host UID is validated, and shell audio attribution reports ready; the automatic arm path now selects Shizuku when the live UserService, accepted UID and shell attribution are ready; otherwise it selects acoustic capture when RECORD_AUDIO is granted. The selected mode is fixed for the armed session and is revalidated immediately before each start. Best-eligible OFFHOOK auto-start and persistent foreground monitoring are implemented behind an explicit Arm action; the service uses Shizuku VOICE_CALL when ready or Speakerphone + MIC otherwise, with no mid-session downgrade. Physical two-way capture remains unverified. AudioRecordingCallback/client-silenced diagnostics are now surfaced live for microphone sessions; persistence and transition history remain outstanding. No physical-device compatibility result exists.
+**Current implementation gaps:** the Settings UI now treats Shizuku as eligible only when the actual UserService binder is alive, its host UID is validated, shell audio attribution reports ready, and the protected CAPTURE_AUDIO_OUTPUT permission is granted to that UID; the automatic arm path now selects Shizuku when the live UserService, accepted UID and shell attribution are ready; otherwise it selects acoustic capture when RECORD_AUDIO is granted. The selected mode is fixed for the armed session and is revalidated immediately before each start. Best-eligible OFFHOOK auto-start and persistent foreground monitoring are implemented behind an explicit Arm action; the service uses Shizuku VOICE_CALL when ready or Speakerphone + MIC otherwise, with no mid-session downgrade. Physical two-way capture remains unverified. AudioRecordingCallback/client-silenced diagnostics are now surfaced live for microphone sessions; persistence and transition history remain outstanding. No physical-device compatibility result exists.
 
 ## Physical-device acceptance matrix
 
