@@ -27,7 +27,7 @@ class CallRecordDaoRobolectricTest {
         database = Room.inMemoryDatabaseBuilder(
             RuntimeEnvironment.getApplication(),
             AppDatabase::class.java,
-        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2).build()
+        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 
     @After
