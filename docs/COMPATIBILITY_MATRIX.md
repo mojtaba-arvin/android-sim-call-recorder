@@ -32,7 +32,7 @@ A strategy being selectable or successfully opening an audio source does not mea
 6. Record the actual strategy, source, sample rate, channel count, signal metrics, device profile, and validation outcome with each session.
 7. Promote a device/route to "verified two-way" only after independent local and remote test phrases are intelligible in repeated incoming and outgoing calls.
 
-**Current implementation gaps:** the Settings UI now treats Shizuku as eligible only when the actual UserService binder is alive and its host UID is validated; the foreground recording start path still uses the saved user-selected mode rather than runtime auto-selection. Runtime auto-selection/fallback is not yet wired end-to-end. Standard-mode OFFHOOK auto-start and persistent monitoring are not implemented; the current prototype is manual-start. AudioRecordingCallback/client-silenced diagnostics are also outstanding. No physical-device compatibility result exists.
+**Current implementation gaps:** the Settings UI now treats Shizuku as eligible only when the actual UserService binder is alive and its host UID is validated; the foreground recording start path now checks live runtime eligibility for the explicitly selected strategy. It does not yet automatically choose between Shizuku and acoustic modes. Standard acoustic OFFHOOK auto-start and persistent foreground monitoring are implemented behind an explicit Arm action; the service uses Speakerphone + MIC only. Physical two-way capture remains unverified. AudioRecordingCallback/client-silenced diagnostics are also outstanding. No physical-device compatibility result exists.
 
 ## Physical-device acceptance matrix
 
