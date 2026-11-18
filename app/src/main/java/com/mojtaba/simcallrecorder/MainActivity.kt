@@ -120,10 +120,19 @@ class MainActivity : ComponentActivity() {
             }
             if (pendingAutomaticArm) {
                 pendingAutomaticArm = false
-                if (permissionManager.hasCallStatePermission()) {
+                val callStateGranted = permissionManager.hasCallStatePermission()
+                val microphoneGranted = ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.RECORD_AUDIO,
+                ) == PackageManager.PERMISSION_GRANTED
+                if (callStateGranted && microphoneGranted) {
                     requestArmAutomaticRecording()
                 } else {
-                    recorderCaptureStatus = "Automatic recording requires call-state permission."
+                    recorderCaptureStatus = if (!callStateGranted) {
+                        "Automatic recording requires call-state permission."
+                    } else {
+                        "Automatic recording requires microphone permission."
+                    }
                 }
             }
         }
