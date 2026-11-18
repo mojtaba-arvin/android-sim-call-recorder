@@ -40,6 +40,19 @@ class ShizukuAudioRecorderClient @Inject constructor(
     private val _connectionStatus = MutableStateFlow("Not connected")
     val connectionStatus: StateFlow<String> = _connectionStatus.asStateFlow()
 
+    /**
+     * Non-null only while the actual Shizuku UserService binder is alive and reports an
+     * explicitly accepted shell/root identity. Shizuku permission alone is not capture readiness.
+     */
+    val authorizedHostUid: Int?
+        get() {
+            val service = remote ?: return null
+            if (!runCatching { service.asBinder().isBinderAlive }.getOrDefault(false)) return null
+            return runCatching { service.hostUid }
+                .getOrNull()
+                ?.takeIf { it == SHELL_UID || it == ROOT_UID }
+        }
+
     private val _captureStatus = MutableStateFlow("Idle")
     val captureStatus: StateFlow<String> = _captureStatus.asStateFlow()
 
