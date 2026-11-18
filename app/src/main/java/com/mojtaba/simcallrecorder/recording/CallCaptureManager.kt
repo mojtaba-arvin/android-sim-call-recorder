@@ -30,6 +30,7 @@ object CaptureStrategySelector {
             CaptureStrategyAvailability(
                 mode = RecordingMode.SHIZUKU_VOICE_CALL,
                 displayName = "Shizuku · privileged VOICE_CALL",
+                // ShizukuAudioRecorderClient.bindUserService() rejects API < 30; keep the UI gate identical.
                 available = profile.sdkInt >= 30 && profile.shizukuAuthorized,
                 recommended = false,
                 capability = "Potential full-duplex cellular call mix (unverified)",
