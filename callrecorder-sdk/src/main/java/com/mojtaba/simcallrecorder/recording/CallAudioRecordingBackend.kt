@@ -5,13 +5,8 @@ import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import java.io.File
 import javax.inject.Inject
 
-enum class RecordingMode {
-    STANDARD,
-    SPEAKERPHONE_MIC,
-    OEM_VOICE_RECOGNITION,
-    ACCESSIBILITY_VOICE_RECOGNITION,
-    SHIZUKU_VOICE_CALL,
-}
+/** Internal engine alias to the stable public SDK recording-mode contract. */
+internal typealias RecordingMode = com.mojtaba.simcallrecorder.sdk.SdkRecordingMode
 
 /**
  * A capture strategy is a selectable implementation, not a promise that a device's modem or audio
