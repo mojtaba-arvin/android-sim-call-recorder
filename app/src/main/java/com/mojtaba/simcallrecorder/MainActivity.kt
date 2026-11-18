@@ -172,6 +172,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             AudioRecordingDiagnostics.status.collect { audioInputDiagnostics = it }
         }
+        lifecycleScope.launch {
+            CallRecordingForegroundService.automaticMonitoringState.collect {
+                automaticRecordingArmed = it
+            }
+        }
 
         lifecycleScope.launch {
             recorderSettingsRepository.settings.collect { recorderSettings = it }
