@@ -27,7 +27,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AndroidTelephonyCallStateDataSource @Inject constructor(
+internal class AndroidTelephonyCallStateDataSource @Inject constructor(
     @ApplicationContext context: Context,
 ) {
     private val appContext = context.applicationContext

@@ -6,7 +6,7 @@ import javax.inject.Singleton
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
 
 @Singleton
-class AndroidAudioRouteDataSource @Inject constructor(
+internal class AndroidAudioRouteDataSource @Inject constructor(
     private val inventorySource: AudioDeviceInventorySource,
 ) {
     fun getRoutes(): List<AudioRoute> {

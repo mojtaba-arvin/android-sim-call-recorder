@@ -17,7 +17,7 @@ enum class RecordingMode {
  * A capture strategy is a selectable implementation, not a promise that a device's modem or audio
  * HAL exposes both call directions. Implementations must report their actual source accurately.
  */
-interface CallCaptureStrategy {
+internal interface CallCaptureStrategy {
     val mode: RecordingMode
     val displayName: String get() = mode.name
     val audioSourceLabel: String get() = mode.name
@@ -26,9 +26,9 @@ interface CallCaptureStrategy {
 }
 
 /** Compatibility name retained for the existing Hilt multibindings and tests. */
-interface CallAudioRecordingBackend : CallCaptureStrategy
+internal interface CallAudioRecordingBackend : CallCaptureStrategy
 
-data class RecordingStartRequest(
+internal data class RecordingStartRequest(
     val mode: RecordingMode,
     val callState: CallState,
     val simSlotIndex: Int,
@@ -39,7 +39,7 @@ data class RecordingStartRequest(
  * Standard is deliberately retained as a selectable diagnostic state for older preferences, but
  * it refuses rather than recording ordinary app microphone audio as a SIM-call recording.
  */
-class StandardCallRecordingBackend @Inject constructor() : CallAudioRecordingBackend {
+internal class StandardCallRecordingBackend @Inject constructor() : CallAudioRecordingBackend {
     override val mode: RecordingMode = RecordingMode.STANDARD
     override val displayName: String = "Standard Android (unavailable)"
     override val audioSourceLabel: String = "NONE"
@@ -54,7 +54,7 @@ class StandardCallRecordingBackend @Inject constructor() : CallAudioRecordingBac
     override suspend fun stop(): FinalizedAudioCapture? = null
 }
 
-class ShizukuVoiceCallRecordingBackend @Inject constructor(
+internal class ShizukuVoiceCallRecordingBackend @Inject constructor(
     private val client: ShizukuAudioRecorderClient,
 ) : CallAudioRecordingBackend {
     override val mode: RecordingMode = RecordingMode.SHIZUKU_VOICE_CALL
@@ -74,7 +74,7 @@ class ShizukuVoiceCallRecordingBackend @Inject constructor(
  * separately through CallCaptureManager; a capture failure is never silently retried with a
  * different source because that could turn a call recording into a one-sided mic recording.
  */
-class RecordingCoordinator(
+internal class RecordingCoordinator(
     backends: Set<CallAudioRecordingBackend>,
     private val shizukuCaptureEnabled: Boolean,
 ) {

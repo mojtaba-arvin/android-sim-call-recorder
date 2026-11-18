@@ -4,7 +4,7 @@ package com.mojtaba.simcallrecorder.recording
  * Runtime facts used to rank capture strategies. Manufacturer/model are descriptive inputs only:
  * no OEM is marked compatible without physical test evidence for that exact build and carrier.
  */
-data class CaptureDeviceProfile(
+internal data class CaptureDeviceProfile(
     val sdkInt: Int,
     val manufacturer: String,
     val model: String,
@@ -15,7 +15,7 @@ data class CaptureDeviceProfile(
     val voipCallNotificationPresent: Boolean,
 )
 
-data class CaptureStrategyAvailability(
+internal data class CaptureStrategyAvailability(
     val mode: RecordingMode,
     val displayName: String,
     val available: Boolean,
@@ -24,7 +24,7 @@ data class CaptureStrategyAvailability(
     val reason: String,
 )
 
-object CaptureStrategySelector {
+internal object CaptureStrategySelector {
     fun evaluate(profile: CaptureDeviceProfile): List<CaptureStrategyAvailability> {
         val candidates = listOf(
             CaptureStrategyAvailability(
@@ -89,7 +89,7 @@ object CaptureStrategySelector {
         evaluate(profile).firstOrNull { it.recommended }?.mode
 }
 
-class CallCaptureManager(
+internal class CallCaptureManager(
     strategies: Set<CallAudioRecordingBackend>,
     private val shizukuCaptureEnabled: Boolean,
 ) {

@@ -18,7 +18,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class RecordingBackendBindings {
+internal abstract class RecordingBackendBindings {
     @Binds
     @IntoSet
     abstract fun bindStandardBackend(

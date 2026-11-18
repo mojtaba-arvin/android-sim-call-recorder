@@ -8,7 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class AudioDeviceSnapshot(
+internal data class AudioDeviceSnapshot(
     val id: Int,
     val type: Int,
     val isSource: Boolean,
@@ -16,7 +16,7 @@ data class AudioDeviceSnapshot(
     val productName: String,
 )
 
-data class AudioDeviceInventory(
+internal data class AudioDeviceInventory(
     val devices: List<AudioDeviceSnapshot>,
     val selectedCommunicationDeviceId: Int?,
 )
@@ -26,7 +26,7 @@ fun interface AudioDeviceInventorySource {
 }
 
 @Singleton
-class AndroidAudioDeviceInventorySource @Inject constructor(
+internal class AndroidAudioDeviceInventorySource @Inject constructor(
     @ApplicationContext context: Context,
 ) : AudioDeviceInventorySource {
     private val audioManager =

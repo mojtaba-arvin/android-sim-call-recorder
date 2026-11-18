@@ -16,7 +16,7 @@ import javax.inject.Singleton
  * confirms shell audio attribution, and verifies the protected CAPTURE_AUDIO_OUTPUT permission.
  */
 @Singleton
-class CaptureDeviceProfileProvider @Inject constructor(
+internal class CaptureDeviceProfileProvider @Inject constructor(
     @ApplicationContext private val context: Context,
     private val shizukuClient: ShizukuAudioRecorderClient,
 ) {

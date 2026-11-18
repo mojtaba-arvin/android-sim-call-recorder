@@ -9,7 +9,7 @@ import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
  * The selected mode is fixed at arm time. Shizuku and Standard acoustic capture are separate
  * backends; a Shizuku failure is never downgraded to microphone capture.
  */
-class AutomaticCallRecordingPolicy {
+internal class AutomaticCallRecordingPolicy {
     enum class Decision { NONE, START, STOP }
 
     @Volatile

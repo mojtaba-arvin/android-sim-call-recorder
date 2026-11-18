@@ -10,7 +10,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class RecorderSettingsModule {
+internal abstract class RecorderSettingsModule {
     @Binds
     @Singleton
     abstract fun bindRecorderSettingsRepository(
