@@ -38,7 +38,7 @@ import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
-import com.mojtaba.simcallrecorder.recording.RecordingMode
+import com.mojtaba.simcallrecorder.sdk.SdkSdkRecordingMode
 import com.mojtaba.simcallrecorder.sdk.CaptureStrategySnapshot
 import com.mojtaba.simcallrecorder.sdk.SdkPermissionPurpose
 import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdk
@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
     private var pendingMicrophoneStart: Boolean = false
     private var pendingAutomaticArm: Boolean = false
     private var pendingAutomaticNotification: Boolean = false
-    private var pendingAutomaticMode: RecordingMode? = null
+    private var pendingAutomaticMode: SdkRecordingMode? = null
 
     private var missingPermissions by mutableStateOf(emptyList<String>())
     private var activeSims by mutableStateOf(emptyList<SimSlot>())
@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 if (!callStateGranted) {
                     recorderCaptureStatus = "Automatic recording requires call-state permission."
                 } else if (microphoneDenied) {
-                    if (recorderSdk.isRecordingModeAvailable(RecordingMode.SHIZUKU_VOICE_CALL)) {
+                    if (recorderSdk.isSdkRecordingModeAvailable(SdkRecordingMode.SHIZUKU_VOICE_CALL)) {
                         requestArmAutomaticRecording()
                     } else {
                         recorderCaptureStatus = "Microphone permission was denied and no ready Shizuku capture path is available."
@@ -194,9 +194,9 @@ class MainActivity : ComponentActivity() {
                                 recorderSdk.updateStorageLimit(limit)
                             }
                         },
-                        onRecordingModeChanged = { mode ->
+                        onSdkRecordingModeChanged = { mode ->
                             lifecycleScope.launch(Dispatchers.IO) {
-                                recorderSdk.updateRecordingMode(mode.name)
+                                recorderSdk.updateSdkRecordingMode(mode.name)
                             }
                         },
                         onRequestMicrophonePermission = {
@@ -347,7 +347,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val selectedMode = recorderSdk.selectBestRecordingMode()
+        val selectedMode = recorderSdk.selectBestSdkRecordingMode()
         if (selectedMode == null) {
             if (!recorderSdk.hasMicrophonePermission()) {
                 pendingAutomaticArm = true
@@ -368,7 +368,7 @@ class MainActivity : ComponentActivity() {
         launchAutomaticMonitoringService(selectedMode)
     }
 
-    private fun launchAutomaticMonitoringService(mode: RecordingMode) {
+    private fun launchAutomaticMonitoringService(mode: SdkRecordingMode) {
         val intent = recorderSdk.createArmAutomaticRecordingIntent(mode, participantConsentConfirmed)
         try {
             ContextCompat.startForegroundService(this, intent)
@@ -380,9 +380,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun automaticModeLabel(mode: RecordingMode): String = when (mode) {
-        RecordingMode.SHIZUKU_VOICE_CALL -> "Shizuku VOICE_CALL"
-        RecordingMode.SPEAKERPHONE_MIC -> "Speakerphone + MIC acoustic capture"
+    private fun automaticModeLabel(mode: SdkRecordingMode): String = when (mode) {
+        SdkRecordingMode.SHIZUKU_VOICE_CALL -> "Shizuku VOICE_CALL"
+        SdkRecordingMode.SPEAKERPHONE_MIC -> "Speakerphone + MIC acoustic capture"
         else -> mode.name
     }
 
@@ -400,9 +400,9 @@ class MainActivity : ComponentActivity() {
             return
         }
         val microphoneStrategies = setOf(
-            RecordingMode.SPEAKERPHONE_MIC,
-            RecordingMode.OEM_VOICE_RECOGNITION,
-            RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION,
+            SdkRecordingMode.SPEAKERPHONE_MIC,
+            SdkRecordingMode.OEM_VOICE_RECOGNITION,
+            SdkRecordingMode.ACCESSIBILITY_VOICE_RECOGNITION,
         )
         if (recorderSettings.recordingMode in microphoneStrategies &&
             ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) !=
