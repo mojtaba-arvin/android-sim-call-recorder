@@ -12,12 +12,15 @@ import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 class AutomaticCallRecordingPolicy {
     enum class Decision { NONE, START, STOP }
 
+    @Volatile
     var isArmed: Boolean = false
         private set
 
+    @Volatile
     var activeSimSlotIndex: Int? = null
         private set
 
+    @Synchronized
     fun arm(
         enabled: Boolean,
         participantConsentConfirmed: Boolean,
@@ -31,6 +34,7 @@ class AutomaticCallRecordingPolicy {
         return true
     }
 
+    @Synchronized
     fun onCallState(event: CallStateEvent): Decision {
         if (!isArmed || event.simSlotIndex < 0) return Decision.NONE
         return when (event.state) {
@@ -54,6 +58,7 @@ class AutomaticCallRecordingPolicy {
         }
     }
 
+    @Synchronized
     fun disarm() {
         isArmed = false
         activeSimSlotIndex = null
