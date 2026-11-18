@@ -33,6 +33,7 @@ class AutomaticCallRecordingPolicyTest {
         val policy = armedPolicy()
 
         assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.RINGING)))
+        assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.UNKNOWN)))
         assertEquals(AutomaticCallRecordingPolicy.Decision.START, policy.onCallState(event(1, CallState.OFFHOOK)))
         assertEquals(1, policy.activeSimSlotIndex)
         assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.IDLE)))
