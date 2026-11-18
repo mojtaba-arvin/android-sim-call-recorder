@@ -3,6 +3,7 @@ package com.mojtaba.simcallrecorder.data.repository
 import androidx.room.Room
 import com.mojtaba.simcallrecorder.data.local.AppDatabase
 import com.mojtaba.simcallrecorder.data.local.MIGRATION_1_2
+import com.mojtaba.simcallrecorder.data.local.MIGRATION_2_3
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordCompletion
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
@@ -32,7 +33,7 @@ class DefaultCallRecordRepositoryRobolectricTest {
         database = Room.inMemoryDatabaseBuilder(
             context,
             AppDatabase::class.java,
-        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2).build()
+        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
         repository = DefaultCallRecordRepository(database.callRecordDao(), context)
     }
 
