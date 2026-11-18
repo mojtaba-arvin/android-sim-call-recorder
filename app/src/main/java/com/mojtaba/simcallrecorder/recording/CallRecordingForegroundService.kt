@@ -73,6 +73,7 @@ class CallRecordingForegroundService : Service() {
                     RecordingServiceStateMachine.State.RECORDING ->
                         stopCapture(startId, "Stopped by user")
                     RecordingServiceStateMachine.State.STARTING -> stopRequestedDuringStart = true
+                    RecordingServiceStateMachine.State.STOPPING -> Unit
                     else -> {
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf(startId)
@@ -193,7 +194,12 @@ class CallRecordingForegroundService : Service() {
     }
 
     private fun startCapture(intent: Intent) {
-        if (intent.getBooleanExtra(EXTRA_AUTOMATIC_TRIGGER, false) && !automaticArmed) return
+        val automaticTrigger = intent.getBooleanExtra(EXTRA_AUTOMATIC_TRIGGER, false)
+        if (automaticTrigger && !automaticArmed) return
+        if (automaticArmed && !automaticTrigger) {
+            rejectStart("Automatic ${automaticWaitingLabel()} is armed; disable it before manual capture.")
+            return
+        }
         if (stateMachine.state != RecordingServiceStateMachine.State.IDLE &&
             stateMachine.state != RecordingServiceStateMachine.State.FAILED
         ) return
