@@ -4,10 +4,10 @@ import com.mojtaba.simcallrecorder.domain.model.CallState
 import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 
 /**
- * Deterministic policy for consent-gated Standard acoustic auto-recording.
+ * Deterministic policy for a user-armed automatic SIM-call strategy.
  *
- * This policy deliberately supports only Speakerphone + MIC. Privileged Shizuku capture has a
- * separate explicit authorization lifecycle and must never be selected or downgraded here.
+ * The selected mode is fixed at arm time. Shizuku and Standard acoustic capture are separate
+ * backends; a Shizuku failure is never downgraded to microphone capture.
  */
 class AutomaticCallRecordingPolicy {
     enum class Decision { NONE, START, STOP }
@@ -20,17 +20,26 @@ class AutomaticCallRecordingPolicy {
     var activeSimSlotIndex: Int? = null
         private set
 
+    @Volatile
+    var selectedMode: RecordingMode? = null
+        private set
+
     @Synchronized
     fun arm(
         enabled: Boolean,
         participantConsentConfirmed: Boolean,
         selectedMode: RecordingMode,
+        strategyAvailable: Boolean,
         recordAudioGranted: Boolean,
     ): Boolean {
-        if (!enabled || !participantConsentConfirmed) return false
-        if (selectedMode != RecordingMode.SPEAKERPHONE_MIC || !recordAudioGranted) return false
+        if (!enabled || !participantConsentConfirmed || !strategyAvailable) return false
+        if (selectedMode !in setOf(RecordingMode.SPEAKERPHONE_MIC, RecordingMode.SHIZUKU_VOICE_CALL)) {
+            return false
+        }
+        if (selectedMode == RecordingMode.SPEAKERPHONE_MIC && !recordAudioGranted) return false
         isArmed = true
         activeSimSlotIndex = null
+        this.selectedMode = selectedMode
         return true
     }
 
@@ -62,5 +71,6 @@ class AutomaticCallRecordingPolicy {
     fun disarm() {
         isArmed = false
         activeSimSlotIndex = null
+        selectedMode = null
     }
 }
