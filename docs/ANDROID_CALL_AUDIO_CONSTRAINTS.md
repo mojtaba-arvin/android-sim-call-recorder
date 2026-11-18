@@ -66,7 +66,7 @@ The `phoneCall` foreground-service type is intended for ongoing calls managed th
 
 ## Accessibility, hidden APIs, and privilege boundaries
 
-Google Play's Accessibility policy does not authorize using Accessibility to bypass Android's privacy controls for call recording. This project does not declare an AccessibilityService or use it to collect call audio.
+Google Play's Accessibility policy does not authorize using Accessibility to bypass Android's privacy controls for call recording. This repository currently contains a separate, explicitly opt-in Accessibility-priority VOICE_RECOGNITION microphone experiment. It does not inspect window content or collect UI text, and it is not a digital VOICE_CALL/downlink source. Because its purpose is call-recording compatibility, this strategy must not be shipped as a Google Play call-recording feature. The Shizuku backend does not depend on Accessibility.
 
 The Shizuku helper is a deliberate, user-visible privilege boundary. Shizuku runs user code with shell/root identity and has a different attack surface from the ordinary app UID. The app does not execute arbitrary shell commands; the helper exposes a narrow Binder API for starting/stopping one VOICE_CALL capture stream and reporting status. The feature must remain opt-in and clearly disclosed.
 
@@ -89,7 +89,7 @@ These tests do not emulate a modem, OEM audio HAL, carrier VoLTE implementation,
 
 The project will not:
 
-- Use Accessibility Services to capture remote call audio or work around Android privacy controls.
+- Use Accessibility APIs to inspect UI content or claim privileged digital downlink access. The isolated Accessibility-priority microphone experiment remains optional, clearly labelled, and excluded from Google Play distribution.
 - Attempt privileged VOICE_CALL sources in the ordinary app UID and disguise failure with a microphone recording.
 - Toggle speakerphone automatically on OFFHOOK.
 - Claim universal two-way recording based only on API success or a non-empty file.
