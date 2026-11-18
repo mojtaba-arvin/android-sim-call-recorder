@@ -1,7 +1,6 @@
 package com.mojtaba.simcallrecorder
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -35,9 +34,9 @@ class RecorderScreensInstrumentedTest {
             }
         }
         composeRule.onNodeWithText("Recordings").assertIsDisplayed()
-        composeRule.onNodeWithText("SIM 1").assertExists()
-        composeRule.onNodeWithText("SIM 2").assertExists()
-        composeRule.onNodeWithTag("record-list-item-1").assertExists()
+        composeRule.onNodeWithText("SIM 1").assertIsDisplayed()
+        composeRule.onNodeWithText("SIM 2").assertIsDisplayed()
+        composeRule.onNodeWithTag("record-list-item-1").assertIsDisplayed()
     }
 
     @Test
