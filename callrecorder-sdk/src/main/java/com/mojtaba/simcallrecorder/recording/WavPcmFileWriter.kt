@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import kotlin.math.sqrt
 
-data class WavCaptureResult(
+internal data class WavCaptureResult(
     val file: File,
     val dataBytes: Long,
     val peakSample: Int,
@@ -22,7 +22,7 @@ data class WavCaptureResult(
  * Wraps little-endian signed 16-bit PCM from the privileged capture pipe in a valid RIFF/WAVE file.
  * The temporary file is renamed only after its lengths are finalized and at least one PCM frame exists.
  */
-object WavPcmFileWriter {
+internal object WavPcmFileWriter {
     fun copyPcm(
         input: InputStream,
         destination: File,

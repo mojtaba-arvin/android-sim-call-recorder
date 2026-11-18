@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class CallRecordingForegroundService : Service() {
+internal class CallRecordingForegroundService : Service() {
     @Inject lateinit var recordingCoordinator: RecordingCoordinator
     @Inject lateinit var captureDeviceProfileProvider: CaptureDeviceProfileProvider
     @Inject lateinit var recorderClient: ShizukuAudioRecorderClient

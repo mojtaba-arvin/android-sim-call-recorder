@@ -7,7 +7,7 @@ import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
  * Small deterministic state machine shared by the foreground service and its JVM tests.
  * It only controls orchestration; it does not pretend to keep an Android process alive.
  */
-class RecordingServiceStateMachine {
+internal class RecordingServiceStateMachine {
     enum class State { IDLE, STARTING, RECORDING, STOPPING, FAILED }
 
     @Volatile

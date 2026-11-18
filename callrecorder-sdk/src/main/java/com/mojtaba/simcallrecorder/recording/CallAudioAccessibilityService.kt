@@ -12,7 +12,7 @@ import android.view.accessibility.AccessibilityEvent
  * policy available to the explicitly selected capture strategy. It does not inspect UI text,
  * clicks, passwords, notifications, or window content.
  */
-class CallAudioAccessibilityService : AccessibilityService() {
+internal class CallAudioAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         enabledInProcess = true

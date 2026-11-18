@@ -32,7 +32,7 @@ import kotlin.math.max
  * Process-wide diagnostic snapshot for the currently active app-UID microphone capture.
  * An unsilenced configuration is not evidence that remote call audio is present.
  */
-object AudioRecordingDiagnostics {
+internal object AudioRecordingDiagnostics {
     private val _status = MutableStateFlow("No microphone capture active")
     val status: StateFlow<String> = _status.asStateFlow()
 
@@ -41,7 +41,7 @@ object AudioRecordingDiagnostics {
     }
 }
 
-class SpeakerphoneMicCallCaptureStrategy @Inject constructor(
+internal class SpeakerphoneMicCallCaptureStrategy @Inject constructor(
     @ApplicationContext context: Context,
 ) : CallAudioRecordingBackend {
     private val session = MicrophoneCaptureSession(
@@ -65,7 +65,7 @@ class SpeakerphoneMicCallCaptureStrategy @Inject constructor(
     override suspend fun stop(): FinalizedAudioCapture? = session.stop()
 }
 
-class OemVoiceRecognitionCaptureStrategy @Inject constructor(
+internal class OemVoiceRecognitionCaptureStrategy @Inject constructor(
     @ApplicationContext context: Context,
 ) : CallAudioRecordingBackend {
     private val session = MicrophoneCaptureSession(
@@ -84,7 +84,7 @@ class OemVoiceRecognitionCaptureStrategy @Inject constructor(
     override suspend fun stop(): FinalizedAudioCapture? = session.stop()
 }
 
-class AccessibilityVoiceRecognitionCaptureStrategy @Inject constructor(
+internal class AccessibilityVoiceRecognitionCaptureStrategy @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : CallAudioRecordingBackend {
     private val session = MicrophoneCaptureSession(

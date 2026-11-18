@@ -31,7 +31,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ShizukuAudioRecorderClient @Inject constructor(
+internal class ShizukuAudioRecorderClient @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

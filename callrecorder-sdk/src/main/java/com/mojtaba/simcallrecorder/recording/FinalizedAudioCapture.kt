@@ -2,7 +2,7 @@ package com.mojtaba.simcallrecorder.recording
 
 import java.io.File
 
-data class FinalizedAudioCapture(
+internal data class FinalizedAudioCapture(
     val file: File,
     val startedAtEpochMillis: Long,
     val durationMillis: Long,

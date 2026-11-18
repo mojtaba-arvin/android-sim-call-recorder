@@ -9,7 +9,7 @@ import android.service.notification.StatusBarNotification
  * notification; it never reads notification title/text/actions or attempts to capture notification
  * sounds. A notification is a hint that a VoIP call may be active, not proof of audio routing.
  */
-class VoipCallNotificationListenerService : NotificationListenerService() {
+internal class VoipCallNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         if (sbn == null) return
         if (sbn.isOngoing && sbn.notification.category == Notification.CATEGORY_CALL) {
@@ -25,7 +25,7 @@ class VoipCallNotificationListenerService : NotificationListenerService() {
     }
 }
 
-object VoipCallNotificationRegistry {
+internal object VoipCallNotificationRegistry {
     @Volatile var packageName: String? = null
         private set
     @Volatile var packageUid: Int? = null
