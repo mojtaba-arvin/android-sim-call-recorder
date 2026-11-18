@@ -74,7 +74,7 @@ class RecordingCoordinatorTest {
         val coordinator = RecordingCoordinator(setOf(standard, shizuku), shizukuCaptureEnabled = false)
 
         val failure = runCatching {
-            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL))
+            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL), profile())
         }.exceptionOrNull()
 
         assertTrue(failure is UnsupportedOperationException)
