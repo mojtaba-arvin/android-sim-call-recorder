@@ -241,7 +241,13 @@ class MainActivity : ComponentActivity() {
                                 automaticRecordingArmed = automaticRecordingArmed,
                                 onParticipantConsentChanged = { confirmed ->
                                     participantConsentConfirmed = confirmed
-                                    if (!confirmed && (automaticRecordingArmed || recorderCaptureStatus.startsWith("Recording active"))) {
+                                    if (!confirmed && (
+                                        automaticRecordingArmed ||
+                                            recorderCaptureStatus.startsWith("Recording") ||
+                                            recorderCaptureStatus.startsWith("Starting") ||
+                                            recorderCaptureStatus.startsWith("Finalizing")
+                                    )
+                                ) {
                                         startService(
                                             Intent(this@MainActivity, CallRecordingForegroundService::class.java)
                                                 .setAction(CallRecordingForegroundService.ACTION_STOP),
@@ -613,11 +619,17 @@ private fun DiagnosticsScreen(
             )
         }
 
-        DiagnosticCard(title = "Automatic Standard acoustic recording") {
+        DiagnosticCard(title = "Automatic best-available SIM-call recording") {
             Text(
-                "Arming starts a visible microphone foreground service while this app is open. " +
-                    "After consent and permissions, it starts Speakerphone + MIC only on SIM OFFHOOK and stops on IDLE. " +
-                    "This is acoustic capture, not guaranteed digital two-way audio. Re-arm after reboot or force-stop.",
+                "Arm once from this visible screen before a call. The app selects Shizuku VOICE_CALL when its live " +
+                    "UserService, shell UID and audio attribution are ready; otherwise it selects Speakerphone + MIC " +
+                    "if microphone permission is granted. The selected mode stays fixed until you disarm. A Shizuku " +
+                    "failure never downgrades to microphone capture. Re-arm after reboot or force-stop.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "Shizuku VOICE_CALL is privileged digital capture but still device-dependent. Speakerphone + MIC is " +
+                    "acoustic capture and may miss the remote participant. Neither is marked two-way verified without device evidence.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Text("Microphone input diagnostics: $audioInputDiagnostics", style = MaterialTheme.typography.bodySmall)
@@ -635,7 +647,7 @@ private fun DiagnosticsScreen(
                     onClick = onArmAutomaticRecording,
                     enabled = participantConsentConfirmed,
                 ) {
-                    Text("Arm automatic recording")
+                    Text("Arm best available automatic recording")
                 }
             }
         }
