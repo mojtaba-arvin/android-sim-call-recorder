@@ -11,9 +11,12 @@ import androidx.annotation.Keep
  */
 @Keep
 class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub {
+    private val shellAttributionReady = ShizukuShellAttribution.detachFromApplication()
+
     private val controller = RecorderServiceController(
         engine = AndroidVoiceCallCaptureEngine(),
         hostUid = { Process.myUid() },
+        captureReady = { shellAttributionReady },
     )
 
     constructor() : super()

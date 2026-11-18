@@ -245,6 +245,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
 internal class RecorderServiceController(
     private val engine: VoiceCallCaptureEngine,
     private val hostUid: () -> Int,
+    private val captureReady: () -> Boolean = { true },
 ) {
     enum class State { IDLE, STARTING, RECORDING, STOPPING, FAILED }
 
@@ -282,6 +283,13 @@ internal class RecorderServiceController(
             runCatching { output.close() }
             state = State.FAILED
             policyError = "Capture is restricted to an explicitly authorized Shizuku shell/root process. Current UID: $uid."
+            return 0
+        }
+
+        if (!captureReady()) {
+            runCatching { output.close() }
+            state = State.FAILED
+            policyError = "The Shizuku process could not establish shell audio attribution on this Android build."
             return 0
         }
 

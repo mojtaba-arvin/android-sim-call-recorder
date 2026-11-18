@@ -15,6 +15,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        val shizukuCaptureEnabled = providers.gradleProperty("enableShizukuCallCapture")
+            .map { it.toBoolean() }
+            .getOrElse { true }
+        buildConfigField("boolean", "ENABLE_SHIZUKU_CALL_CAPTURE", shizukuCaptureEnabled.toString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -23,6 +27,7 @@ android {
     buildFeatures {
         compose = true
         aidl = true
+        buildConfig = true
     }
 
     compileOptions {
