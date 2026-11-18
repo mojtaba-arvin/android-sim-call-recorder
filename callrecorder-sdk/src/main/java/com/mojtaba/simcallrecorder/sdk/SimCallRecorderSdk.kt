@@ -174,3 +174,13 @@ private fun SdkPermissionPurpose.toInternal(): com.mojtaba.simcallrecorder.core.
         SdkPermissionPurpose.MICROPHONE_CAPTURE -> com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose.MICROPHONE_CAPTURE
         SdkPermissionPurpose.FOREGROUND_NOTIFICATIONS -> com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose.FOREGROUND_NOTIFICATIONS
     }
+
+/**
+ * Hilt entry point for host applications that integrate the SDK without depending on its
+ * implementation graph. The application must install its own @HiltAndroidApp Application.
+ */
+@dagger.hilt.EntryPoint
+@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+interface SimCallRecorderSdkEntryPoint {
+    fun simCallRecorderSdk(): SimCallRecorderSdk
+}
