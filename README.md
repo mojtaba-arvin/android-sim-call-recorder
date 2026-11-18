@@ -6,7 +6,7 @@ A native Android (Kotlin) project investigating reliable SIM-call recording on r
 
 ## Project goals
 
-- Native Kotlin implementation; no cross-platform runtime or Accessibility workaround.
+- Native Kotlin implementation; no cross-platform runtime. Accessibility-priority microphone capture is an isolated, optional experiment and is not a general digital call-audio API.
 - Android 9 (API 28) diagnostics baseline, with privileged capture prototype requiring Android 11+.
 - Explicit separation between call-state detection, audio-capture capability, recording lifecycle, persistence, and UI.
 - App-private WAV storage and local metadata; no broad storage permission.
@@ -63,7 +63,7 @@ Read the detailed research and safety constraints:
 
 - [Android call-audio constraints and implementation decision](docs/ANDROID_CALL_AUDIO_CONSTRAINTS.md)
 - [Architecture and module boundaries](docs/ARCHITECTURE.md)
-- [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)
+- [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)\n- [Capture compatibility matrix and strategy-selection policy](docs/COMPATIBILITY_MATRIX.md)
 
 ## Application screens
 
