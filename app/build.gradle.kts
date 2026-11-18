@@ -46,7 +46,7 @@ android {
         // Keep the narrowly-scoped module export on the test JVM only.
         unitTests.all {
             // Robolectric loads large instrumented framework resource archives across SDKs.
-            // The default Gradle test-worker heap is too small for the API 26–36 matrix.
+            // The default Gradle test-worker heap is too small for the API 26–37 matrix.
             it.maxHeapSize = "2g"
             it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
         }

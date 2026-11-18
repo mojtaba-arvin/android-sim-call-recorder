@@ -12,7 +12,7 @@ The app's declared `minSdk` is currently **26 (Android 8.0)** as an active compa
 
 Telephony observer Robolectric coverage is being expanded across:
 - API 26–30: legacy `PhoneStateListener` path.
-- API 31–36: `TelephonyCallback` path (Robolectric 4.17 coverage; API 37 remains pending emulator/device validation), including subscription-to-slot association and permission failure behavior.
+- API 31–37: `TelephonyCallback` path (Robolectric 4.18.1 includes API 37; physical API 37 device validation remains pending), including subscription-to-slot association and permission failure behavior.
 
 The Shizuku UserService can now be attempted from API 26 when a live server is already available. Wireless-debugging startup itself is Android 11+; Android 8–10 users must start Shizuku through root or a computer running ADB, then connect and authorize the app. No claim of cellular two-way audio support follows from this software API-floor experiment.
 
