@@ -41,6 +41,10 @@ class CallRecordingForegroundService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val stateMachine = RecordingServiceStateMachine()
+    private val automaticPolicy = AutomaticCallRecordingPolicy()
+    private var automaticMonitorJob: Job? = null
+    private var automaticArmed = false
+    private var stopRequestedDuringStart = false
     private var activeMode: RecordingMode? = null
     private var activeRecordId: Long? = null
     private var watchCaptureStatusJob: Job? = null
@@ -57,10 +61,99 @@ class CallRecordingForegroundService : Service() {
         latestStartId = startId
         when (intent?.action) {
             ACTION_START -> startCapture(intent)
-            ACTION_STOP -> stopCapture(startId, "Stopped by user")
+            ACTION_ARM_AUTOMATIC -> armAutomaticMonitoring(intent)
+            ACTION_STOP -> {
+                disarmAutomaticMonitoring()
+                when (stateMachine.state) {
+                    RecordingServiceStateMachine.State.RECORDING ->
+                        stopCapture(startId, "Stopped by user")
+                    RecordingServiceStateMachine.State.STARTING -> stopRequestedDuringStart = true
+                    else -> {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf(startId)
+                    }
+                }
+            }
             else -> stopSelf(startId)
         }
         return START_NOT_STICKY
+    }
+
+    private fun armAutomaticMonitoring(intent: Intent) {
+        val consent = intent.getBooleanExtra(EXTRA_PARTICIPANT_CONSENT, false)
+        val microphoneGranted = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (!automaticPolicy.arm(
+                enabled = true,
+                participantConsentConfirmed = consent,
+                selectedMode = RecordingMode.SPEAKERPHONE_MIC,
+                recordAudioGranted = microphoneGranted && notificationsGranted,
+            )
+        ) {
+            updateNotification(
+                "Automatic recording not armed · explicit consent, microphone and notification permissions are required.",
+            )
+            stopSelf()
+            return
+        }
+
+        automaticArmed = true
+        automaticMonitoringArmed = true
+        try {
+            // The app starts this microphone FGS from a visible activity. It remains visible and
+            // user-stoppable while waiting for OFFHOOK; no background FGS start is attempted.
+            startForegroundCompat(
+                buildNotification("Automatic acoustic recording armed · waiting for a SIM call"),
+                RecordingMode.SPEAKERPHONE_MIC,
+            )
+        } catch (exception: Exception) {
+            disarmAutomaticMonitoring()
+            updateNotification("Automatic recording could not start · ${exception.message}")
+            stopSelf()
+            return
+        }
+
+        automaticMonitorJob?.cancel()
+        automaticMonitorJob = serviceScope.launch {
+            try {
+                diagnosticsRepository.observeCallStateEvents().collect { event ->
+                    when (automaticPolicy.onCallState(event)) {
+                        AutomaticCallRecordingPolicy.Decision.START -> {
+                            val startIntent = Intent(this@CallRecordingForegroundService, CallRecordingForegroundService::class.java)
+                                .setAction(ACTION_START)
+                                .putExtra(EXTRA_RECORDING_MODE, RecordingMode.SPEAKERPHONE_MIC.name)
+                                .putExtra(EXTRA_CALL_STATE, CallState.OFFHOOK.name)
+                                .putExtra(EXTRA_SIM_SLOT_INDEX, event.simSlotIndex)
+                                .putExtra(EXTRA_PARTICIPANT_CONSENT, true)
+                            startCapture(startIntent)
+                        }
+                        AutomaticCallRecordingPolicy.Decision.STOP -> {
+                            if (stateMachine.state == RecordingServiceStateMachine.State.RECORDING) {
+                                stopCapture(latestStartId, "Call ended")
+                            }
+                        }
+                        AutomaticCallRecordingPolicy.Decision.NONE -> Unit
+                    }
+                }
+            } catch (exception: Exception) {
+                disarmAutomaticMonitoring()
+                updateNotification("Automatic call monitoring failed · ${exception.message}")
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
+    }
+
+    private fun disarmAutomaticMonitoring() {
+        automaticArmed = false
+        automaticMonitoringArmed = false
+        automaticPolicy.disarm()
+        automaticMonitorJob?.cancel()
+        automaticMonitorJob = null
     }
 
     private fun startCapture(intent: Intent) {
@@ -129,6 +222,11 @@ class CallRecordingForegroundService : Service() {
                 activeRecordId = insertedRecordId
                 check(stateMachine.recordingStarted()) { "Recording state transition was rejected." }
                 updateNotification("Recording active · ${output.name} · SIM ${request.simSlotIndex + 1}")
+                if (stopRequestedDuringStart) {
+                    stopRequestedDuringStart = false
+                    stopCapture(latestStartId, "Stopped by user")
+                    return@launch
+                }
 
                 watchCaptureStatusJob?.cancel()
                 watchCaptureStatusJob = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) {
@@ -163,9 +261,17 @@ class CallRecordingForegroundService : Service() {
                 activeMode = null
                 activeRecordId = null
                 stateMachine.startFailed()
-                updateNotification("Capture did not start · ${exception.message ?: "unsupported device"}")
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                updateNotification(
+                    if (automaticArmed) {
+                        "Automatic capture failed · ${exception.message ?: "unsupported device"} · waiting for next call"
+                    } else {
+                        "Capture did not start · ${exception.message ?: "unsupported device"}"
+                    },
+                )
+                if (!automaticArmed) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         }
     }
@@ -198,8 +304,12 @@ class CallRecordingForegroundService : Service() {
         if (!stateMachine.beginStop()) return
         val mode = activeMode ?: run {
             stateMachine.stopCompleted()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf(startId)
+            if (automaticArmed && reason == "Call ended") {
+                updateNotification("Automatic acoustic recording armed · waiting for a SIM call")
+            } else {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf(startId)
+            }
             return
         }
 
@@ -261,8 +371,10 @@ class CallRecordingForegroundService : Service() {
 
     private fun rejectStart(message: String) {
         updateNotification("Capture refused · $message")
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        if (!automaticArmed) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     private fun startForegroundCompat(notification: Notification, mode: RecordingMode) {
@@ -328,6 +440,9 @@ class CallRecordingForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        automaticMonitorJob?.cancel()
+        automaticPolicy.disarm()
+        automaticMonitoringArmed = false
         watchCaptureStatusJob?.cancel()
         watchCallEndJob?.cancel()
         val mode = activeMode
@@ -358,7 +473,12 @@ class CallRecordingForegroundService : Service() {
 
     companion object {
         const val ACTION_START = "com.mojtaba.simcallrecorder.action.START_CALL_CAPTURE"
+        const val ACTION_ARM_AUTOMATIC = "com.mojtaba.simcallrecorder.action.ARM_AUTOMATIC_CAPTURE"
         const val ACTION_STOP = "com.mojtaba.simcallrecorder.action.STOP_CALL_CAPTURE"
+
+        @Volatile
+        var automaticMonitoringArmed: Boolean = false
+            private set
         const val EXTRA_RECORDING_MODE = "com.mojtaba.simcallrecorder.extra.RECORDING_MODE"
         const val EXTRA_CALL_STATE = "com.mojtaba.simcallrecorder.extra.CALL_STATE"
         const val EXTRA_SIM_SLOT_INDEX = "com.mojtaba.simcallrecorder.extra.SIM_SLOT_INDEX"
