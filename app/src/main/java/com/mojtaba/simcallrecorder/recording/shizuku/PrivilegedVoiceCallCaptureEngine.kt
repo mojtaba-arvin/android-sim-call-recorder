@@ -282,6 +282,9 @@ internal class RecorderServiceController(
     val lastError: String
         get() = policyError.ifBlank { engine.lastError }
 
+    val isCaptureReady: Boolean
+        get() = runCatching { captureReady() }.getOrDefault(false)
+
     @Synchronized
     fun start(
         output: ParcelFileDescriptor,
@@ -305,7 +308,7 @@ internal class RecorderServiceController(
             return 0
         }
 
-        if (!captureReady()) {
+        if (!isCaptureReady) {
             runCatching { output.close() }
             state = State.FAILED
             policyError = "The Shizuku process could not establish shell audio attribution on this Android build."
