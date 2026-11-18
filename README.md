@@ -2,7 +2,7 @@
 
 A native Android (Kotlin) project investigating reliable SIM-call recording on real devices.
 
-> **Current status:** native diagnostics, automated Android-framework tests, and an opt-in Shizuku `VOICE_CALL` capture prototype. Two-way audio is not claimed as universally supported; OEM/modem behavior must be validated.
+> **Current status:** native diagnostics, an opt-in Shizuku `VOICE_CALL` prototype, and a user-armed automatic `Speakerphone + MIC` foreground-monitoring lifecycle. Automatic acoustic capture is not proof of two-way call audio; OEM/modem behavior must be validated.
 
 ## Project goals
 
@@ -44,11 +44,11 @@ The standard third-party app process does not have public-SDK access to cellular
 
 The application exposes multiple strategies through a common `CallCaptureStrategy` contract:
 
-- **Standard app-UID digital capture:** fails closed; it does not claim access to cellular uplink/downlink. The product-level Standard acoustic mode is the separate `Speakerphone + MIC` strategy and is planned for consent-gated automatic OFFHOOK operation.
+- **Standard app-UID digital capture:** fails closed; it does not claim access to cellular uplink/downlink. The product-level Standard acoustic mode is the separate `Speakerphone + MIC` strategy and now supports explicit foreground arming with automatic OFFHOOK start and same-SIM IDLE finalization.
 - **Shizuku VOICE_CALL:** optional, manually started privileged capture prototype.
 - **Accessibility-priority VOICE_RECOGNITION:** optional microphone/acoustic experiment; not digital downlink and not for Google Play distribution as a call-recording feature.
 - **Platform VOICE_RECOGNITION:** generic microphone experiment, not a vendor-specific OEM API.
-- **Speakerphone + MIC:** explicit acoustic capture experiment with route and echo limitations.
+- **Speakerphone + MIC:** explicit acoustic capture mode with route and echo limitations; may be armed for automatic OFFHOOK recording with a persistent notification.
 
 The Shizuku backend works as follows:
 
@@ -62,7 +62,7 @@ The Shizuku backend works as follows:
 
 This is a device-dependent privileged capture path, not a guarantee of two-sided audio on every model/carrier. CallVault and ShizuCallRecorder were reviewed as open-source references, but their GPL code was not copied. This project remains MIT-licensed. The Shizuku API itself is MIT-licensed.
 
-To use the prototype, install and start Shizuku/Sui separately, return to the app, tap **Connect / authorize Shizuku**, grant the request in Shizuku, then start a recording manually during a call. On a non-root phone, starting Shizuku normally requires ADB Wireless Debugging on Android 11+ and re-authorization after reboot. The app does not start recording automatically.
+To use the prototype, install and start Shizuku/Sui separately, return to the app, tap **Connect / authorize Shizuku**, grant the request in Shizuku, then start a recording manually during a call. On a non-root phone, starting Shizuku normally requires ADB Wireless Debugging on Android 11+ and re-authorization after reboot. The Shizuku path remains manually started and does not automatically downgrade to microphone capture. The separate Standard acoustic mode can be armed from the Diagnostics screen; once armed, it starts on SIM OFFHOOK and stops on IDLE. Re-arm after reboot or force-stop.
 
 Read the detailed research and safety constraints:
 
@@ -77,7 +77,7 @@ Read the detailed research and safety constraints:
 
 - **Recordings:** search, SIM-slot filter, date filter, and newest/oldest sorting.
 - **Player:** Media3 ExoPlayer with play/pause, seek/progress controls; only completed readable private WAVs are playable.
-- **Settings:** capture strategy candidates, Shizuku status, microphone permission, local storage quota, and the current manual trigger. Consent-gated automatic Standard-mode capture is a tracked product requirement.
+- **Settings:** capture strategy candidates, Shizuku status, microphone permission, local storage quota, and the current manual trigger. Consent-gated automatic Standard acoustic capture can be armed from Diagnostics; its two-way audio performance remains unverified.
 - **Diagnostics:** the SIM-state, audio-route, and Shizuku connection panel remains available as a dedicated tab.
 
 ## Diagnostics implementation
