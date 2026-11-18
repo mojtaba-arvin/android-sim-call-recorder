@@ -71,6 +71,7 @@ Read the detailed research and safety constraints:
 - [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)
 - [Capture compatibility matrix and strategy-selection policy](docs/COMPATIBILITY_MATRIX.md)
 - [Consent-gated automatic recording lifecycle](docs/AUTO_RECORDING_LIFECYCLE.md)
+- [OEM integration research and vendor API decision](docs/OEM_INTEGRATION_RESEARCH.md)
 
 ## Application screens
 
