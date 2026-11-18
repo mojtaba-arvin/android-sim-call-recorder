@@ -355,10 +355,13 @@ private class MicrophoneCaptureSession(
                 } ?: "unknown input device"
                 AudioRecordingDiagnostics.update(
                     "session=${configuration.clientAudioSessionId}; " +
-                        "source=${audioSourceName(configuration.clientAudioSource)}; " +
+                        "clientSource=${audioSourceName(configuration.clientAudioSource)}; " +
+                        "activeSource=${audioSourceName(configuration.audioSource)}; " +
                         "device=$device; " +
                         "clientFormat=${configuration.clientFormat.sampleRate}Hz/" +
                         "${configuration.clientFormat.channelCount}ch; " +
+                        "deviceFormat=${configuration.format.sampleRate}Hz/" +
+                        "${configuration.format.channelCount}ch; " +
                         "clientSilenced=${configuration.isClientSilenced}",
                 )
             }
