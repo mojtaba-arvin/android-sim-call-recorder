@@ -42,10 +42,15 @@ GitHub Actions runs JUnit/Robolectric, lint, Compose UI instrumentation tests on
 
 The standard third-party app process does not have public-SDK access to cellular uplink/downlink. `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK` require `CAPTURE_AUDIO_OUTPUT`, which is reserved for privileged/system components. During an active voice call, Android's input-sharing rules prioritize the call; a normal app cannot assume `MIC` or `VOICE_COMMUNICATION` receives call audio.
 
-The application exposes two backends through a common recording contract:
+The application exposes multiple strategies through a common `CallCaptureStrategy` contract:
 
-- **Standard:** refuses cellular-call capture. The app does not force the loudspeaker or pretend a standard microphone stream is a call recording.
-- **Advanced:** an **optional, manually started Shizuku capture prototype**:
+- **Standard:** refuses cellular-call capture.
+- **Shizuku VOICE_CALL:** optional, manually started privileged capture prototype.
+- **Accessibility-priority VOICE_RECOGNITION:** optional microphone/acoustic experiment; not digital downlink and not for Google Play distribution as a call-recording feature.
+- **Platform VOICE_RECOGNITION:** generic microphone experiment, not a vendor-specific OEM API.
+- **Speakerphone + MIC:** explicit acoustic capture experiment with route and echo limitations.
+
+The Shizuku backend works as follows:
 
 - The user must run Shizuku/Sui and explicitly authorize the app.
 - The capture helper runs as shell UID 2000 or root UID 0 and opens `AudioRecord(VOICE_CALL)`.
@@ -69,7 +74,7 @@ Read the detailed research and safety constraints:
 
 - **Recordings:** search, SIM-slot filter, date filter, and newest/oldest sorting.
 - **Player:** Media3 ExoPlayer with play/pause, seek/progress controls; only completed readable private WAVs are playable.
-- **Settings:** Standard vs. Shizuku backend, local storage quota, and manual-only recording trigger policy.
+- **Settings:** capture strategy candidates, Shizuku status, microphone permission, local storage quota, and manual-only recording trigger policy.
 - **Diagnostics:** the SIM-state, audio-route, and Shizuku connection panel remains available as a dedicated tab.
 
 ## Diagnostics implementation
@@ -89,8 +94,8 @@ Robolectric can verify framework callback wiring, state transitions, service pol
 
 ## Privacy and legal use
 
-- No READ_CALL_LOG, contacts, broad storage, overlay, or accessibility permission is requested.
-- No microphone permission prompt is needed for the privileged UserService path; the ordinary app does not capture the microphone.
+- No READ_CALL_LOG, contacts, broad storage, or overlay permission is requested. The optional Accessibility experiment requires explicit enablement in Android Settings and is not suitable for a Google Play call-recording release.
+- No microphone permission prompt is needed for the privileged Shizuku UserService path. The explicitly selected microphone/acoustic strategies do capture microphone input and require RECORD_AUDIO.
 - Recording starts only from the visible user action in this prototype and shows an ongoing foreground notification with Stop.
 - A Shizuku authorization is an additional privilege grant and must be understood by the user.
 - A permission grant is not consent from every call participant. The user must comply with applicable local law and obtain all required consent.
