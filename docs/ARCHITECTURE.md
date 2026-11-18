@@ -48,9 +48,9 @@ The inventory does not prove that cellular call uplink/downlink audio is availab
 
 ## Lifecycle boundaries
 
-The diagnostic Flow is collected while the diagnostics screen is active. It is not a process-persistent service and should not be mistaken for a production background recorder.
+The diagnostic Flow is collected while the diagnostics screen is active. The current `CallRecordingForegroundService` owns an explicitly started capture session, its notification, stop action, call-end observation and finalization. It does not yet own a persistent idle-time call monitor that automatically starts Standard capture on OFFHOOK.
 
-The eventual service layer must own its own lifecycle, notification, error reporting, and recording finalization. It must not make the domain layer depend on Service, MediaRecorder, or TelephonyManager.
+The target monitor must own its lifecycle, notification, per-subscription call-state listeners, automatic Standard-mode trigger and recovery. Keep domain models independent of Service, MediaRecorder and TelephonyManager.
 
 ## Persistence rules
 
@@ -63,7 +63,7 @@ The eventual service layer must own its own lifecycle, notification, error repor
 
 Capture implementations are registered behind the `CallCaptureStrategy` contract and exposed through a Hilt multibinding set. The current strategy selector evaluates runtime prerequisites and ranks candidates; it does not infer support from an OEM name. The current foreground-service start path still uses the saved selected mode, so end-to-end automatic runtime selection remains outstanding. A source failure is not silently retried with a different audio source.
 
-See [the capture compatibility matrix](COMPATIBILITY_MATRIX.md) for the implemented backends, distribution constraints, research references, and device acceptance rules.
+See [the capture compatibility matrix](COMPATIBILITY_MATRIX.md) for implemented backends, distribution constraints, research references and device acceptance rules. See [the automatic recording lifecycle](AUTO_RECORDING_LIFECYCLE.md) for the consent-gated Standard/Shizuku trigger model and Android FGS constraints.
 
 ## Next engineering gates
 
