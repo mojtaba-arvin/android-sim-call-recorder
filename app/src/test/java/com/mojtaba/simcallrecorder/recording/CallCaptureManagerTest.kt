@@ -22,14 +22,16 @@ class CallCaptureManagerTest {
     }
 
     @Test
-    fun accessibilityStrategyIsRecommendedWhenShizukuIsUnavailable() {
+    fun speakerphoneAcousticModeIsPreferredOverRestrictedAccessibilityExperiment() {
         val profile = profile(microphone = true, accessibility = true)
         val availability = CaptureStrategySelector.evaluate(profile)
 
         assertEquals(
-            RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION,
+            RecordingMode.SPEAKERPHONE_MIC,
             availability.first { it.recommended }.mode,
         )
+        assertTrue(availability.first { it.mode == RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION }.available)
+        assertFalse(availability.first { it.mode == RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION }.recommended)
     }
 
     @Test
@@ -43,7 +45,9 @@ class CallCaptureManagerTest {
         val oem = availability.first { it.mode == RecordingMode.OEM_VOICE_RECOGNITION }
 
         assertTrue(oem.available)
-        assertEquals(RecordingMode.OEM_VOICE_RECOGNITION, availability.first { it.recommended }.mode)
+        assertEquals(RecordingMode.SPEAKERPHONE_MIC, availability.first { it.recommended }.mode)
+        assertTrue(oem.displayName.contains("Platform microphone experiment"))
+        assertFalse(oem.recommended)
         assertTrue(oem.reason.contains("UnlistedVendor Prototype X"))
         assertFalse(oem.reason.contains("supported"))
     }
@@ -95,7 +99,7 @@ class CallCaptureManagerTest {
         )
 
         assertSame(
-            backends.first { it.mode == RecordingMode.OEM_VOICE_RECOGNITION },
+            backends.first { it.mode == RecordingMode.SPEAKERPHONE_MIC },
             selected,
         )
     }
