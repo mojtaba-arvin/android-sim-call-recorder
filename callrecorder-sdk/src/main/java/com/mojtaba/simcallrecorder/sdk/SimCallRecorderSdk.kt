@@ -18,7 +18,6 @@ import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
 import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfileProvider
 import com.mojtaba.simcallrecorder.recording.RecordingCoordinator
 import com.mojtaba.simcallrecorder.recording.CaptureStrategySelector
-import com.mojtaba.simcallrecorder.recording.RecordingMode
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -37,7 +36,7 @@ import javax.inject.Singleton
  * service implementation types cross the SDK boundary.
  */
 data class CaptureStrategyOption(
-    val mode: RecordingMode,
+    val mode: SdkRecordingMode,
     val displayName: String,
     val available: Boolean,
     val recommended: Boolean,
@@ -98,7 +97,7 @@ class SimCallRecorderSdk @Inject internal constructor(
     suspend fun deleteRecording(recordId: Long): Boolean = callRecords.deleteRecording(recordId)
     suspend fun markInterruptedRecordings(): Int = callRecords.markActiveRecordingsInterrupted()
     suspend fun updateStorageLimit(megabytes: Int) = settingsRepository.updateStorageLimit(megabytes)
-    suspend fun updateRecordingMode(modeName: String) = settingsRepository.updateRecordingMode(modeName)
+    suspend fun updateSdkRecordingMode(modeName: String) = settingsRepository.updateSdkRecordingMode(modeName)
 
     fun missingPermissions(purpose: SdkPermissionPurpose): List<String> =
         permissions.missingPermissions(purpose.toInternal())
@@ -128,18 +127,18 @@ class SimCallRecorderSdk @Inject internal constructor(
         )
     }
 
-    fun selectBestRecordingMode(): RecordingMode? =
+    fun selectBestSdkRecordingMode(): SdkRecordingMode? =
         coordinator.selectBest(profileProvider.snapshot())?.mode
 
-    fun isRecordingModeAvailable(mode: RecordingMode): Boolean =
+    fun isSdkRecordingModeAvailable(mode: SdkRecordingMode): Boolean =
         coordinator.isAvailable(mode, profileProvider.snapshot())
-    fun audioSourceLabel(mode: RecordingMode): String = coordinator.audioSourceLabel(mode)
+    fun audioSourceLabel(mode: SdkRecordingMode): String = coordinator.audioSourceLabel(mode)
 
     fun refreshShizukuConnection() = shizukuClient.refreshConnectionStatus()
     fun connectShizuku() = shizukuClient.connectOrRequestPermission()
 
     fun createStartRecordingIntent(
-        mode: RecordingMode,
+        mode: SdkRecordingMode,
         simSlotIndex: Int,
         callState: CallState,
         participantConsentConfirmed: Boolean,
@@ -150,7 +149,7 @@ class SimCallRecorderSdk @Inject internal constructor(
         .putExtra(CallRecordingForegroundService.EXTRA_SIM_SLOT_INDEX, simSlotIndex)
         .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
 
-    fun createArmAutomaticRecordingIntent(mode: RecordingMode, participantConsentConfirmed: Boolean): Intent =
+    fun createArmAutomaticRecordingIntent(mode: SdkRecordingMode, participantConsentConfirmed: Boolean): Intent =
         Intent(context, CallRecordingForegroundService::class.java)
             .setAction(CallRecordingForegroundService.ACTION_ARM_AUTOMATIC)
             .putExtra(CallRecordingForegroundService.EXTRA_RECORDING_MODE, mode.name)
