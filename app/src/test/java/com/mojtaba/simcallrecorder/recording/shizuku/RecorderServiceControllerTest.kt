@@ -1,5 +1,6 @@
 package com.mojtaba.simcallrecorder.recording.shizuku
 
+import android.media.MediaRecorder
 import android.os.ParcelFileDescriptor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,6 +20,7 @@ class RecorderServiceControllerTest {
         val controller = RecorderServiceController(engine, hostUid = { 2_000 })
         val pipe = ParcelFileDescriptor.createPipe()
 
+        assertTrue(controller.isCaptureReady)
         val channels = controller.start(pipe[1], 48_000, 2)
 
         assertEquals(2, channels)
@@ -43,6 +45,32 @@ class RecorderServiceControllerTest {
 
         controller.stop()
         pipe[0].close()
+    }
+
+    @Test
+    fun shellUid_isRejectedWhenAudioAttributionCouldNotBeEstablished() {
+        val engine = FakeCaptureEngine()
+        val controller = RecorderServiceController(
+            engine = engine,
+            hostUid = { 2_000 },
+            captureReady = { false },
+        )
+        val pipe = ParcelFileDescriptor.createPipe()
+
+        assertFalse(controller.isCaptureReady)
+        assertEquals(0, controller.start(pipe[1], 48_000, 2))
+        assertEquals(0, engine.startCount)
+        assertTrue(controller.lastError.contains("audio attribution"))
+        assertEquals(RecorderServiceController.State.FAILED, controller.state)
+        pipe[0].close()
+    }
+
+    @Test
+    fun privilegedBackendAttemptsOnlyTheFullDuplexVoiceCallSource() {
+        assertEquals(
+            listOf(MediaRecorder.AudioSource.VOICE_CALL),
+            privilegedFullDuplexAudioSources(),
+        )
     }
 
     @Test
