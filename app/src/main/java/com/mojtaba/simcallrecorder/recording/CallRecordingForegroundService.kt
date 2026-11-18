@@ -68,7 +68,6 @@ class CallRecordingForegroundService : Service() {
             stateMachine.state != RecordingServiceStateMachine.State.FAILED
         ) return
 
-        startForegroundCompat(buildNotification("Preparing authorized call-audio capture"))
         val request = try {
             val mode = RecordingMode.valueOf(
                 intent.getStringExtra(EXTRA_RECORDING_MODE) ?: RecordingMode.SHIZUKU_VOICE_CALL.name,
@@ -85,6 +84,11 @@ class CallRecordingForegroundService : Service() {
             return
         }
 
+        startForegroundCompat(
+            buildNotification("Preparing ${request.mode.name} capture"),
+            request.mode,
+        )
+
         if (!stateMachine.beginStart(request)) {
             rejectStart("Recording requires an active SIM call and explicit participant-consent confirmation.")
             return
@@ -98,8 +102,11 @@ class CallRecordingForegroundService : Service() {
                 startedMode = request.mode
                 activeMode = request.mode
 
-                val startedAt = recorderClient.currentCaptureStartedAtEpochMillis()
-                    ?: System.currentTimeMillis()
+                val startedAt = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) {
+                    recorderClient.currentCaptureStartedAtEpochMillis() ?: System.currentTimeMillis()
+                } else {
+                    System.currentTimeMillis()
+                }
                 insertedRecordId = callRecordRepository.createActiveRecording(
                     CallRecord(
                         startedAtEpochMillis = startedAt,
@@ -108,7 +115,7 @@ class CallRecordingForegroundService : Service() {
                         simSlotIndex = request.simSlotIndex,
                         filePath = output.absolutePath,
                         recordingMode = request.mode.name,
-                        audioSource = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) "VOICE_CALL" else request.mode.name,
+                        audioSource = recordingCoordinator.audioSourceLabel(request.mode),
                         sampleRate = 48_000,
                         channelCount = 0,
                         dataBytes = 0L,
@@ -124,12 +131,16 @@ class CallRecordingForegroundService : Service() {
                 updateNotification("Recording active · ${output.name} · SIM ${request.simSlotIndex + 1}")
 
                 watchCaptureStatusJob?.cancel()
-                watchCaptureStatusJob = serviceScope.launch {
-                    recorderClient.captureStatus.collect { status ->
-                        if (status.startsWith("Saved ") || status.startsWith("Recording file was not saved:")) {
-                            stopCapture(latestStartId, "Capture stream finished")
+                watchCaptureStatusJob = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) {
+                    serviceScope.launch {
+                        recorderClient.captureStatus.collect { status ->
+                            if (status.startsWith("Saved ") || status.startsWith("Recording file was not saved:")) {
+                                stopCapture(latestStartId, "Capture stream finished")
+                            }
                         }
                     }
+                } else {
+                    null
                 }
                 watchCallEnd(request.simSlotIndex)
             } catch (exception: Exception) {
@@ -241,14 +252,14 @@ class CallRecordingForegroundService : Service() {
         stopSelf()
     }
 
-    private fun startForegroundCompat(notification: Notification) {
+    private fun startForegroundCompat(notification: Notification, mode: RecordingMode) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-            )
+            val serviceType = if (mode == RecordingMode.SHIZUKU_VOICE_CALL) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            }
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, serviceType)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
