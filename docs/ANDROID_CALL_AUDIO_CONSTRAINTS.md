@@ -111,7 +111,7 @@ The app exposes multiple strategies behind `CallCaptureStrategy` / `CallAudioRec
 
 Standard microphone/acoustic strategies may be evaluated as a separately consented automatic mode; none may be used as an implicit fallback for Shizuku.
 - A Gradle feature flag, `enableShizukuCallCapture=false`, disables the advanced backend at build time.
-- In the current prototype, recording is manually initiated while the selected SIM reports `OFFHOOK`; the user must explicitly confirm they are authorized and have obtained all participant consent required by local law. A foreground notification stays visible with a Stop action. A service-side subscription-scoped listener stops capture when the selected SIM returns to `IDLE`. The target automatic Standard-mode monitor is specified separately in `AUTO_RECORDING_LIFECYCLE.md`.
+- The current implementation requires a visible, explicit arm action and participant-consent acknowledgement before monitoring. It selects the best eligible mode at arm time (Shizuku `VOICE_CALL` when ready, otherwise Speakerphone + MIC when permitted), shows a persistent foreground notification, starts on matching SIM `OFFHOOK`, and finalizes on that SIM's `IDLE`. Manual mode selection remains available for isolated strategy diagnostics. The selected automatic mode is fixed until disarm; it is never changed after a capture failure.
 - If Shizuku permission, UID validation, app-attribution detachment, protected source initialization, pipe streaming, or PCM finalization fails, the session reports failure. It does not retry as standard microphone audio.
 - WAV files are app-private. Empty PCM is rejected; all-zero PCM is identified as silence. A non-zero waveform is not proof of two-way call capture.
 
