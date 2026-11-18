@@ -224,7 +224,7 @@ class MainActivity : ComponentActivity() {
                                 recorderConnectionStatus = recorderConnectionStatus,
                                 recorderCaptureStatus = recorderCaptureStatus,
                                 audioInputDiagnostics = audioInputDiagnostics,
-                                recorderConnected = recorderConnectionStatus.startsWith("Connected"),
+                                recorderConnected = recorderServiceUid == 2_000 || recorderServiceUid == 0,
                                 recorderActive = recorderCaptureStatus.startsWith("Recording active"),
                                 activeCallSlotIndex = activeCallSlotIndex(),
                                 participantConsentConfirmed = participantConsentConfirmed,
