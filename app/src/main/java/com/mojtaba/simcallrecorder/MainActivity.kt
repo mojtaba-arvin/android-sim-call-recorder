@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
     private var monitoring by mutableStateOf(false)
     private var diagnosticsError by mutableStateOf<String?>(null)
     private var recorderConnectionStatus by mutableStateOf("Checking Shizuku status…")
+    private var recorderServiceUid by mutableStateOf<Int?>(null)
     private var recorderCaptureStatus by mutableStateOf("Idle")
     private var participantConsentConfirmed by mutableStateOf(false)
     private var callRecords by mutableStateOf(emptyList<CallRecord>())
@@ -127,7 +128,10 @@ class MainActivity : ComponentActivity() {
         }
         recorderClient.refreshConnectionStatus()
         lifecycleScope.launch {
-            recorderClient.connectionStatus.collect { recorderConnectionStatus = it }
+            recorderClient.connectionStatus.collect { status ->
+                recorderConnectionStatus = status
+                recorderServiceUid = recorderClient.authorizedHostUid
+            }
         }
         lifecycleScope.launch {
             recorderClient.captureStatus.collect { recorderCaptureStatus = it }
@@ -145,6 +149,7 @@ class MainActivity : ComponentActivity() {
                         records = callRecords,
                         settings = recorderSettings,
                         selectedRecord = selectedRecord,
+                        shizukuServiceUid = recorderServiceUid,
                         onFilterChanged = ::refreshRecords,
                         onOpenRecord = { selectedRecord = it },
                         onDeleteRecord = { record ->
