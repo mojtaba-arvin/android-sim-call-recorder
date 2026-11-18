@@ -42,6 +42,12 @@ import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
 import com.mojtaba.simcallrecorder.domain.repository.CallRecordRepository
+import com.mojtaba.simcallrecorder.domain.repository.RecorderSettingsRepository
+import com.mojtaba.simcallrecorder.domain.model.CallRecord
+import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
+import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
+import com.mojtaba.simcallrecorder.recording.RecordingMode
+import com.mojtaba.simcallrecorder.ui.RecorderRootScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -66,6 +72,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var recorderClient: ShizukuAudioRecorderClient
 
+    @Inject
+    lateinit var recorderSettingsRepository: RecorderSettingsRepository
+
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     private var monitorJob: Job? = null
@@ -79,6 +88,10 @@ class MainActivity : ComponentActivity() {
     private var recorderConnectionStatus by mutableStateOf("Checking Shizuku status…")
     private var recorderCaptureStatus by mutableStateOf("Idle")
     private var participantConsentConfirmed by mutableStateOf(false)
+    private var callRecords by mutableStateOf(emptyList<CallRecord>())
+    private var selectedRecord by mutableStateOf<CallRecord?>(null)
+    private var recorderSettings by mutableStateOf(RecorderSettings())
+    private var recordsJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,35 +124,66 @@ class MainActivity : ComponentActivity() {
             recorderClient.captureStatus.collect { recorderCaptureStatus = it }
         }
 
+        lifecycleScope.launch {
+            recorderSettingsRepository.settings.collect { recorderSettings = it }
+        }
+        refreshRecords(CallRecordFilter())
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    DiagnosticsScreen(
-                        missingPermissions = missingPermissions,
-                        activeSims = activeSims,
-                        callEvents = callEvents,
-                        audioRoutes = audioRoutes,
-                        monitoring = monitoring,
-                        diagnosticsError = diagnosticsError,
-                        recorderConnectionStatus = recorderConnectionStatus,
-                        recorderCaptureStatus = recorderCaptureStatus,
-                        recorderConnected = recorderConnectionStatus.startsWith("Connected"),
-                        recorderActive = recorderCaptureStatus.startsWith("Recording active"),
-                        activeCallSlotIndex = activeCallSlotIndex(),
-                        participantConsentConfirmed = participantConsentConfirmed,
-                        onParticipantConsentChanged = { participantConsentConfirmed = it },
-                        onRequestPermissions = {
-                            permissionLauncher.launch(
-                                permissionManager.permissionsFor(PermissionPurpose.CALL_STATE)
-                                    .toTypedArray(),
+                    RecorderRootScreen(
+                        records = callRecords,
+                        settings = recorderSettings,
+                        selectedRecord = selectedRecord,
+                        onFilterChanged = ::refreshRecords,
+                        onOpenRecord = { selectedRecord = it },
+                        onDeleteRecord = { record ->
+                            lifecycleScope.launch {
+                                callRecordRepository.deleteRecording(record.id)
+                                selectedRecord = null
+                                refreshRecords(CallRecordFilter())
+                            }
+                        },
+                        onStorageLimitChanged = { limit ->
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                recorderSettingsRepository.updateStorageLimit(limit)
+                            }
+                        },
+                        onRecordingModeChanged = { mode ->
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                recorderSettingsRepository.updateRecordingMode(mode.name)
+                            }
+                        },
+                        diagnosticsContent = {
+                            DiagnosticsScreen(
+                                missingPermissions = missingPermissions,
+                                activeSims = activeSims,
+                                callEvents = callEvents,
+                                audioRoutes = audioRoutes,
+                                monitoring = monitoring,
+                                diagnosticsError = diagnosticsError,
+                                recorderConnectionStatus = recorderConnectionStatus,
+                                recorderCaptureStatus = recorderCaptureStatus,
+                                recorderConnected = recorderConnectionStatus.startsWith("Connected"),
+                                recorderActive = recorderCaptureStatus.startsWith("Recording active"),
+                                activeCallSlotIndex = activeCallSlotIndex(),
+                                participantConsentConfirmed = participantConsentConfirmed,
+                                onParticipantConsentChanged = { participantConsentConfirmed = it },
+                                onRequestPermissions = {
+                                    permissionLauncher.launch(
+                                        permissionManager.permissionsFor(PermissionPurpose.CALL_STATE)
+                                            .toTypedArray(),
+                                    )
+                                },
+                                onRefresh = ::refreshDiagnostics,
+                                onStartMonitoring = ::startMonitoring,
+                                onStopMonitoring = ::stopMonitoring,
+                                onConnectRecorder = recorderClient::connectOrRequestPermission,
+                                onStartRecording = ::requestStartRecording,
+                                onStopRecording = ::stopRecording,
                             )
                         },
-                        onRefresh = ::refreshDiagnostics,
-                        onStartMonitoring = ::startMonitoring,
-                        onStopMonitoring = ::stopMonitoring,
-                        onConnectRecorder = recorderClient::connectOrRequestPermission,
-                        onStartRecording = ::requestStartRecording,
-                        onStopRecording = ::stopRecording,
                     )
                 }
             }
@@ -157,7 +201,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         stopMonitoring()
+        recordsJob?.cancel()
         super.onDestroy()
+    }
+
+    private fun refreshRecords(filter: CallRecordFilter) {
+        recordsJob?.cancel()
+        recordsJob = lifecycleScope.launch {
+            callRecordRepository.observeRecords(filter).collect { callRecords = it }
+        }
     }
 
     private fun refreshPermissionState() {
@@ -240,7 +292,7 @@ class MainActivity : ComponentActivity() {
             .setAction(CallRecordingForegroundService.ACTION_START)
             .putExtra(
                 CallRecordingForegroundService.EXTRA_RECORDING_MODE,
-                com.mojtaba.simcallrecorder.recording.RecordingMode.SHIZUKU_VOICE_CALL.name,
+                recorderSettings.recordingMode.name,
             )
             .putExtra(CallRecordingForegroundService.EXTRA_CALL_STATE, CallState.OFFHOOK.name)
             .putExtra(CallRecordingForegroundService.EXTRA_SIM_SLOT_INDEX, slotIndex)

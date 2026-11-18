@@ -23,6 +23,8 @@ A native Android (Kotlin) project investigating reliable SIM-call recording on r
 | Metadata | Room / SQLite |
 | Build | Gradle Kotlin DSL, version catalog |
 | Privileged helper | MIT-licensed Shizuku API 13.1.5, optional UserService |
+| Playback | AndroidX Media3 ExoPlayer |
+| Settings | Preferences DataStore |
 | Tests | JUnit and Robolectric 4.17 |
 | CI | GitHub Actions: unit tests, Robolectric, lint, debug APK |
 
@@ -62,6 +64,13 @@ Read the detailed research and safety constraints:
 - [Android call-audio constraints and implementation decision](docs/ANDROID_CALL_AUDIO_CONSTRAINTS.md)
 - [Architecture and module boundaries](docs/ARCHITECTURE.md)
 - [Device validation matrix](docs/DEVICE_TEST_MATRIX.md)
+
+## Application screens
+
+- **Recordings:** search, SIM-slot filter, date filter, and newest/oldest sorting.
+- **Player:** Media3 ExoPlayer with play/pause, seek/progress controls; only completed readable private WAVs are playable.
+- **Settings:** Standard vs. Shizuku backend, local storage quota, and manual-only recording trigger policy.
+- **Diagnostics:** the SIM-state, audio-route, and Shizuku connection panel remains available as a dedicated tab.
 
 ## Diagnostics implementation
 
