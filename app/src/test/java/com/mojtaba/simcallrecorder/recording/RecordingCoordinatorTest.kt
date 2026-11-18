@@ -16,7 +16,7 @@ class RecordingCoordinatorTest {
         val coordinator = RecordingCoordinator(setOf(standard, shizuku), shizukuCaptureEnabled = true)
 
         val failure = runCatching {
-            coordinator.start(request(RecordingMode.STANDARD))
+            coordinator.start(request(RecordingMode.STANDARD), profile())
         }.exceptionOrNull()
 
         assertTrue(failure is UnsupportedOperationException)
@@ -30,7 +30,7 @@ class RecordingCoordinatorTest {
         val coordinator = RecordingCoordinator(setOf(shizuku), shizukuCaptureEnabled = true)
 
         val failure = runCatching {
-            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL, consent = false))
+            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL, consent = false), profile())
         }.exceptionOrNull()
 
         assertTrue(failure is IllegalArgumentException)
@@ -43,10 +43,10 @@ class RecordingCoordinatorTest {
         val coordinator = RecordingCoordinator(setOf(shizuku), shizukuCaptureEnabled = true)
 
         val idleFailure = runCatching {
-            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL, callState = CallState.IDLE))
+            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL, callState = CallState.IDLE), profile())
         }.exceptionOrNull()
         val unknownSlotFailure = runCatching {
-            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL, slot = -1))
+            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL, slot = -1), profile())
         }.exceptionOrNull()
 
         assertTrue(idleFailure is IllegalArgumentException)
@@ -59,7 +59,7 @@ class RecordingCoordinatorTest {
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
         val coordinator = RecordingCoordinator(setOf(shizuku), shizukuCaptureEnabled = true)
 
-        val output = coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL))
+        val output = coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL), profile())
         coordinator.stop(RecordingMode.SHIZUKU_VOICE_CALL)
 
         assertEquals(File("test-recording.wav"), output)
@@ -81,6 +81,48 @@ class RecordingCoordinatorTest {
         assertTrue(failure?.message.orEmpty().contains("disabled"))
         assertEquals(0, shizuku.startCount)
     }
+
+    @Test
+    fun shizukuModeRejectsPermissionWithoutLiveAuthorizedUserService() = runBlocking {
+        val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
+        val coordinator = RecordingCoordinator(setOf(shizuku), shizukuCaptureEnabled = true)
+
+        val failure = runCatching {
+            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL), profile(shizuku = false))
+        }.exceptionOrNull()
+
+        assertTrue(failure is UnsupportedOperationException)
+        assertTrue(failure?.message.orEmpty().contains("Start Shizuku"))
+        assertEquals(0, shizuku.startCount)
+    }
+
+    @Test
+    fun microphoneStrategyRejectsMissingRecordAudioPermission() = runBlocking {
+        val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
+        val coordinator = RecordingCoordinator(setOf(microphone), shizukuCaptureEnabled = true)
+
+        val failure = runCatching {
+            coordinator.start(request(RecordingMode.SPEAKERPHONE_MIC), profile(microphone = false))
+        }.exceptionOrNull()
+
+        assertTrue(failure is UnsupportedOperationException)
+        assertTrue(failure?.message.orEmpty().contains("microphone permission"))
+        assertEquals(0, microphone.startCount)
+    }
+
+    private fun profile(
+        microphone: Boolean = true,
+        shizuku: Boolean = true,
+    ) = CaptureDeviceProfile(
+        sdkInt = 35,
+        manufacturer = "Test",
+        model = "Test device",
+        recordAudioGranted = microphone,
+        shizukuAuthorized = shizuku,
+        accessibilityServiceEnabled = false,
+        notificationListenerEnabled = false,
+        voipCallNotificationPresent = false,
+    )
 
     private fun request(
         mode: RecordingMode,
