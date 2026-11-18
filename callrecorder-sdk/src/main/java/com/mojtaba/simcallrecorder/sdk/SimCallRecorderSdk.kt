@@ -97,7 +97,7 @@ class SimCallRecorderSdk @Inject internal constructor(
     suspend fun deleteRecording(recordId: Long): Boolean = callRecords.deleteRecording(recordId)
     suspend fun markInterruptedRecordings(): Int = callRecords.markActiveRecordingsInterrupted()
     suspend fun updateStorageLimit(megabytes: Int) = settingsRepository.updateStorageLimit(megabytes)
-    suspend fun updateSdkRecordingMode(modeName: String) = settingsRepository.updateSdkRecordingMode(modeName)
+    suspend fun updateRecordingMode(modeName: String) = settingsRepository.updateRecordingMode(modeName)
 
     fun missingPermissions(purpose: SdkPermissionPurpose): List<String> =
         permissions.missingPermissions(purpose.toInternal())
@@ -127,10 +127,10 @@ class SimCallRecorderSdk @Inject internal constructor(
         )
     }
 
-    fun selectBestSdkRecordingMode(): SdkRecordingMode? =
+    fun selectBestRecordingMode(): SdkRecordingMode? =
         coordinator.selectBest(profileProvider.snapshot())?.mode
 
-    fun isSdkRecordingModeAvailable(mode: SdkRecordingMode): Boolean =
+    fun isRecordingModeAvailable(mode: SdkRecordingMode): Boolean =
         coordinator.isAvailable(mode, profileProvider.snapshot())
     fun audioSourceLabel(mode: SdkRecordingMode): String = coordinator.audioSourceLabel(mode)
 
