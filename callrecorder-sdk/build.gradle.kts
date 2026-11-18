@@ -45,6 +45,13 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Room exports one schema JSON per database version. Debug and release KSP tasks share this
+// directory, so concurrent execution can truncate/overwrite the same file. Serialize only these
+// two schema-producing tasks; all unrelated Gradle work remains parallel.
+tasks.matching { it.name == "kspReleaseKotlin" }.configureEach {
+    mustRunAfter("kspDebugKotlin")
+}
+
 dependencies {
     api(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.core.ktx)
