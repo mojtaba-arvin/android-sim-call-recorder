@@ -44,13 +44,20 @@ class ShizukuAudioRecorderClient @Inject constructor(
      * Non-null only while the actual Shizuku UserService binder is alive and reports an
      * explicitly accepted shell/root identity. Shizuku permission alone is not capture readiness.
      */
+    val isCaptureReady: Boolean
+        get() {
+            val service = remote ?: return false
+            if (!runCatching { service.asBinder().isBinderAlive }.getOrDefault(false)) return false
+            return runCatching { service.isCaptureReady }.getOrDefault(false)
+        }
+
     val authorizedHostUid: Int?
         get() {
             val service = remote ?: return null
             if (!runCatching { service.asBinder().isBinderAlive }.getOrDefault(false)) return null
-            return runCatching { service.hostUid }
-                .getOrNull()
-                ?.takeIf { it == SHELL_UID || it == ROOT_UID }
+            val uid = runCatching { service.hostUid }.getOrNull() ?: return null
+            val ready = runCatching { service.isCaptureReady }.getOrDefault(false)
+            return uid.takeIf { ready && (it == SHELL_UID || it == ROOT_UID) }
         }
 
     private val _captureStatus = MutableStateFlow("Idle")
@@ -117,10 +124,12 @@ class ShizukuAudioRecorderClient @Inject constructor(
         if (existing != null && runCatching { existing.asBinder().isBinderAlive }.getOrDefault(false)) {
             val uid = runCatching { existing.hostUid }.getOrDefault(-1)
             if (uid == SHELL_UID || uid == ROOT_UID) {
-                _connectionStatus.value = if (uid == ROOT_UID) {
-                    "Connected · root UID 0"
+                val ready = runCatching { existing.isCaptureReady }.getOrDefault(false)
+                val identity = if (uid == ROOT_UID) "root UID 0" else "shell UID 2000"
+                _connectionStatus.value = if (ready) {
+                    "Connected · $identity · audio attribution ready"
                 } else {
-                    "Connected · shell UID 2000"
+                    "Connected · $identity · audio attribution unavailable; capture disabled"
                 }
                 return
             }
@@ -192,10 +201,12 @@ class ShizukuAudioRecorderClient @Inject constructor(
                     return
                 }
                 remote = api
-                _connectionStatus.value = if (uid == ROOT_UID) {
-                    "Connected · root UID 0"
+                val ready = runCatching { api.isCaptureReady }.getOrDefault(false)
+                val identity = if (uid == ROOT_UID) "root UID 0" else "shell UID 2000"
+                _connectionStatus.value = if (ready) {
+                    "Connected · $identity · audio attribution ready"
                 } else {
-                    "Connected · shell UID 2000"
+                    "Connected · $identity · audio attribution unavailable; capture disabled"
                 }
             }
 
@@ -349,7 +360,7 @@ class ShizukuAudioRecorderClient @Inject constructor(
 
     private companion object {
         const val SHIZUKU_PERMISSION_REQUEST = 5_713
-        const val USER_SERVICE_VERSION = 1
+        const val USER_SERVICE_VERSION = 2
         const val SHELL_UID = 2_000
         const val ROOT_UID = 0
         const val SAMPLE_RATE = 48_000
