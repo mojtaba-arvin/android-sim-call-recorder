@@ -110,7 +110,7 @@ class AndroidTelephonyCallStateDataSource @Inject constructor(
 
                 try {
                     subscriptionManager.registerTelephonyCallback(
-                        appContext.mainExecutor,
+                        ContextCompat.getMainExecutor(appContext),
                         callback,
                     )
                 } catch (exception: SecurityException) {
@@ -150,7 +150,7 @@ class AndroidTelephonyCallStateDataSource @Inject constructor(
                 }
 
                 awaitClose {
-                    appContext.mainExecutor.execute {
+                    ContextCompat.getMainExecutor(appContext).execute {
                         subscriptionManager.listen(
                             listener,
                             PhoneStateListener.LISTEN_NONE,
