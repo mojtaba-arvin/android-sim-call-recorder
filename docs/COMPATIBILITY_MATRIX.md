@@ -57,5 +57,6 @@ Test earpiece, loudspeaker, wired headset, and Bluetooth independently. Test bot
 - ShizuCallRecorder reference implementation (GPL; research only): https://github.com/kitsumed/ShizuCallRecorder
 - CallVault reference implementation (GPL; research only): https://github.com/madkongo/CallVault
 - ACR Phone Helper documentation and Accessibility/Play distribution constraints: https://acr.app/
+- [OEM integration research and evidence gate](OEM_INTEGRATION_RESEARCH.md)
 
 No GPL implementation code is copied into this MIT-licensed project.
