@@ -536,7 +536,7 @@ class CallRecordingForegroundService : Service() {
         watchCallEndJob?.cancel()
         val mode = activeMode
         val recordId = activeRecordId
-        if (mode != null && stateMachine.beginStop()) {
+        val cleanupJob = if (mode != null && stateMachine.beginStop()) {
             // Keep cleanup independent from serviceScope: onDestroy cancels monitoring jobs,
             // but an active recording still needs its WAV header and Room row finalized.
             finalizationScope.launch {
@@ -555,6 +555,14 @@ class CallRecordingForegroundService : Service() {
                 activeRecordId = null
                 stateMachine.stopCompleted()
             }
+        } else {
+            // A user/call-end stop may already be finalizing when Android destroys the service.
+            finalizationJob
+        }
+        if (cleanupJob == null) {
+            finalizationScope.cancel()
+        } else {
+            cleanupJob.invokeOnCompletion { finalizationScope.cancel() }
         }
         serviceScope.cancel()
         super.onDestroy()
