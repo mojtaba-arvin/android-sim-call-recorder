@@ -32,7 +32,7 @@ A strategy being selectable or successfully opening an audio source does not mea
 6. Record the actual strategy, source, sample rate, channel count, signal metrics, device profile, and validation outcome with each session.
 7. Promote a device/route to "verified two-way" only after independent local and remote test phrases are intelligible in repeated incoming and outgoing calls.
 
-**Current implementation gap:** `CallCaptureManager.selectBest()` can rank candidates and the Settings UI can offer a candidate, but the foreground recording start path still uses the saved user-selected mode. Runtime auto-selection/fallback is not yet wired end-to-end, and no physical-device compatibility result exists.
+**Current implementation gaps:** `CallCaptureManager.selectBest()` can rank candidates and the Settings UI can offer a candidate, but the foreground recording start path still uses the saved user-selected mode. Runtime auto-selection/fallback is not yet wired end-to-end. Standard-mode OFFHOOK auto-start and persistent monitoring are not implemented; the current prototype is manual-start. AudioRecordingCallback/client-silenced diagnostics are also outstanding. No physical-device compatibility result exists.
 
 ## Physical-device acceptance matrix
 
@@ -50,6 +50,8 @@ Test earpiece, loudspeaker, wired headset, and Bluetooth independently. Test bot
 ## Research references
 
 - Android `VOICE_CALL` / `VOICE_UPLINK` / `VOICE_DOWNLINK` permission boundary: https://developer.android.com/reference/android/media/MediaRecorder.AudioSource
+- Android `AudioRecordingCallback` and `AudioRecordingConfiguration.isClientSilenced()` diagnostics: https://developer.android.com/reference/android/media/AudioRecordingConfiguration
+- Android 17 concurrent-capture compatibility requirements: https://source.android.com/docs/compatibility/17/android-17-cdd
 - Android audio-input sharing during voice calls: https://developer.android.com/media/platform/sharing-audio-input
 - Shizuku UserService and shell/root approach: https://github.com/RikkaApps/Shizuku-API
 - ShizuCallRecorder reference implementation (GPL; research only): https://github.com/kitsumed/ShizuCallRecorder
