@@ -38,7 +38,7 @@ import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
-import com.mojtaba.simcallrecorder.sdk.SdkSdkRecordingMode
+import com.mojtaba.simcallrecorder.sdk.SdkRecordingMode
 import com.mojtaba.simcallrecorder.sdk.CaptureStrategySnapshot
 import com.mojtaba.simcallrecorder.sdk.SdkPermissionPurpose
 import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdk
