@@ -1,6 +1,5 @@
 package com.mojtaba.simcallrecorder.domain.model
 
-import com.mojtaba.simcallrecorder.recording.RecordingMode
 
 enum class RecordingTrigger {
     MANUAL,
