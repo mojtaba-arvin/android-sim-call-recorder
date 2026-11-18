@@ -94,6 +94,9 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
+      - name: Verify sample app consumes only the SDK public boundary
+        run: bash scripts/verify-sdk-boundary.sh
+
       - name: Run unit tests, lint, and assemble debug APK
         run: gradle --continue --console=plain :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :app:compileDebugAndroidTestKotlin :callrecorder-sdk:assembleRelease :app:assembleDebug
 
