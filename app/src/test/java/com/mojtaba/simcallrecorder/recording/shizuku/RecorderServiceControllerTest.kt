@@ -61,7 +61,7 @@ class RecorderServiceControllerTest {
     @Test
     fun duplicateStart_isRejected_andStopAllowsANewSession() {
         val engine = FakeCaptureEngine()
-        val controller = RecorderServiceController(engine) { 2_000 }
+        val controller = RecorderServiceController(engine, hostUid = { 2_000 })
         val firstPipe = ParcelFileDescriptor.createPipe()
         val secondPipe = ParcelFileDescriptor.createPipe()
 
