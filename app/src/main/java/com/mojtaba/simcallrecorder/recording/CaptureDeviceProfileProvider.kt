@@ -22,6 +22,9 @@ class CaptureDeviceProfileProvider @Inject constructor(
 ) {
     fun snapshot(): CaptureDeviceProfile {
         val hostUid = shizukuClient.authorizedHostUid
+        val accessibilityEnabled = runCatching {
+            CallAudioAccessibilityService.isEnabled(context)
+        }.getOrDefault(false)
         return CaptureDeviceProfile(
             sdkInt = Build.VERSION.SDK_INT,
             manufacturer = Build.MANUFACTURER,
@@ -29,7 +32,7 @@ class CaptureDeviceProfileProvider @Inject constructor(
             recordAudioGranted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED,
             shizukuAuthorized = hostUid == 2_000 || hostUid == 0,
-            accessibilityServiceEnabled = CallAudioAccessibilityService.isEnabled(context),
+            accessibilityServiceEnabled = accessibilityEnabled,
             notificationListenerEnabled = false,
             voipCallNotificationPresent = false,
         )
