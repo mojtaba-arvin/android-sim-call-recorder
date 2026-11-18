@@ -136,7 +136,12 @@ class MainActivity : ComponentActivity() {
                 if (!callStateGranted) {
                     recorderCaptureStatus = "Automatic recording requires call-state permission."
                 } else if (microphoneDenied) {
-                    recorderCaptureStatus = "Microphone permission was denied; Shizuku may still be available as a separate capture path."
+                    val profile = captureDeviceProfileProvider.snapshot()
+                    if (recordingCoordinator.isAvailable(RecordingMode.SHIZUKU_VOICE_CALL, profile)) {
+                        requestArmAutomaticRecording()
+                    } else {
+                        recorderCaptureStatus = "Microphone permission was denied and no ready Shizuku capture path is available."
+                    }
                 } else {
                     requestArmAutomaticRecording()
                 }
