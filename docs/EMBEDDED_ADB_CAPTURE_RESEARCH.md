@@ -42,7 +42,7 @@ References:
 
 ## Library and licensing review
 
-- [libadb-android](https://github.com/MuntashirAkon/libadb-android) is dual-licensed under GPL-3.0-or-later **or** Apache-2.0. Its README notes an LGPL dependency; audit the resolved dependency graph and obligations before adoption.
+- [libadb-android](https://github.com/MuntashirAkon/libadb-android) is dual-licensed under GPL-3.0-or-later **or** Apache-2.0. Its README explicitly says the library has never undergone a security audit and warns that it can execute arbitrary ADB shell commands. It also notes an LGPL dependency; audit the resolved dependency graph and obligations before adoption.
 - Prefer the Apache-2.0 grant if the exact dependency version and transitive dependencies are compatible with this repository's MIT licensing; include the required notices and pin/verify the dependency.
 - CallVault and ShizuCallRecorder application code is GPL-3.0. Do not copy their recorder, ADB pairing, scrcpy server, or application code. Use them as architectural research only.
 - Do not expose a general-purpose shell or arbitrary command runner in the product UI. The ADB privilege is constrained to a fixed recorder launcher, lifecycle control, and diagnostics.
