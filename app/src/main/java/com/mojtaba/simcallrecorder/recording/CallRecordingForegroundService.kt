@@ -388,7 +388,7 @@ class CallRecordingForegroundService : Service() {
             activeRecordId = null
             stateMachine.stopCompleted()
             if (automaticArmed && reason == "Call ended") {
-                updateNotification("Automatic acoustic recording armed · waiting for a SIM call")
+                updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
             } else {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf(startId)
