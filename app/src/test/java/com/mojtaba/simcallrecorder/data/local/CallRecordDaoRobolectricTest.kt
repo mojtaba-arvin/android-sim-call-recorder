@@ -55,6 +55,18 @@ class CallRecordDaoRobolectricTest {
     }
 
     @Test
+    fun captureDiagnosticsArePersistedForTheActiveRecording() = runBlocking {
+        val dao = database.callRecordDao()
+        val id = dao.insert(record(startedAt = 5_000L, simSlot = 0, file = "/private/recordings/diagnostic.wav"))
+
+        val snapshot = "session=17; clientSource=MIC; activeSource=MIC; clientSilenced=true"
+        assertEquals(1, dao.updateCaptureDiagnostics(id, snapshot))
+
+        val saved = dao.findById(id)
+        assertEquals(snapshot, saved?.captureDiagnostics)
+    }
+
+    @Test
     fun completionUpdatesMetadataAndDeleteRemovesOnlyTheSelectedRow() = runBlocking {
         val dao = database.callRecordDao()
         val id = dao.insert(record(startedAt = 4_000L, simSlot = 0, file = "/private/recordings/sample.wav"))
