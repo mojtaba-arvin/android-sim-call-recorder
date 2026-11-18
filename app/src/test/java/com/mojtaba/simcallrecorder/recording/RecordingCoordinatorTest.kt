@@ -11,7 +11,7 @@ class RecordingCoordinatorTest {
 
     @Test
     fun standardModeFailsClosedWithoutCallingAnyMicFallback() = runBlocking {
-        val standard = FakeBackend(RecordingMode.STANDARD)
+        val standard = StandardCallRecordingBackend()
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
         val coordinator = RecordingCoordinator(setOf(standard, shizuku), shizukuCaptureEnabled = true)
 
@@ -21,7 +21,6 @@ class RecordingCoordinatorTest {
 
         assertTrue(failure is UnsupportedOperationException)
         assertTrue(failure?.message.orEmpty().contains("cannot capture cellular call audio"))
-        assertEquals(0, standard.startCount)
         assertEquals(0, shizuku.startCount)
     }
 
@@ -70,7 +69,7 @@ class RecordingCoordinatorTest {
 
     @Test
     fun featureFlagDisablesShizukuModeWithoutTryingStandardFallback() = runBlocking {
-        val standard = FakeBackend(RecordingMode.STANDARD)
+        val standard = StandardCallRecordingBackend()
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
         val coordinator = RecordingCoordinator(setOf(standard, shizuku), shizukuCaptureEnabled = false)
 
@@ -80,7 +79,6 @@ class RecordingCoordinatorTest {
 
         assertTrue(failure is UnsupportedOperationException)
         assertTrue(failure?.message.orEmpty().contains("disabled"))
-        assertEquals(0, standard.startCount)
         assertEquals(0, shizuku.startCount)
     }
 

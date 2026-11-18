@@ -1,49 +1,34 @@
 package com.mojtaba.simcallrecorder.data.audio
 
-import android.content.Context
 import android.media.AudioDeviceInfo
-import android.media.AudioManager
-import android.os.Build
-import com.mojtaba.simcallrecorder.domain.model.AudioRoute
-import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.mojtaba.simcallrecorder.domain.model.AudioRoute
 
 @Singleton
 class AndroidAudioRouteDataSource @Inject constructor(
-    @ApplicationContext context: Context,
+    private val inventorySource: AudioDeviceInventorySource,
 ) {
-    private val audioManager =
-        context.applicationContext.getSystemService(AudioManager::class.java)
-
     fun getRoutes(): List<AudioRoute> {
-        val manager = audioManager ?: return emptyList()
-        val communicationDeviceId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            manager.communicationDevice?.id
-        } else {
-            null
-        }
-
-        return manager.getDevices(AudioManager.GET_DEVICES_INPUTS or AudioManager.GET_DEVICES_OUTPUTS)
-            .map { device ->
-                AudioRoute(
-                    direction = when {
-                        device.isSource && device.isSink -> "Input / Output"
-                        device.isSource -> "Input"
-                        device.isSink -> "Output"
-                        else -> "Unknown direction"
-                    },
-                    deviceType = device.type.toDisplayType(),
-                    displayName = device.productName.toString()
-                        .ifBlank { device.type.toDisplayType() },
-                    selectedForCommunication = device.id == communicationDeviceId,
-                )
-            }
-            .sortedWith(compareBy<AudioRoute>({ it.direction }, { it.deviceType }, { it.displayName }))
+        val inventory = inventorySource.getInventory()
+        return inventory.devices.map { device ->
+            val displayType = device.type.toDisplayType()
+            AudioRoute(
+                direction = when {
+                    device.isSource && device.isSink -> "Input / Output"
+                    device.isSource -> "Input"
+                    device.isSink -> "Output"
+                    else -> "Unknown direction"
+                },
+                deviceType = displayType,
+                displayName = device.productName.ifBlank { displayType },
+                selectedForCommunication = device.id == inventory.selectedCommunicationDeviceId,
+            )
+        }.sortedWith(compareBy<AudioRoute>({ it.direction }, { it.deviceType }, { it.displayName }))
     }
 }
 
-private fun Int.toDisplayType(): String = when (this) {
+internal fun Int.toDisplayType(): String = when (this) {
     AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Built-in earpiece"
     AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Built-in speaker"
     AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Built-in microphone"
