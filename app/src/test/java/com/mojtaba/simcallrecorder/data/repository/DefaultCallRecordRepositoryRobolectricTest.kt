@@ -89,7 +89,7 @@ class DefaultCallRecordRepositoryRobolectricTest {
         assertEquals("COMPLETED", results.single().status)
         assertEquals(2_500L, results.single().durationMillis)
         assertEquals("api=35; device=Test Emulator; recordAudio=true", results.single().captureProfile)
-        assertEquals("[1000] session=7; clientSilenced=false\\n[2000] session=7; clientSilenced=true", results.single().captureDiagnostics)
+        assertEquals("[1000] session=7; clientSilenced=false\n[2000] session=7; clientSilenced=true", results.single().captureDiagnostics)
         assertFalse(results.single().isSilent ?: true)
 
         assertTrue(repository.deleteRecording(id))

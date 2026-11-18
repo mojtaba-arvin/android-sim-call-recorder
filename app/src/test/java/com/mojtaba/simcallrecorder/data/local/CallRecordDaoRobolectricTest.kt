@@ -65,7 +65,7 @@ class CallRecordDaoRobolectricTest {
         assertEquals(1, dao.appendCaptureDiagnostic(id, second))
 
         val saved = dao.findById(id)
-        assertEquals("$first\\n$second", saved?.captureDiagnostics)
+        assertEquals("$first\n$second", saved?.captureDiagnostics)
     }
 
     @Test
