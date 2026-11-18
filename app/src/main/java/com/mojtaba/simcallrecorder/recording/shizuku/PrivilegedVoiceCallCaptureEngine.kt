@@ -312,7 +312,7 @@ internal class RecorderServiceController(
         if (!isCaptureReady) {
             runCatching { output.close() }
             state = State.FAILED
-            policyError = "The Shizuku process could not establish shell audio attribution on this Android build."
+            policyError = "The Shizuku process lacks the required protected call-audio permission or could not establish shell audio attribution on this Android build."
             return 0
         }
 
