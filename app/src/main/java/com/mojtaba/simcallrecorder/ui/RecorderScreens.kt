@@ -356,6 +356,23 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
         Text("${record.recordingMode} · ${record.channelCount} channel(s)")
         Text("Duration: ${formatDuration(record.durationMillis ?: 0L)}")
         if (record.isSilent == true) Text("Digital silence detected", color = MaterialTheme.colorScheme.error)
+        if (record.captureProfile != null || record.captureDiagnostics != null) {
+            HorizontalDivider()
+            Text("Capture evidence", style = MaterialTheme.typography.titleLarge)
+            record.captureProfile?.let {
+                Text("Device profile", style = MaterialTheme.typography.labelLarge)
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+            record.captureDiagnostics?.let {
+                Text("Audio input diagnostics", style = MaterialTheme.typography.labelLarge)
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(
+                "Framework diagnostics describe the selected input session; they do not prove that the remote participant was captured.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         HorizontalDivider()
         Text("Playback", style = MaterialTheme.typography.titleLarge)
         Button(onClick = { if (player.isPlaying) player.pause() else player.play() }) {
