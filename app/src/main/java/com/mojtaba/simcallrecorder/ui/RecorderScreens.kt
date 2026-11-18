@@ -48,7 +48,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
-import com.mojtaba.simcallrecorder.recording.RecordingMode
+import com.mojtaba.simcallrecorder.sdk.SdkRecordingMode
 import com.mojtaba.simcallrecorder.sdk.CaptureStrategySnapshot
 import kotlinx.coroutines.delay
 import java.io.File
@@ -72,7 +72,7 @@ fun RecorderRootScreen(
     onOpenRecord: (CallRecord) -> Unit,
     onDeleteRecord: (CallRecord) -> Unit,
     onStorageLimitChanged: (Int) -> Unit,
-    onRecordingModeChanged: (RecordingMode) -> Unit,
+    onRecordingModeChanged: (SdkRecordingMode) -> Unit,
     onRequestMicrophonePermission: () -> Unit,
 ) {
     var destination by remember { mutableStateOf(RecorderDestination.RECORDINGS) }
@@ -413,7 +413,7 @@ fun RecorderSettingsScreen(
     settings: RecorderSettings,
     captureStrategySnapshot: CaptureStrategySnapshot,
     onStorageLimitChanged: (Int) -> Unit,
-    onRecordingModeChanged: (RecordingMode) -> Unit,
+    onRecordingModeChanged: (SdkRecordingMode) -> Unit,
     onRequestMicrophonePermission: () -> Unit,
 ) {
     Column(
