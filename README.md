@@ -36,7 +36,7 @@ Requirements: JDK 21, Android SDK Platform 37, Build Tools 37.0.0, and Gradle 9.
 gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-GitHub Actions runs JUnit/Robolectric, lint, Compose UI instrumentation tests on an Android 35 emulator, and debug APK assembly on branch pushes and pull requests. A Gradle Wrapper is not checked in yet; it will be added after the toolchain is validated in CI.
+GitHub Actions runs JUnit/Robolectric, lint, Compose UI instrumentation tests on an Android 35 emulator, and debug APK assembly for pull requests to `main` and pushes to `main`. A Gradle Wrapper is not checked in yet; it will be added after the toolchain is validated in CI.
 
 ## Call-audio capture
 
