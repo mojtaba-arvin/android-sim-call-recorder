@@ -20,7 +20,7 @@ Official references:
 
 Turning on speakerphone does not change Android's permission/concurrency rules. It may produce an acoustic path on a particular handset, but it cannot be assumed to make a normal app's microphone stream available while the cellular call owns input. Android also documents `AudioManager.setSpeakerphoneOn()` as intended for the main telephony app or apps replacing platform-wide audio management; it is deprecated from API 34.
 
-A successful `MediaRecorder.start()`, a growing file, or non-zero sample count is not proof that both call participants were captured. For this reason the app has no automatic speakerphone toggle and no `MIC` fallback masquerading as call recording.
+A successful `MediaRecorder.start()`, a growing file, or non-zero sample count is not proof that both call participants were captured. The app's automatic Speakerphone + MIC mode is an explicitly armed acoustic strategy with an honest label; it is not a digital downlink and does not claim two-way support.
 
 ## Open-source implementation research
 
@@ -43,7 +43,7 @@ This repository uses that API as an optional, explicit helper boundary. It does 
 The optional capture prototype has these layers:
 
 1. The regular application asks the user to connect/authorize Shizuku. It checks the actual UserService UID and accepts only shell UID 2000 or root UID 0.
-2. A Shizuku `UserService` process opens `AudioRecord(MediaRecorder.AudioSource.VOICE_CALL)` under that authorized identity. It prefers 48 kHz PCM16 stereo and falls back to PCM16 mono; it does **not** fall back to MIC/DEFAULT/VOICE_COMMUNICATION.
+2. A Shizuku `UserService` process first detaches the app's initial ActivityThread application attribution, reports whether shell audio attribution succeeded, and clears the incoming Binder caller identity before opening `AudioRecord(MediaRecorder.AudioSource.VOICE_CALL)` under the authorized shell/root identity. It prefers 48 kHz PCM16 stereo and falls back to PCM16 mono. It now attempts only `VOICE_CALL`; it does **not** fall back to one-sided `VOICE_UPLINK`/`VOICE_DOWNLINK` or microphone sources.
 3. PCM is streamed over a one-session Binder-passed pipe to the app process and finalized as a WAV file under the app-private `files/recordings` directory.
 4. A user-initiated foreground service shows a persistent notification with a Stop action. The app requests notification permission before starting capture.
 5. The file writer rejects an empty stream and computes peak/RMS. It labels an all-zero WAV as digital silence. Non-silent audio is still not proof of both talk directions; hardware/firmware and carrier behavior must be validated separately.
@@ -55,7 +55,7 @@ Capture is manual and visible in the current prototype. It does not automaticall
 - Android 11 (API 30) or newer.
 - Shizuku/Sui running and the user must grant this app Shizuku authorization.
 - Without root, Shizuku must be started via ADB. On Android 11+ this can be done with Wireless Debugging on the device; Android clears the debugging authorization on reboot and Shizuku normally needs to be restarted/authorized again. Older Android versions need a computer for ADB setup.
-- UID 2000 does not have identical privileges on every Android build. Some OEMs restrict protected audio capture, and carrier/OEM audio HALs can still return silence or one direction only.
+- UID 2000 does not have identical privileges on every Android build. The helper's shell-attribution initialization must succeed before the UI advertises capture readiness. Some OEMs restrict protected audio capture, and carrier/OEM audio HALs can still return silence or one direction only even when `VOICE_CALL` initializes.
 - The foreground-service notification is part of the recording disclosure. The Shizuku backend does not use Accessibility APIs; the separate Accessibility-priority microphone experiment is opt-in, does not inspect UI content, and is excluded from Google Play call-recording distribution.
 
 ## Foreground-service and platform constraints
