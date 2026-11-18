@@ -20,7 +20,7 @@ The SDK contributes its Hilt bindings and merged Android manifest declarations f
 
 ## Public facade
 
-Inject `SimCallRecorderSdk` from the host Hilt graph:
+Inject `SimCallRecorderSdk` from the host Hilt graph. For integration code that does not use field injection, the SDK publishes `SimCallRecorderSdkEntryPoint` from its library module; this is the supported Hilt entry point and avoids recreating an app-local entry point:
 
 ```kotlin
 @AndroidEntryPoint
@@ -30,6 +30,15 @@ class RecorderHostActivity : ComponentActivity() {
 ```
 
 The facade exposes read-only StateFlow streams for recording status, automatic-monitoring state, audio-input diagnostics, Shizuku connection status, recent call-state events, recordings, and settings. It also provides suspend operations for querying SIM slots, observing/filtering recordings, deleting a recording, and updating settings.
+
+```kotlin
+val sdk = EntryPointAccessors.fromApplication(
+    applicationContext,
+    SimCallRecorderSdkEntryPoint::class.java,
+).simCallRecorderSdk()
+```
+
+The sample app's instrumentation test exercises this public entry point against the real application Hilt graph.
 
 ```kotlin
 lifecycleScope.launch {
