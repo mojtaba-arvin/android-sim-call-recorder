@@ -6,6 +6,16 @@ The product target is reliable two-way recording of cellular SIM calls across as
 
 A strategy being selectable or successfully opening an audio source does not mean that it captured both participants. Keep capability, runtime availability, signal presence, and verified two-way support as separate facts.
 
+## Software API floor experiment — 2026-11-18
+
+The app's declared `minSdk` is currently **26 (Android 8.0)** as an active compatibility experiment, lowered from 28 to evaluate wider installation coverage. Do not treat API 26 as a confirmed release support floor until the latest CI run passes dependency/manifest checks, unit/Robolectric tests, lint, APK assembly, and emulator instrumentation.
+
+Telephony observer Robolectric coverage is being expanded across:
+- API 26–30: legacy `PhoneStateListener` path.
+- API 31–37: `TelephonyCallback` path, including subscription-to-slot association and permission failure behavior.
+
+The Shizuku UserService capture path remains separately restricted to API 30+; lowering the app's minimum SDK does not lower that backend's minimum. Android 8.0/8.1 may therefore install and use supported app/acoustic features while Shizuku remains unavailable. No claim of cellular two-way audio support follows from this software API-floor experiment.
+
 ## Current strategy inventory
 
 | Strategy | Current implementation | Eligibility | Audio semantics | Current confidence |
