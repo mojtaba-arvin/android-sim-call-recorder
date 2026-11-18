@@ -2,13 +2,13 @@
 
 Current product and engineering decisions are recorded here so later changes do not silently reintroduce unsupported recording assumptions.
 
-## ADR-001 — No ordinary microphone fallback for SIM calls
+## ADR-001 — Separate acoustic Standard mode from privileged call capture
 
-**Decision:** The Standard backend refuses cellular-call recording. It does not switch the loudspeaker automatically and does not save MIC, DEFAULT, or VOICE_COMMUNICATION capture under a call-recording label.
+**Decision:** The product has two distinct capture modes. Standard acoustic capture may request speakerphone routing and use an explicitly disclosed microphone source after the user enables automatic recording, grants RECORD_AUDIO, accepts the acoustic limitations, and receives a persistent foreground notification. Shizuku remains a separate privileged VOICE_CALL path. The legacy `STANDARD` app-UID backend continues to fail closed and is not itself a microphone source.
 
-**Reason:** Android's audio-input sharing policy gives an active voice call priority. The public SDK does not grant a normal third-party app access to both cellular uplink and downlink. Speakerphone routing does not change the permission boundary and can change the user's call privacy/route. A non-empty file or non-zero waveform does not prove that both speakers were captured.
+**Reason:** Android's public SDK does not grant an ordinary third-party app digital access to cellular uplink/downlink. Speakerphone + MIC is an acoustic workaround, not digital call capture; it can fail because of input-sharing policy, routing, echo, Bluetooth, or OEM behavior. A non-empty or non-silent file does not prove that both participants were captured.
 
-**Consequence:** The standard backend currently has no cellular-call capture implementation. A future microphone voice-note feature must have a separate label and user flow; it must not be an automatic fallback for failed privileged capture.
+**Fallback boundary:** Standard acoustic mode may use a bounded, explicitly disclosed microphone-source fallback chain and must record the actual source and reason. A Shizuku/VOICE_CALL failure must never fall back to MIC, DEFAULT, VOICE_RECOGNITION, or speakerphone capture.
 
 ## ADR-002 — Optional Shizuku backend as a narrow privilege boundary
 
@@ -20,7 +20,7 @@ Current product and engineering decisions are recorded here so later changes do 
 - The helper rejects identities other than UID 2000 or UID 0.
 - Shell attribution compatibility is isolated and fails closed if the framework field cannot be adjusted.
 - The Shizuku path does not use AccessibilityService, overlays, contacts, call-log access, or remote upload. A separate, explicitly enabled Accessibility-priority microphone experiment exists as its own strategy; it does not inspect UI content and is not a Google Play distribution path for call recording.
-- Recording requires an in-app acknowledgement and manual start while a SIM reports OFFHOOK.
+- The current Shizuku prototype requires an in-app acknowledgement and manual start while a SIM reports OFFHOOK. Any future automatic Shizuku trigger must have a separate explicit opt-in and must retain every privilege/UID/SIM/consent gate.
 - A persistent notification exposes an explicit Stop action.
 - Shizuku authorization is not consent from the other participants.
 
@@ -28,11 +28,11 @@ Current product and engineering decisions are recorded here so later changes do 
 
 ## ADR-003 — Foreground service is not a Doze immunity guarantee
 
-**Decision:** User-initiated recording runs in a foreground service with an ongoing notification. The service owns a subscription-scoped telephony listener and stops when the selected SIM returns to IDLE.
+**Decision:** The target Standard acoustic mode may arm a persistent call-monitoring foreground service from a visible user action. Once armed and explicitly consented, it may start the selected Standard microphone/acoustic strategy on a matching SIM's OFFHOOK event. The current prototype still requires manual Start. Shizuku capture remains separately authorized and fail-closed.
 
-**Reason:** Foreground services improve process importance and make long-running user work visible, but do not guarantee survival against force-stop, process death, vendor task killers, or every power-management policy.
+**Reason:** Foreground services improve process importance and make long-running user work visible, but do not guarantee survival against force-stop, process death, vendor task killers, reboot, or every power-management policy. Android 14+ microphone FGS starts are subject to while-in-use restrictions.
 
-**Lifecycle policy:** Start only from a visible activity action and a confirmed active call; never auto-start on RINGING/OFFHOOK. Finalize WAV and update Room on IO coroutines. Do not block the main thread from Service.onDestroy. Persist RECORDING metadata before treating the session as active. Convert stale RECORDING rows to INTERRUPTED at next startup.
+**Lifecycle policy:** Never start on RINGING. Arm monitoring while the app is visible and verify that the FGS can continue into the call on each API/OEM. Show a persistent notification with Stop/Disable. A denied or blocked FGS start must be reported rather than bypassed. Finalize WAV and update Room on IO coroutines. Do not block the main thread from Service.onDestroy. Persist RECORDING metadata before treating the session as active. Convert stale RECORDING rows to INTERRUPTED at next startup.
 
 ## ADR-004 — Room WAL for concurrent metadata reads
 
@@ -73,3 +73,12 @@ Current product and engineering decisions are recorded here so later changes do 
 **Reason:** Compose UI interaction semantics are best exercised on Android runtime; Robolectric remains useful for fast JVM tests but cannot validate modem/audio HAL behavior.
 
 **Consequence:** Emulator CI proves UI behavior, not cellular call-audio support.
+
+
+## ADR-009 — Strategy eligibility is not verified device support
+
+**Decision:** The selector may rank only strategies whose runtime prerequisites are met, but its result is labelled a candidate. Verified two-way support requires repeated physical tests for the exact device build, carrier, SIM slot and audio route. The actual source and fallback reason are persisted for every recording.
+
+**Reason:** AudioRecord initialization, a non-empty WAV, non-zero RMS, or an unsilenced recording configuration cannot prove that both call participants were captured.
+
+**Consequence:** Use AudioRecordingCallback and client-silenced state as diagnostics where available; keep two-way speech validation as a separate acceptance gate.
