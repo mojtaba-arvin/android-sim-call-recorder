@@ -129,7 +129,7 @@ class ShizukuAudioRecorderClient @Inject constructor(
                 _connectionStatus.value = if (ready) {
                     "Connected · $identity · audio attribution ready"
                 } else {
-                    "Connected · $identity · audio attribution unavailable; capture disabled"
+                    "Connected · $identity · VOICE_CALL permission or audio attribution unavailable; capture disabled"
                 }
                 return
             }
@@ -206,7 +206,7 @@ class ShizukuAudioRecorderClient @Inject constructor(
                 _connectionStatus.value = if (ready) {
                     "Connected · $identity · audio attribution ready"
                 } else {
-                    "Connected · $identity · audio attribution unavailable; capture disabled"
+                    "Connected · $identity · VOICE_CALL permission or audio attribution unavailable; capture disabled"
                 }
             }
 
@@ -230,6 +230,11 @@ class ShizukuAudioRecorderClient @Inject constructor(
         check(copyJob?.isActive != true) { "A recording is already active." }
         val api = remote ?: error("Connect and authorize the Shizuku recorder first.")
 
+        // Never let a failed new start expose a previous session's file/result as current.
+        lastCaptureResult = null
+        activeFile = null
+        activeCaptureStartedAtEpochMillis = null
+        activeCaptureStartedElapsedRealtime = null
         _captureStatus.value = "Preparing VOICE_CALL capture…"
         val pipe = ParcelFileDescriptor.createPipe()
         val readEnd = pipe[0]
@@ -318,6 +323,28 @@ class ShizukuAudioRecorderClient @Inject constructor(
         activeReadPipe = null
         copyJob = null
 
+        val backendError = if (remoteStopSucceeded) {
+            runCatching { api?.lastError }.getOrElse {
+                "Could not verify the privileged recorder's final status: ${it.message}"
+            }
+        } else {
+            null
+        }
+        val captureFailure = when {
+            !drained -> "The PCM stream did not finish draining within the allowed timeout."
+            else -> privilegedCaptureFailure(remoteStopSucceeded, backendError)
+        }
+        if (captureFailure != null) {
+            val incompleteFile = lastCaptureResult?.file ?: activeFile
+            lastCaptureResult = null
+            incompleteFile?.let { runCatching { it.delete() } }
+            activeFile = null
+            activeCaptureStartedAtEpochMillis = null
+            activeCaptureStartedElapsedRealtime = null
+            _captureStatus.value = "Capture failed; incomplete WAV discarded: $captureFailure"
+            return@withContext null
+        }
+
         val wav = lastCaptureResult
         val finalized = if (wav != null && startedAtEpochMillis != null && startedAtElapsedRealtime != null) {
             FinalizedAudioCapture(
@@ -367,3 +394,15 @@ class ShizukuAudioRecorderClient @Inject constructor(
         const val PIPE_CLOSE_TIMEOUT_MS = 2_000L
     }
 }
+
+
+/**
+ * A finalized PCM container is not enough: the privileged backend must confirm a clean stop.
+ * Otherwise an early AudioRecord failure can close the pipe and make a truncated stream look valid.
+ */
+internal fun privilegedCaptureFailure(remoteStopSucceeded: Boolean, backendError: String?): String? =
+    when {
+        !remoteStopSucceeded -> "The privileged recorder did not confirm a clean stop."
+        !backendError.isNullOrBlank() -> backendError.trim()
+        else -> null
+    }

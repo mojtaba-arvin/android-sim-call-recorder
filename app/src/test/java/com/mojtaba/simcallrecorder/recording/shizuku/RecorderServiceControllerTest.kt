@@ -4,6 +4,7 @@ import android.media.MediaRecorder
 import android.os.ParcelFileDescriptor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -13,6 +14,32 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class RecorderServiceControllerTest {
+
+    @Test
+    fun shellUid_requiresTheProtectedCallAudioPermission() {
+        assertFalse(hasVoiceCallCapturePermission(2_000, permissionGranted = false))
+        assertTrue(hasVoiceCallCapturePermission(2_000, permissionGranted = true))
+    }
+
+    @Test
+    fun rootUid_doesNotDependOnThePackagePermissionCheck() {
+        assertTrue(hasVoiceCallCapturePermission(0, permissionGranted = false))
+    }
+
+    @Test
+    fun unexpectedUid_cannotPassTheCallAudioPermissionGate() {
+        assertFalse(hasVoiceCallCapturePermission(10_123, permissionGranted = true))
+    }
+
+    @Test
+    fun partialPcmIsNotAcceptedWhenRemoteStopOrBackendHealthIsUnconfirmed() {
+        assertTrue(privilegedCaptureFailure(remoteStopSucceeded = false, backendError = null) != null)
+        assertEquals(
+            "AudioRecord read failed with code -6.",
+            privilegedCaptureFailure(remoteStopSucceeded = true, backendError = "AudioRecord read failed with code -6."),
+        )
+        assertNull(privilegedCaptureFailure(remoteStopSucceeded = true, backendError = ""))
+    }
 
     @Test
     fun shellUid_canStartAndStopCapture() {
