@@ -51,9 +51,9 @@ References:
 ## Open technical questions
 
 - Can the ADB daemon be relaunched after reboot without user interaction beyond the phone joining Wi-Fi?
-- Does ADB pairing expire after inactivity on every supported Android release? What authenticated refresh behavior is safe?
+- Reconcile pairing lifetime: official Android documentation says pairing remains until explicitly forgotten or debugging authorizations are revoked; CallVault reports a 7-day inactivity expiry in its tested setup. Android 17 ADB Wi-Fi 2.0 adds automatic reconnection on trusted networks. Verify this discrepancy on target builds before adding refresh logic.
 - Which API levels and ABIs can run the embedded client and `app_process` recorder?
-- Does Android 17 change the Wireless-debugging service, mDNS discovery, local-network permission, or loopback behavior?
+- Does Android 17 change the Wireless-debugging service, mDNS discovery, local-network permission, or loopback behavior? Android 17 ADB Wi-Fi 2.0 advertises automatic reconnect on trusted networks, but the embedded client must support the new behavior.
 - Can the recorder continue away from Wi-Fi, and under what USB-debugging state?
 - Can the shell daemon survive adbd restart, screen lock, app process death, and OEM background restrictions?
 - How do Android 11 unlocked-screen constraints and OEM permission-monitoring settings affect the daemon?
