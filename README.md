@@ -44,7 +44,7 @@ The standard third-party app process does not have public-SDK access to cellular
 
 The application exposes multiple strategies through a common `CallCaptureStrategy` contract:
 
-- **Standard:** refuses cellular-call capture.
+- **Standard app-UID digital capture:** fails closed; it does not claim access to cellular uplink/downlink. The product-level Standard acoustic mode is the separate `Speakerphone + MIC` strategy and is planned for consent-gated automatic OFFHOOK operation.
 - **Shizuku VOICE_CALL:** optional, manually started privileged capture prototype.
 - **Accessibility-priority VOICE_RECOGNITION:** optional microphone/acoustic experiment; not digital downlink and not for Google Play distribution as a call-recording feature.
 - **Platform VOICE_RECOGNITION:** generic microphone experiment, not a vendor-specific OEM API.
