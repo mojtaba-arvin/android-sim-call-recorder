@@ -57,3 +57,12 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         )
     }
 }
+
+
+/** Adds runtime capture profile and framework audio diagnostics without rewriting old recordings. */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE call_records ADD COLUMN captureProfile TEXT")
+        db.execSQL("ALTER TABLE call_records ADD COLUMN captureDiagnostics TEXT")
+    }
+}
