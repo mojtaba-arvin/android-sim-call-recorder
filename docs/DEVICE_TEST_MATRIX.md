@@ -17,7 +17,7 @@ No physical-device recording results have been claimed. Use the in-app Device di
 
 ## Procedure per physical device
 
-1. Install the debug APK. Grant call-state permission; grant RECORD_AUDIO only for the explicitly selected microphone/acoustic strategy. Start any capture only after the app's consent acknowledgement.
+1. Install the debug APK. Grant call-state permission; grant RECORD_AUDIO only for the explicitly selected microphone/acoustic strategy. Confirm participant authorization/consent. Arm Standard acoustic monitoring from the visible app before a call; Shizuku remains separately authorized and manually started.
 2. Open Device diagnostics and record manufacturer, model, Android release, API level, build display, and security patch.
 3. Confirm the visible SIM slot count and labels. Do not record phone numbers, ICCIDs, or subscriber identifiers.
 4. Start call-state monitoring while the app is visible.
@@ -25,7 +25,7 @@ No physical-device recording results have been claimed. Use the in-app Device di
 6. Place an outgoing call using SIM 1. Verify call-state transitions. Repeat for SIM 2 when present.
 7. Repeat incoming and outgoing scenarios on SIM 2. Record call waiting and dual-SIM standby behavior separately.
 8. Refresh the audio inventory with earpiece, loudspeaker, wired headset, and Bluetooth routes connected one at a time.
-9. Do not infer audio capture capability from the device inventory, AudioRecord initialization, or call-state success. Use the current manually started capture prototype for each strategy; automatic Standard-mode OFFHOOK capture is a separate tracked implementation gap.
+9. Do not infer audio capture capability from the device inventory, AudioRecord initialization, or call-state success. For Standard acoustic validation, arm automatic recording from the visible Diagnostics UI before placing/receiving the call; for Shizuku, connect/authorize and manually start during OFFHOOK. Record the exact strategy and actual source label.
 10. Speak a unique test phrase at the local end and a different phrase at the remote end. Verify each phrase independently in the finalized WAV. Repeat at least three incoming and three outgoing calls for each strategy/route combination before marking two-way support. Do not upload call audio to issue reports.
 
 ## Required audio acceptance criteria
