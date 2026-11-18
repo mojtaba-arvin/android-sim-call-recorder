@@ -298,7 +298,7 @@ class CallRecordingForegroundService : Service() {
                     RecordingMode.SPEAKERPHONE_MIC -> serviceScope.launch {
                         AudioRecordingDiagnostics.status.collect { status ->
                             activeRecordId?.let { recordId ->
-                                callRecordRepository.updateCaptureDiagnostics(recordId, status)
+                                callRecordRepository.appendCaptureDiagnostic(recordId, "[${System.currentTimeMillis()}] $status")
                             }
                         }
                     }

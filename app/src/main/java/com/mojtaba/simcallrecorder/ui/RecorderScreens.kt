@@ -301,6 +301,27 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
         ) {
             Text("Recording unavailable", style = MaterialTheme.typography.headlineSmall)
             Text("This session is ${record.status.lowercase(Locale.ROOT)} or its private WAV file is missing.")
+            record.failureReason?.takeIf { it.isNotBlank() }?.let { reason ->
+                Text("Failure reason", style = MaterialTheme.typography.titleSmall)
+                Text(reason, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            if (record.captureProfile != null || record.captureDiagnostics != null) {
+                HorizontalDivider()
+                Text("Capture diagnostics", style = MaterialTheme.typography.titleMedium)
+                record.captureProfile?.let {
+                    Text("Device profile", style = MaterialTheme.typography.labelLarge)
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                record.captureDiagnostics?.let {
+                    Text("Audio input history", style = MaterialTheme.typography.labelLarge)
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    "These diagnostics describe the selected input and do not prove that both call participants were captured.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Button(onClick = onBack) { Text("Back") }
             OutlinedButton(onClick = onDelete) { Text("Remove record") }
         }
