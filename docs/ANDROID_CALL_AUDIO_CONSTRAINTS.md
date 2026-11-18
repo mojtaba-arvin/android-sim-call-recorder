@@ -48,7 +48,7 @@ The optional capture prototype has these layers:
 4. A user-initiated foreground service shows a persistent notification with a Stop action. The app requests notification permission before starting capture.
 5. The file writer rejects an empty stream and computes peak/RMS. It labels an all-zero WAV as digital silence. Non-silent audio is still not proof of both talk directions; hardware/firmware and carrier behavior must be validated separately.
 
-Capture is manual and visible in this prototype. It does not automatically begin on OFFHOOK, toggle loudspeaker, record while a user has not explicitly started it, or send audio off-device.
+Capture is manual and visible in the current prototype. It does not automatically begin on OFFHOOK or send audio off-device. The accepted product target is consent-gated automatic Standard-mode microphone/acoustic capture with a persistent notification; Shizuku remains a separate explicit, fail-closed mode. See [the automatic lifecycle design](AUTO_RECORDING_LIFECYCLE.md).
 
 ### Requirements and expected limitations
 
@@ -101,12 +101,12 @@ A device can be marked supported only after repeated real calls demonstrate both
 
 ## Current implementation and mode decision
 
-The app exposes two backends behind `CallAudioRecordingBackend`:
+The app exposes multiple strategies behind `CallCaptureStrategy` / `CallAudioRecordingBackend`:
 
 - **Standard mode:** deliberately refuses cellular-call capture. It does not automatically switch to speakerphone or fall back to `MIC`. A separate voice-note/microphone-only feature would need its own product label and must not appear as SIM-call recording.
-- **Advanced Shizuku mode:** optional `UserService` backend. The user must connect/authorize Shizuku, the app verifies UID 2000 or UID 0, the helper verifies shell attribution, and only then attempts `AudioRecord(VOICE_CALL)`. It prefers 48 kHz PCM16 stereo and falls back only to mono `VOICE_CALL`. There is no `MIC` fallback.
+- **Advanced Shizuku mode:** optional `UserService` backend. The user must connect/authorize Shizuku, the app verifies UID 2000 or UID 0, the helper verifies shell attribution, and only then attempts `AudioRecord(VOICE_CALL)`. It prefers 48 kHz PCM16 stereo and falls back only to mono `VOICE_CALL`. There is no `MIC` fallback.\n- **Accessibility-priority VOICE_RECOGNITION:** isolated microphone/acoustic experiment, explicitly enabled by the user, not digital downlink and not for Google Play call-recording distribution.\n- **Platform VOICE_RECOGNITION:** generic microphone experiment, not a vendor-specific OEM API.\n- **Speakerphone + MIC:** explicit acoustic capture experiment.\n\nStandard microphone/acoustic strategies may be evaluated as a separately consented automatic mode; none may be used as an implicit fallback for Shizuku.
 - A Gradle feature flag, `enableShizukuCallCapture=false`, disables the advanced backend at build time.
-- Recording is manually initiated while the selected SIM reports `OFFHOOK`; the user must explicitly confirm they are authorized and have obtained all participant consent required by local law. A foreground notification stays visible with a Stop action. A service-side subscription-scoped listener stops capture when the selected SIM returns to `IDLE`.
+- In the current prototype, recording is manually initiated while the selected SIM reports `OFFHOOK`; the user must explicitly confirm they are authorized and have obtained all participant consent required by local law. A foreground notification stays visible with a Stop action. A service-side subscription-scoped listener stops capture when the selected SIM returns to `IDLE`. The target automatic Standard-mode monitor is specified separately in `AUTO_RECORDING_LIFECYCLE.md`.
 - If Shizuku permission, UID validation, app-attribution detachment, protected source initialization, pipe streaming, or PCM finalization fails, the session reports failure. It does not retry as standard microphone audio.
 - WAV files are app-private. Empty PCM is rejected; all-zero PCM is identified as silence. A non-zero waveform is not proof of two-way call capture.
 
