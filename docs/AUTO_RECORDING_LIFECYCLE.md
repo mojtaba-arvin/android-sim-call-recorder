@@ -7,24 +7,24 @@ The target behavior is automatic capture when a cellular SIM call enters `OFFHOO
 - **Standard automatic mode:** product-level Standard mode maps to the explicit `SPEAKERPHONE_MIC` strategy with a bounded initialization chain (`MIC` → `VOICE_COMMUNICATION` → `VOICE_RECOGNITION`), after opt-in, disclosure and consent. It is acoustic capture, not digital call downlink, and must be labelled honestly. The enum value `STANDARD` remains a legacy fail-closed app-UID backend.
 - **Advanced Shizuku mode:** a separate privileged `VOICE_CALL` strategy that requires explicit Shizuku authorization, an active and validated UserService, accepted UID (shell 2000 or root 0), feature-flag enablement, known SIM slot, OFFHOOK, and recording consent. It must fail closed.
 
-The implementation now includes an explicit **Arm automatic recording** control. It starts the microphone foreground service while the activity is visible, then monitors SIM call-state events and starts `SPEAKERPHONE_MIC` on OFFHOOK, stopping and finalizing on the matching SIM's IDLE. This is an implemented software lifecycle, not evidence of two-way audio compatibility. `STANDARD` remains a legacy fail-closed digital backend; the bounded microphone-source chain is implemented for Standard acoustic capture only.
+The implementation now includes an explicit **Arm best available automatic recording** control. While the activity is visible, the app snapshots runtime capabilities and fixes the session to Shizuku `VOICE_CALL` if the live UserService, shell UID and attribution are ready; otherwise it selects `SPEAKERPHONE_MIC` if RECORD_AUDIO is granted. The mode-specific foreground service then monitors SIM call-state events and starts that fixed backend on OFFHOOK, stopping and finalizing on the matching SIM's IDLE. A Shizuku failure never downgrades to microphone capture. This is an implemented software lifecycle, not evidence of two-way audio compatibility. `STANDARD` remains a legacy fail-closed digital backend; the bounded microphone-source chain is implemented for Standard acoustic capture only.
 
-## Standard automatic mode state flow
+## Best-eligible automatic mode state flow
 
 ```text
 DISABLED
    |
-   | user explicitly enables automatic Standard capture
+   | user explicitly arms best-eligible automatic capture
    v
 ARMING (while app is visible)
    |
    | permissions + disclosure + persistent notification
    v
-MONITORING
+MONITORING (mode fixed at arm time: Shizuku VOICE_CALL or Speakerphone + MIC)
    |
    | subscription-scoped OFFHOOK event
    v
-STARTING (selected microphone/acoustic strategy)
+STARTING (the fixed selected strategy)
    |
    +---- start rejected / FGS restriction ----> VISIBLE FAILURE
    |
@@ -41,24 +41,24 @@ MONITORING
 
 Rules:
 
-1. Automatic mode is disabled by default until the user explicitly enables it and acknowledges the acoustic capture limitations.
+1. Automatic mode is disabled by default until the user explicitly arms it and acknowledges the recording/consent disclosure. If the selected mode is acoustic, the UI must disclose its acoustic limitations.
 2. The monitoring service must be armed from a visible user action. It owns subscription-scoped call-state listeners and must not depend on the Diagnostics screen remaining open.
 3. Only a matching SIM-slot `OFFHOOK` event can start a session. `RINGING` never starts recording.
-4. The Standard path may use an explicitly selected and disclosed microphone/acoustic source chain. Every attempt records the actual source and fallback reason.
+4. The selected mode is fixed for the armed session. Standard acoustic mode may use its bounded microphone-source initialization chain. Shizuku mode attempts only full-duplex VOICE_CALL. No runtime cross-mode downgrade is allowed.
 5. The foreground notification must remain visible during monitoring and capture, with a Stop/Disable action.
 6. A denied permission, unavailable FGS start, unknown SIM slot, or failed source initialization must be surfaced; do not create a successful-looking empty recording.
 7. A matching `IDLE` event finalizes the file and metadata. Interrupted sessions remain recoverable and visible.
 
 ## Advanced Shizuku mode
 
-Shizuku capture is not an ordinary microphone fallback.
+Shizuku capture is a privileged automatic candidate after explicit user arming, not an ordinary microphone fallback.
 
 - Require explicit user authorization and recording consent.
 - Verify the Shizuku binder, actual bound UserService, host UID and helper attribution.
 - Require the feature flag, active OFFHOOK call and known SIM slot.
 - Record the actual privilege identity and source.
 - If any gate fails or `VOICE_CALL` cannot initialize, report failure. Never start MIC, DEFAULT, VOICE_RECOGNITION or speakerphone capture as an automatic downgrade.
-- If automatic Shizuku monitoring is ever enabled, it must be a separate explicit opt-in with a visible persistent notification and a verified service lifecycle.
+- The best-eligible arm action chooses Shizuku only when readiness is verified; otherwise it may choose Standard acoustic before monitoring begins. Once armed, that selection is immutable until disarm.
 
 ## Android platform constraints
 
@@ -92,9 +92,9 @@ For Standard mode only, evaluate a bounded microphone/acoustic chain. Do not mix
 ## Current implementation gaps
 
 - Automatic monitoring now runs in the same user-armed microphone foreground service, independent of the Diagnostics screen. It is intentionally not restored after reboot or force-stop; the user must re-arm from the visible app.
-- Automatic mode currently uses only `SPEAKERPHONE_MIC`; it does not prove or guarantee remote-party capture. The bounded AudioSource chain advances only on initialization/start failure, not after a stream is running.
-- Shizuku remains a separate manually initiated strategy. Automatic Shizuku capture is not enabled; it now exposes shell-attribution readiness to the app and rejects non-full-duplex source fallbacks.
-- Runtime capability checks now gate the explicitly selected backend at service start. The candidate selector is not yet an automatic Shizuku-vs-acoustic chooser.
+- Automatic mode now selects Shizuku `VOICE_CALL` when the live UserService, accepted UID and shell attribution are ready; otherwise it selects Speakerphone + MIC if RECORD_AUDIO is granted. The selected mode remains fixed until disarm.
+- Shizuku capture now exposes shell-attribution readiness over AIDL, clears the incoming Binder caller identity before AudioRecord operations, and attempts only full-duplex `VOICE_CALL`; one-sided UPLINK/DOWNLINK fallbacks are rejected.
+- The selector is wired into arm-time best-eligible selection. It does not switch modes after a capture failure.
 - AudioRecordingCallback / client-silenced diagnostics are visible live but are not yet persisted as a complete timeline in Room.
 - No physical modem/OEM/carrier two-way result has been recorded.
 
