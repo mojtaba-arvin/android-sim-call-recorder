@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -234,7 +235,8 @@ class CallRecordingForegroundService : Service() {
             var startedMode: RecordingMode? = null
             var insertedRecordId: Long? = null
             try {
-                val output = recordingCoordinator.start(request, captureDeviceProfile())
+                val runtimeProfile = captureDeviceProfile()
+                val output = recordingCoordinator.start(request, runtimeProfile)
                 startedMode = request.mode
                 activeMode = request.mode
 
@@ -264,6 +266,13 @@ class CallRecordingForegroundService : Service() {
                         isSilent = null,
                         status = STATUS_RECORDING,
                         failureReason = null,
+                        captureProfile = listOf(
+                            "api=${runtimeProfile.sdkInt}",
+                            "device=${runtimeProfile.manufacturer} ${runtimeProfile.model}",
+                            "recordAudio=${runtimeProfile.recordAudioGranted}",
+                            "shizukuAuthorized=${runtimeProfile.shizukuAuthorized}",
+                            "accessibilityEnabled=${runtimeProfile.accessibilityServiceEnabled}",
+                        ).joinToString("; "),
                     ),
                 )
                 activeRecordId = insertedRecordId
@@ -276,16 +285,25 @@ class CallRecordingForegroundService : Service() {
                 }
 
                 watchCaptureStatusJob?.cancel()
-                watchCaptureStatusJob = if (request.mode == RecordingMode.SHIZUKU_VOICE_CALL) {
-                    serviceScope.launch {
-                        recorderClient.captureStatus.collect { status ->
+                watchCaptureStatusJob = when (request.mode) {
+                    RecordingMode.SHIZUKU_VOICE_CALL -> serviceScope.launch {
+                        recorderClient.captureStatus.distinctUntilChanged().collect { status ->
+                            activeRecordId?.let { recordId ->
+                                callRecordRepository.updateCaptureDiagnostics(recordId, status)
+                            }
                             if (status.startsWith("Saved ") || status.startsWith("Recording file was not saved:")) {
                                 stopCapture(latestStartId, "Capture stream finished")
                             }
                         }
                     }
-                } else {
-                    null
+                    RecordingMode.SPEAKERPHONE_MIC -> serviceScope.launch {
+                        AudioRecordingDiagnostics.status.distinctUntilChanged().collect { status ->
+                            activeRecordId?.let { recordId ->
+                                callRecordRepository.updateCaptureDiagnostics(recordId, status)
+                            }
+                        }
+                    }
+                    else -> null
                 }
                 watchCallEnd(request.simSlotIndex)
             } catch (exception: Exception) {
