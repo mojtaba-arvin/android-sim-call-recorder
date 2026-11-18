@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -287,7 +286,7 @@ class CallRecordingForegroundService : Service() {
                 watchCaptureStatusJob?.cancel()
                 watchCaptureStatusJob = when (request.mode) {
                     RecordingMode.SHIZUKU_VOICE_CALL -> serviceScope.launch {
-                        recorderClient.captureStatus.distinctUntilChanged().collect { status ->
+                        recorderClient.captureStatus.collect { status ->
                             activeRecordId?.let { recordId ->
                                 callRecordRepository.updateCaptureDiagnostics(recordId, status)
                             }
@@ -297,7 +296,7 @@ class CallRecordingForegroundService : Service() {
                         }
                     }
                     RecordingMode.SPEAKERPHONE_MIC -> serviceScope.launch {
-                        AudioRecordingDiagnostics.status.distinctUntilChanged().collect { status ->
+                        AudioRecordingDiagnostics.status.collect { status ->
                             activeRecordId?.let { recordId ->
                                 callRecordRepository.updateCaptureDiagnostics(recordId, status)
                             }
