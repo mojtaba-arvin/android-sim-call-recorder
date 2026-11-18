@@ -66,7 +66,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(Looper.getMainLooper()).idle()
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
-        withTimeout(10_000) { collector.join() }
+        withTimeout(10_000) { withTimeout(10_000) { collector.join() } }
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
@@ -107,7 +107,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(Looper.getMainLooper()).idle()
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
-        collector.join()
+        withTimeout(10_000) { collector.join() }
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
@@ -153,7 +153,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(Looper.getMainLooper()).idle()
         shadowOf(secondManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
         shadowOf(Looper.getMainLooper()).idle()
-        collector.join()
+        withTimeout(10_000) { collector.join() }
 
         assertEquals(listOf(0, 1), events.map { it.simSlotIndex })
         assertEquals(listOf(CallState.RINGING, CallState.OFFHOOK), events.map { it.state })
