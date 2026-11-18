@@ -206,7 +206,7 @@ private class MicrophoneCaptureSession(
                     sourceFallbackReason = if (source == audioSources.firstOrNull()) {
                         null
                     } else {
-                        "preferred ${audioSourceName(audioSources.first())} could not initialize/start"
+                        failures.joinToString("; ")
                     }
                     break
                 }
@@ -363,6 +363,7 @@ private class MicrophoneCaptureSession(
                 )
             }
         }
+        AudioRecordingDiagnostics.update("Waiting for framework recording configuration · session ${record.audioSessionId}")
         audioRecordingCallback = callback
         runCatching {
             audioManager.registerAudioRecordingCallback(callback, Handler(Looper.getMainLooper()))
