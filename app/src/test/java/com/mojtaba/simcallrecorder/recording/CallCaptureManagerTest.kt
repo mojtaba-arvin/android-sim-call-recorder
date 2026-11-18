@@ -23,7 +23,7 @@ class CallCaptureManagerTest {
 
     @Test
     fun authorizedShizukuCanRunOnAndroidTenAndNineWhenAlreadyStarted() {
-        listOf(28, 29).forEach { sdk ->
+        listOf(24, 28, 29).forEach { sdk ->
             val option = CaptureStrategySelector.evaluate(
                 profile(sdk = sdk, shizuku = true),
             ).first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }
