@@ -3,10 +3,10 @@ package com.mojtaba.simcallrecorder.sdk
 import android.content.Context
 import android.content.Intent
 import com.mojtaba.simcallrecorder.core.permissions.CallPermissionManager
-import com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
+import com.mojtaba.simcallrecorder.domain.model.CallState
 import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
 import com.mojtaba.simcallrecorder.domain.model.SimSlot
@@ -15,7 +15,6 @@ import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
 import com.mojtaba.simcallrecorder.domain.repository.RecorderSettingsRepository
 import com.mojtaba.simcallrecorder.recording.AudioRecordingDiagnostics
 import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
-import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfile
 import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfileProvider
 import com.mojtaba.simcallrecorder.recording.RecordingCoordinator
 import com.mojtaba.simcallrecorder.recording.RecordingMode
@@ -40,7 +39,7 @@ import javax.inject.Singleton
  * by the SDK. All exposed streams are read-only.
  */
 @Singleton
-class SimCallRecorderSdk @Inject constructor(
+class SimCallRecorderSdk @Inject internal constructor(
     @ApplicationContext private val context: Context,
     private val callRecords: CallRecordRepository,
     private val diagnostics: DeviceDiagnosticsRepository,
@@ -80,19 +79,36 @@ class SimCallRecorderSdk @Inject constructor(
     suspend fun updateStorageLimit(megabytes: Int) = settingsRepository.updateStorageLimit(megabytes)
     suspend fun updateRecordingMode(modeName: String) = settingsRepository.updateRecordingMode(modeName)
 
-    fun missingPermissions(purpose: PermissionPurpose): List<String> = permissions.missingPermissions(purpose)
-    fun permissionsFor(purpose: PermissionPurpose): List<String> = permissions.permissionsFor(purpose)
+    fun missingPermissions(purpose: SdkPermissionPurpose): List<String> =
+        permissions.missingPermissions(purpose.toInternal())
+    fun permissionsFor(purpose: SdkPermissionPurpose): List<String> =
+        permissions.permissionsFor(purpose.toInternal())
     fun hasCallStatePermission(): Boolean = permissions.hasCallStatePermission()
+    fun hasMicrophonePermission(): Boolean = permissions.hasMicrophonePermission()
 
-    fun captureProfile(): CaptureDeviceProfile = profileProvider.snapshot()
-    fun selectBestRecordingMode(profile: CaptureDeviceProfile = captureProfile()): RecordingMode? =
-        coordinator.selectBest(profile)?.mode
-    fun isRecordingModeAvailable(mode: RecordingMode, profile: CaptureDeviceProfile = captureProfile()): Boolean =
-        coordinator.isAvailable(mode, profile)
+    val shizukuHostUid: Int? get() = shizukuClient.authorizedHostUid
+
+    fun selectBestRecordingMode(): RecordingMode? =
+        coordinator.selectBest(profileProvider.snapshot())?.mode
+
+    fun isRecordingModeAvailable(mode: RecordingMode): Boolean =
+        coordinator.isAvailable(mode, profileProvider.snapshot())
     fun audioSourceLabel(mode: RecordingMode): String = coordinator.audioSourceLabel(mode)
 
     fun refreshShizukuConnection() = shizukuClient.refreshConnectionStatus()
     fun connectShizuku() = shizukuClient.connectOrRequestPermission()
+
+    fun createStartRecordingIntent(
+        mode: RecordingMode,
+        simSlotIndex: Int,
+        callState: CallState,
+        participantConsentConfirmed: Boolean,
+    ): Intent = Intent(context, CallRecordingForegroundService::class.java)
+        .setAction(CallRecordingForegroundService.ACTION_START)
+        .putExtra(CallRecordingForegroundService.EXTRA_RECORDING_MODE, mode.name)
+        .putExtra(CallRecordingForegroundService.EXTRA_CALL_STATE, callState.name)
+        .putExtra(CallRecordingForegroundService.EXTRA_SIM_SLOT_INDEX, simSlotIndex)
+        .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
 
     fun createArmAutomaticRecordingIntent(mode: RecordingMode, participantConsentConfirmed: Boolean): Intent =
         Intent(context, CallRecordingForegroundService::class.java)
@@ -104,3 +120,17 @@ class SimCallRecorderSdk @Inject constructor(
         Intent(context, CallRecordingForegroundService::class.java)
             .setAction(CallRecordingForegroundService.ACTION_STOP)
 }
+
+/** Permission groups exposed by the SDK without exposing its permission-manager implementation. */
+enum class SdkPermissionPurpose {
+    CALL_STATE,
+    MICROPHONE_CAPTURE,
+    FOREGROUND_NOTIFICATIONS,
+}
+
+private fun SdkPermissionPurpose.toInternal(): com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose =
+    when (this) {
+        SdkPermissionPurpose.CALL_STATE -> com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose.CALL_STATE
+        SdkPermissionPurpose.MICROPHONE_CAPTURE -> com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose.MICROPHONE_CAPTURE
+        SdkPermissionPurpose.FOREGROUND_NOTIFICATIONS -> com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose.FOREGROUND_NOTIFICATIONS
+    }

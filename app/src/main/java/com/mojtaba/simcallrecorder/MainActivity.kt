@@ -1,7 +1,6 @@
 package com.mojtaba.simcallrecorder
 
 import android.os.Build
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -32,24 +31,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import com.mojtaba.simcallrecorder.core.permissions.CallPermissionManager
-import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
-import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfileProvider
-import com.mojtaba.simcallrecorder.recording.RecordingCoordinator
-import com.mojtaba.simcallrecorder.recording.AudioRecordingDiagnostics
-import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
-import com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
 import com.mojtaba.simcallrecorder.domain.model.CallState
 import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 import com.mojtaba.simcallrecorder.domain.model.SimSlot
-import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
-import com.mojtaba.simcallrecorder.domain.repository.CallRecordRepository
-import com.mojtaba.simcallrecorder.domain.repository.RecorderSettingsRepository
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.RecorderSettings
 import com.mojtaba.simcallrecorder.recording.RecordingMode
+import com.mojtaba.simcallrecorder.sdk.SdkPermissionPurpose
+import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdk
 import com.mojtaba.simcallrecorder.ui.RecorderRootScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -64,25 +55,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject
-    lateinit var permissionManager: CallPermissionManager
-
-    @Inject
-    lateinit var diagnosticsRepository: DeviceDiagnosticsRepository
-
-    @Inject
-    lateinit var callRecordRepository: CallRecordRepository
-
-    @Inject
-    lateinit var recorderClient: ShizukuAudioRecorderClient
-
-    @Inject
-    lateinit var recorderSettingsRepository: RecorderSettingsRepository
-
-    @Inject
-    lateinit var captureDeviceProfileProvider: CaptureDeviceProfileProvider
-
-    @Inject
-    lateinit var recordingCoordinator: RecordingCoordinator
+    lateinit var recorderSdk: SimCallRecorderSdk
 
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
@@ -103,7 +76,7 @@ class MainActivity : ComponentActivity() {
     private var recorderCaptureStatus by mutableStateOf("Idle")
     private var participantConsentConfirmed by mutableStateOf(false)
     private var automaticRecordingArmed by mutableStateOf(false)
-    private var audioInputDiagnostics by mutableStateOf(AudioRecordingDiagnostics.status.value)
+    private var audioInputDiagnostics by mutableStateOf(recorderSdk.audioInputDiagnostics.value)
     private var callRecords by mutableStateOf(emptyList<CallRecord>())
     private var selectedRecord by mutableStateOf<CallRecord?>(null)
     private var recorderSettings by mutableStateOf(RecorderSettings())
@@ -115,10 +88,10 @@ class MainActivity : ComponentActivity() {
         permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
         ) { grants ->
-            automaticRecordingArmed = CallRecordingForegroundService.automaticMonitoringArmed
+            automaticRecordingArmed = recorderSdk.automaticRecordingArmed.value
             refreshPermissionState()
             refreshDiagnostics()
-            recorderClient.refreshConnectionStatus()
+            recorderSdk.refreshShizukuConnection()
             if (pendingMicrophoneStart) {
                 pendingMicrophoneStart = false
                 if (grants[android.Manifest.permission.RECORD_AUDIO] == true) {
@@ -129,15 +102,14 @@ class MainActivity : ComponentActivity() {
             }
             if (pendingAutomaticArm) {
                 pendingAutomaticArm = false
-                val callStateGranted = permissionManager.hasCallStatePermission()
+                val callStateGranted = recorderSdk.hasCallStatePermission()
                 val microphoneWasRequested = grants.containsKey(android.Manifest.permission.RECORD_AUDIO)
                 val microphoneDenied = microphoneWasRequested &&
                     grants[android.Manifest.permission.RECORD_AUDIO] != true
                 if (!callStateGranted) {
                     recorderCaptureStatus = "Automatic recording requires call-state permission."
                 } else if (microphoneDenied) {
-                    val profile = captureDeviceProfileProvider.snapshot()
-                    if (recordingCoordinator.isAvailable(RecordingMode.SHIZUKU_VOICE_CALL, profile)) {
+                    if (recorderSdk.isRecordingModeAvailable(RecordingMode.SHIZUKU_VOICE_CALL)) {
                         requestArmAutomaticRecording()
                     } else {
                         recorderCaptureStatus = "Microphone permission was denied and no ready Shizuku capture path is available."
@@ -168,33 +140,33 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        automaticRecordingArmed = CallRecordingForegroundService.automaticMonitoringArmed
+        automaticRecordingArmed = recorderSdk.automaticRecordingArmed.value
         refreshPermissionState()
         refreshDiagnostics()
         lifecycleScope.launch(Dispatchers.IO) {
-            callRecordRepository.markActiveRecordingsInterrupted()
+            recorderSdk.markInterruptedRecordings()
         }
-        recorderClient.refreshConnectionStatus()
+        recorderSdk.refreshShizukuConnection()
         lifecycleScope.launch {
-            recorderClient.connectionStatus.collect { status ->
+            recorderSdk.shizukuConnectionStatus.collect { status ->
                 recorderConnectionStatus = status
-                recorderServiceUid = recorderClient.authorizedHostUid
+                recorderServiceUid = recorderSdk.shizukuHostUid
             }
         }
         lifecycleScope.launch {
-            CallRecordingForegroundService.serviceStatus.collect { recorderCaptureStatus = it }
+            recorderSdk.recordingStatus.collect { recorderCaptureStatus = it }
         }
         lifecycleScope.launch {
-            AudioRecordingDiagnostics.status.collect { audioInputDiagnostics = it }
+            recorderSdk.audioInputDiagnostics.collect { audioInputDiagnostics = it }
         }
         lifecycleScope.launch {
-            CallRecordingForegroundService.automaticMonitoringState.collect {
+            recorderSdk.automaticRecordingArmed.collect {
                 automaticRecordingArmed = it
             }
         }
 
         lifecycleScope.launch {
-            recorderSettingsRepository.settings.collect { recorderSettings = it }
+            recorderSdk.settings.collect { recorderSettings = it }
         }
         refreshRecords(CallRecordFilter())
 
@@ -210,19 +182,19 @@ class MainActivity : ComponentActivity() {
                         onOpenRecord = { selectedRecord = it },
                         onDeleteRecord = { record ->
                             lifecycleScope.launch {
-                                callRecordRepository.deleteRecording(record.id)
+                                recorderSdk.deleteRecording(record.id)
                                 selectedRecord = null
                                 refreshRecords(CallRecordFilter())
                             }
                         },
                         onStorageLimitChanged = { limit ->
                             lifecycleScope.launch(Dispatchers.IO) {
-                                recorderSettingsRepository.updateStorageLimit(limit)
+                                recorderSdk.updateStorageLimit(limit)
                             }
                         },
                         onRecordingModeChanged = { mode ->
                             lifecycleScope.launch(Dispatchers.IO) {
-                                recorderSettingsRepository.updateRecordingMode(mode.name)
+                                recorderSdk.updateRecordingMode(mode.name)
                             }
                         },
                         onRequestMicrophonePermission = {
@@ -255,8 +227,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 ) {
                                         startService(
-                                            Intent(this@MainActivity, CallRecordingForegroundService::class.java)
-                                                .setAction(CallRecordingForegroundService.ACTION_STOP),
+                                            recorderSdk.createStopRecordingIntent(),
                                         )
                                         automaticRecordingArmed = false
                                         recorderCaptureStatus = "Recording stopped because the consent acknowledgement was withdrawn."
@@ -266,14 +237,14 @@ class MainActivity : ComponentActivity() {
                                 onDisarmAutomaticRecording = ::disarmAutomaticRecording,
                                 onRequestPermissions = {
                                     permissionLauncher.launch(
-                                        permissionManager.permissionsFor(PermissionPurpose.CALL_STATE)
+                                        recorderSdk.permissionsFor(SdkPermissionPurpose.CALL_STATE)
                                             .toTypedArray(),
                                     )
                                 },
                                 onRefresh = ::refreshDiagnostics,
                                 onStartMonitoring = ::startMonitoring,
                                 onStopMonitoring = ::stopMonitoring,
-                                onConnectRecorder = recorderClient::connectOrRequestPermission,
+                                onConnectRecorder = recorderSdk::connectShizuku,
                                 onStartRecording = ::requestStartRecording,
                                 onStopRecording = ::stopRecording,
                             )
@@ -289,7 +260,7 @@ class MainActivity : ComponentActivity() {
         if (::permissionLauncher.isInitialized) {
             refreshPermissionState()
             refreshDiagnostics()
-            recorderClient.refreshConnectionStatus()
+            recorderSdk.refreshShizukuConnection()
         }
     }
 
@@ -302,24 +273,24 @@ class MainActivity : ComponentActivity() {
     private fun refreshRecords(filter: CallRecordFilter) {
         recordsJob?.cancel()
         recordsJob = lifecycleScope.launch {
-            callRecordRepository.observeRecords(filter).collect { callRecords = it }
+            recorderSdk.observeRecordings(filter).collect { callRecords = it }
         }
     }
 
     private fun refreshPermissionState() {
-        missingPermissions = permissionManager.missingPermissions(PermissionPurpose.CALL_STATE)
+        missingPermissions = recorderSdk.missingPermissions(SdkPermissionPurpose.CALL_STATE)
     }
 
     private fun refreshDiagnostics() {
-        audioRoutes = diagnosticsRepository.getAudioRoutes()
-        if (!permissionManager.hasCallStatePermission()) {
+        audioRoutes = recorderSdk.audioRoutes()
+        if (!recorderSdk.hasCallStatePermission()) {
             activeSims = emptyList()
             return
         }
 
         lifecycleScope.launch {
             try {
-                activeSims = diagnosticsRepository.getActiveSimSlots()
+                activeSims = recorderSdk.activeSimSlots()
                 diagnosticsError = null
             } catch (exception: Exception) {
                 diagnosticsError = exception.message ?: "Could not inspect SIM subscriptions."
@@ -328,9 +299,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startMonitoring() {
-        if (!permissionManager.hasCallStatePermission()) {
+        if (!recorderSdk.hasCallStatePermission()) {
             permissionLauncher.launch(
-                permissionManager.permissionsFor(PermissionPurpose.CALL_STATE).toTypedArray(),
+                recorderSdk.permissionsFor(SdkPermissionPurpose.CALL_STATE).toTypedArray(),
             )
             return
         }
@@ -341,8 +312,8 @@ class MainActivity : ComponentActivity() {
         monitorJob = lifecycleScope.launch {
             monitoring = true
             try {
-                activeSims = diagnosticsRepository.getActiveSimSlots()
-                diagnosticsRepository.observeCallStateEvents().collect { event ->
+                activeSims = recorderSdk.activeSimSlots()
+                recorderSdk.observeCallStateEvents().collect { event ->
                     callEvents = (callEvents + event).takeLast(MAX_VISIBLE_EVENTS)
                 }
             } catch (exception: Exception) {
@@ -364,18 +335,17 @@ class MainActivity : ComponentActivity() {
             recorderCaptureStatus = "Confirm that you are authorized to record and have obtained all required participant consent."
             return
         }
-        if (!permissionManager.hasCallStatePermission()) {
+        if (!recorderSdk.hasCallStatePermission()) {
             pendingAutomaticArm = true
             permissionLauncher.launch(
-                permissionManager.permissionsFor(PermissionPurpose.CALL_STATE).toTypedArray(),
+                recorderSdk.permissionsFor(SdkPermissionPurpose.CALL_STATE).toTypedArray(),
             )
             return
         }
 
-        val profile = captureDeviceProfileProvider.snapshot()
-        val best = recordingCoordinator.selectBest(profile)
-        if (best == null) {
-            if (!profile.recordAudioGranted) {
+        val selectedMode = recorderSdk.selectBestRecordingMode()
+        if (selectedMode == null) {
+            if (!recorderSdk.hasMicrophonePermission()) {
                 pendingAutomaticArm = true
                 permissionLauncher.launch(arrayOf(android.Manifest.permission.RECORD_AUDIO))
             } else {
@@ -383,8 +353,6 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        val selectedMode = best.mode
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -397,10 +365,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchAutomaticMonitoringService(mode: RecordingMode) {
-        val intent = Intent(this, CallRecordingForegroundService::class.java)
-            .setAction(CallRecordingForegroundService.ACTION_ARM_AUTOMATIC)
-            .putExtra(CallRecordingForegroundService.EXTRA_RECORDING_MODE, mode.name)
-            .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
+        val intent = recorderSdk.createArmAutomaticRecordingIntent(mode, participantConsentConfirmed)
         try {
             ContextCompat.startForegroundService(this, intent)
             automaticRecordingArmed = true
@@ -419,8 +384,7 @@ class MainActivity : ComponentActivity() {
 
     private fun disarmAutomaticRecording() {
         startService(
-            Intent(this, CallRecordingForegroundService::class.java)
-                .setAction(CallRecordingForegroundService.ACTION_STOP),
+            recorderSdk.createStopRecordingIntent(),
         )
         automaticRecordingArmed = false
         recorderCaptureStatus = "Automatic recording disabled."
@@ -462,15 +426,12 @@ class MainActivity : ComponentActivity() {
             recorderCaptureStatus = "No active SIM call was detected."
             return
         }
-        val intent = Intent(this, CallRecordingForegroundService::class.java)
-            .setAction(CallRecordingForegroundService.ACTION_START)
-            .putExtra(
-                CallRecordingForegroundService.EXTRA_RECORDING_MODE,
-                recorderSettings.recordingMode.name,
-            )
-            .putExtra(CallRecordingForegroundService.EXTRA_CALL_STATE, CallState.OFFHOOK.name)
-            .putExtra(CallRecordingForegroundService.EXTRA_SIM_SLOT_INDEX, slotIndex)
-            .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
+        val intent = recorderSdk.createStartRecordingIntent(
+            mode = recorderSettings.recordingMode,
+            simSlotIndex = slotIndex,
+            callState = CallState.OFFHOOK,
+            participantConsentConfirmed = participantConsentConfirmed,
+        )
         ContextCompat.startForegroundService(this, intent)
     }
 
@@ -484,8 +445,7 @@ class MainActivity : ComponentActivity() {
 
     private fun stopRecording() {
         startService(
-            Intent(this, CallRecordingForegroundService::class.java)
-                .setAction(CallRecordingForegroundService.ACTION_STOP),
+            recorderSdk.createStopRecordingIntent(),
         )
     }
 
