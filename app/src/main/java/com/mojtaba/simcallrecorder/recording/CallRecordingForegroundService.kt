@@ -86,7 +86,7 @@ class CallRecordingForegroundService : Service() {
 
     private fun armAutomaticMonitoring(intent: Intent) {
         if (automaticArmed) {
-            updateNotification("Automatic acoustic recording is already armed")
+            updateNotification("Automatic ${automaticWaitingLabel()} is already armed")
             return
         }
         if (stateMachine.state != RecordingServiceStateMachine.State.IDLE &&
@@ -323,10 +323,10 @@ class CallRecordingForegroundService : Service() {
         else -> mode.name
     }
 
-    private fun captureDeviceProfile(): CaptureDeviceProfile {
-        val helperUid = recorderClient.authorizedHostUid
-        return captureDeviceProfileProvider.snapshot()
-    }
+    private fun captureDeviceProfile(): CaptureDeviceProfile = captureDeviceProfileProvider.snapshot()
+
+    private fun automaticWaitingLabel(): String =
+        automaticPolicy.selectedMode?.let(::automaticModeLabel) ?: "call recording"
 
     private fun watchCallEnd(simSlotIndex: Int) {
         watchCallEndJob?.cancel()
@@ -344,7 +344,7 @@ class CallRecordingForegroundService : Service() {
         val mode = activeMode ?: run {
             stateMachine.stopCompleted()
             if (automaticArmed && reason == "Call ended") {
-                updateNotification("Automatic acoustic recording armed · waiting for a SIM call")
+                updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
             } else {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf(startId)
