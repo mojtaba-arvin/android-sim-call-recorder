@@ -140,6 +140,7 @@ class CallRecordingForegroundService : Service() {
                                 .putExtra(EXTRA_CALL_STATE, CallState.OFFHOOK.name)
                                 .putExtra(EXTRA_SIM_SLOT_INDEX, event.simSlotIndex)
                                 .putExtra(EXTRA_PARTICIPANT_CONSENT, true)
+                                .putExtra(EXTRA_AUTOMATIC_TRIGGER, true)
                             startCapture(startIntent)
                         }
                         AutomaticCallRecordingPolicy.Decision.STOP -> {
@@ -174,6 +175,7 @@ class CallRecordingForegroundService : Service() {
     }
 
     private fun startCapture(intent: Intent) {
+        if (intent.getBooleanExtra(EXTRA_AUTOMATIC_TRIGGER, false) && !automaticArmed) return
         if (stateMachine.state != RecordingServiceStateMachine.State.IDLE &&
             stateMachine.state != RecordingServiceStateMachine.State.FAILED
         ) return
@@ -517,6 +519,7 @@ class CallRecordingForegroundService : Service() {
         const val EXTRA_CALL_STATE = "com.mojtaba.simcallrecorder.extra.CALL_STATE"
         const val EXTRA_SIM_SLOT_INDEX = "com.mojtaba.simcallrecorder.extra.SIM_SLOT_INDEX"
         const val EXTRA_PARTICIPANT_CONSENT = "com.mojtaba.simcallrecorder.extra.PARTICIPANT_CONSENT"
+        const val EXTRA_AUTOMATIC_TRIGGER = "com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER"
 
         private const val NOTIFICATION_CHANNEL = "call_recording"
         private const val NOTIFICATION_ID = 4_201
