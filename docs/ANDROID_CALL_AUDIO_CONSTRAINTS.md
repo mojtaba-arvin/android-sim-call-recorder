@@ -99,6 +99,15 @@ The project will not:
 
 A device can be marked supported only after repeated real calls demonstrate both participants are independently intelligible in recordings, for both SIM slots and relevant routes (earpiece, speaker, wired, Bluetooth). Record make/model, Android release/API, build fingerprint, security patch, carrier, SIM slot, route, selected channel count, peak/RMS, and the two-direction result. Keep failures and unsupported device cases as first-class results.
 
-## Decision
+## Current implementation and mode decision
 
-Keep ordinary telephony state monitoring separate from privileged capture. The project now contains an opt-in Shizuku UserService prototype for devices where shell/root `VOICE_CALL` is permitted. This is a real capture path to evaluate, not a universal guarantee. The repository remains MIT-licensed, the main branch remains untouched, and this PR must stay draft until CI and device compatibility evidence are reviewed.
+The app exposes two backends behind `CallAudioRecordingBackend`:
+
+- **Standard mode:** deliberately refuses cellular-call capture. It does not automatically switch to speakerphone or fall back to `MIC`. A separate voice-note/microphone-only feature would need its own product label and must not appear as SIM-call recording.
+- **Advanced Shizuku mode:** optional `UserService` backend. The user must connect/authorize Shizuku, the app verifies UID 2000 or UID 0, the helper verifies shell attribution, and only then attempts `AudioRecord(VOICE_CALL)`. It prefers 48 kHz PCM16 stereo and falls back only to mono `VOICE_CALL`. There is no `MIC` fallback.
+- A Gradle feature flag, `enableShizukuCallCapture=false`, disables the advanced backend at build time.
+- Recording is manually initiated while the selected SIM reports `OFFHOOK`; the user must explicitly confirm they are authorized and have obtained all participant consent required by local law. A foreground notification stays visible with a Stop action. A service-side subscription-scoped listener stops capture when the selected SIM returns to `IDLE`.
+- If Shizuku permission, UID validation, app-attribution detachment, protected source initialization, pipe streaming, or PCM finalization fails, the session reports failure. It does not retry as standard microphone audio.
+- WAV files are app-private. Empty PCM is rejected; all-zero PCM is identified as silence. A non-zero waveform is not proof of two-way call capture.
+
+Keep call-state detection and audio-capture capability separate. The standard app cannot access cellular call uplink/downlink through the public SDK. The Shizuku path is a device-dependent advanced experiment—not a universal guarantee—and still needs physical modem/OEM/route validation.

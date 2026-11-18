@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -36,6 +37,7 @@ import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import com.mojtaba.simcallrecorder.core.permissions.PermissionPurpose
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
+import com.mojtaba.simcallrecorder.domain.model.CallState
 import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
@@ -71,6 +73,7 @@ class MainActivity : ComponentActivity() {
     private var diagnosticsError by mutableStateOf<String?>(null)
     private var recorderConnectionStatus by mutableStateOf("Checking Shizuku status…")
     private var recorderCaptureStatus by mutableStateOf("Idle")
+    private var participantConsentConfirmed by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,6 +117,9 @@ class MainActivity : ComponentActivity() {
                         recorderCaptureStatus = recorderCaptureStatus,
                         recorderConnected = recorderConnectionStatus.startsWith("Connected"),
                         recorderActive = recorderCaptureStatus.startsWith("Recording active"),
+                        activeCallSlotIndex = activeCallSlotIndex(),
+                        participantConsentConfirmed = participantConsentConfirmed,
+                        onParticipantConsentChanged = { participantConsentConfirmed = it },
                         onRequestPermissions = {
                             permissionLauncher.launch(
                                 permissionManager.permissionsFor(PermissionPurpose.CALL_STATE)
@@ -200,6 +206,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestStartRecording() {
+        if (!participantConsentConfirmed) {
+            recorderCaptureStatus = "Confirm participant consent before starting a recording."
+            return
+        }
+        if (activeCallSlotIndex() == null) {
+            recorderCaptureStatus = "No active OFFHOOK SIM call. Start call-state monitoring and try again during a call."
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -210,10 +224,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchRecordingForegroundService() {
+        val slotIndex = activeCallSlotIndex() ?: run {
+            recorderCaptureStatus = "No active SIM call was detected."
+            return
+        }
         val intent = Intent(this, CallRecordingForegroundService::class.java)
             .setAction(CallRecordingForegroundService.ACTION_START)
+            .putExtra(
+                CallRecordingForegroundService.EXTRA_RECORDING_MODE,
+                com.mojtaba.simcallrecorder.recording.RecordingMode.SHIZUKU_VOICE_CALL.name,
+            )
+            .putExtra(CallRecordingForegroundService.EXTRA_CALL_STATE, CallState.OFFHOOK.name)
+            .putExtra(CallRecordingForegroundService.EXTRA_SIM_SLOT_INDEX, slotIndex)
+            .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
         ContextCompat.startForegroundService(this, intent)
     }
+
+    private fun activeCallSlotIndex(): Int? = callEvents
+        .groupBy { it.simSlotIndex }
+        .values
+        .mapNotNull { events -> events.maxByOrNull { it.observedAtEpochMillis } }
+        .filter { it.state == CallState.OFFHOOK && it.simSlotIndex >= 0 }
+        .maxByOrNull { it.observedAtEpochMillis }
+        ?.simSlotIndex
 
     private fun stopRecording() {
         startService(
@@ -239,6 +272,9 @@ private fun DiagnosticsScreen(
     recorderCaptureStatus: String,
     recorderConnected: Boolean,
     recorderActive: Boolean,
+    activeCallSlotIndex: Int?,
+    participantConsentConfirmed: Boolean,
+    onParticipantConsentChanged: (Boolean) -> Unit,
     onRequestPermissions: () -> Unit,
     onRefresh: () -> Unit,
     onStartMonitoring: () -> Unit,
@@ -304,8 +340,8 @@ private fun DiagnosticsScreen(
                 }
             }
             Text(
-                "Monitoring runs only while this screen's process is alive. It is a diagnostic " +
-                    "tool, not a background receiver or recording service.",
+                "Diagnostics monitoring runs while this screen is open. During recording, the foreground service " +
+                    "keeps a SIM-scoped listener and stops the capture when the selected SIM returns to IDLE.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -351,9 +387,29 @@ private fun DiagnosticsScreen(
             )
         }
 
-        DiagnosticCard(title = "Advanced call-audio capture · Shizuku") {
+        DiagnosticCard(title = "Call-audio recording modes") {
+            Text("Standard Android mode")
+            Text(
+                "Unavailable for cellular-call audio. During a voice call Android gives the input to the call; " +
+                    "a normal app's MIC source cannot be used as a guaranteed call-recording fallback. " +
+                    "The app does not force speakerphone or save one-sided audio as a call recording.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text("Advanced mode · Shizuku")
             Text("Connection: $recorderConnectionStatus")
             Text("Capture: $recorderCaptureStatus")
+            DiagnosticLine("Call state", activeCallSlotIndex?.let { "OFFHOOK · SIM ${it + 1}" } ?: "No active call detected")
+            androidx.compose.foundation.layout.Row {
+                Checkbox(
+                    checked = participantConsentConfirmed,
+                    onCheckedChange = onParticipantConsentChanged,
+                )
+                Text(
+                    "I confirm I am authorized to record this call and have obtained all consent required from the participants.",
+                    modifier = Modifier.padding(top = 12.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Button(onClick = onConnectRecorder) {
                 Text("Connect / authorize Shizuku")
             }
@@ -364,7 +420,10 @@ private fun DiagnosticsScreen(
             } else {
                 Button(
                     onClick = onStartRecording,
-                    enabled = recorderConnected && !recorderCaptureStatus.startsWith("Preparing"),
+                    enabled = recorderConnected &&
+                        activeCallSlotIndex != null &&
+                        participantConsentConfirmed &&
+                        !recorderCaptureStatus.startsWith("Preparing"),
                 ) {
                     Text("Start visible call recording")
                 }
@@ -376,17 +435,17 @@ private fun DiagnosticsScreen(
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
-                "Start manually only during a call and only after obtaining any consent required by local law. " +
-                    "A saved WAV is not proof that both parties were audible; the signal level is checked and " +
-                    "OEM/modem behavior remains device-specific.",
+                "Recording is manually started only while the monitored SIM reports OFFHOOK. A foreground notification " +
+                    "stays visible, offers Stop, and the service stops when that SIM returns to IDLE. " +
+                    "A non-silent WAV is not proof that both parties were audible; OEM/modem behavior remains device-specific.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
 
         DiagnosticCard(title = "Hardware validation") {
-            Text("Call-audio capture is an explicit, optional Shizuku UserService feature; it is never started automatically.")
+            Text("Call-audio capture is explicit and optional. It is not automatically started when a call arrives.")
             Text(
-                "Call-state transitions are covered automatically by Robolectric tests. This device panel remains useful for identifying OEM-specific differences.",
+                "Robolectric verifies telephony listeners and recording policy. It cannot prove that a particular modem/audio HAL delivers both call directions.",
             )
             Text(
                 "Two-way audio remains unverified until a lawful capture path is tested on that " +

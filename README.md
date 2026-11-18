@@ -40,7 +40,10 @@ GitHub Actions runs the same tasks on branch pushes and pull requests. A Gradle 
 
 The standard third-party app process does not have public-SDK access to cellular uplink/downlink. `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK` require `CAPTURE_AUDIO_OUTPUT`, which is reserved for privileged/system components. During an active voice call, Android's input-sharing rules prioritize the call; a normal app cannot assume `MIC` or `VOICE_COMMUNICATION` receives call audio.
 
-This repository includes an **optional, manually started Shizuku capture prototype**:
+The application exposes two backends through a common recording contract:
+
+- **Standard:** refuses cellular-call capture. The app does not force the loudspeaker or pretend a standard microphone stream is a call recording.
+- **Advanced:** an **optional, manually started Shizuku capture prototype**:
 
 - The user must run Shizuku/Sui and explicitly authorize the app.
 - The capture helper runs as shell UID 2000 or root UID 0 and opens `AudioRecord(VOICE_CALL)`.
@@ -69,7 +72,7 @@ Read the detailed research and safety constraints:
 - Recording-service controller tests for shell/root UID gating, duplicate starts, stop/restart, and initialization failure/retry.
 - WAV file tests for RIFF header correctness, PCM lengths, peak/RMS, and empty-stream rejection.
 
-The diagnostics screen does not read phone numbers, ICCIDs, call-log data, or persist subscription identifiers. Recording files remain in app-private storage and are not uploaded.
+The diagnostics screen does not read phone numbers, ICCIDs, or call-log data, and does not persist subscription identifiers. Recording requires a visible participant-consent acknowledgement, starts only on a SIM slot currently reporting OFFHOOK, and is stopped by the recording service when that slot returns to IDLE. Recording files remain in app-private storage and are not uploaded. The current metadata model keeps phone number nullable; it does not request READ_CALL_LOG because the public telephony callbacks do not consistently expose a number across supported API levels.
 
 ## Limits of automated testing
 
