@@ -118,13 +118,10 @@ class MainActivity : ComponentActivity() {
             }
             if (pendingAutomaticArm) {
                 pendingAutomaticArm = false
-                if (permissionManager.hasCallStatePermission() &&
-                    ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
-                    PackageManager.PERMISSION_GRANTED
-                ) {
+                if (permissionManager.hasCallStatePermission()) {
                     requestArmAutomaticRecording()
                 } else {
-                    recorderCaptureStatus = "Automatic recording requires call-state and microphone permissions."
+                    recorderCaptureStatus = "Automatic recording requires call-state permission."
                 }
             }
         }
@@ -343,9 +340,14 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(this, CallRecordingForegroundService::class.java)
             .setAction(CallRecordingForegroundService.ACTION_ARM_AUTOMATIC)
             .putExtra(CallRecordingForegroundService.EXTRA_PARTICIPANT_CONSENT, participantConsentConfirmed)
-        ContextCompat.startForegroundService(this, intent)
-        automaticRecordingArmed = true
-        recorderCaptureStatus = "Automatic acoustic recording is being armed."
+        try {
+            ContextCompat.startForegroundService(this, intent)
+            automaticRecordingArmed = true
+            recorderCaptureStatus = "Automatic acoustic recording is being armed."
+        } catch (exception: Exception) {
+            automaticRecordingArmed = false
+            recorderCaptureStatus = "Automatic recording could not start: ${exception.message}"
+        }
     }
 
     private fun disarmAutomaticRecording() {
@@ -579,9 +581,9 @@ private fun DiagnosticsScreen(
         DiagnosticCard(title = "Call-audio recording modes") {
             Text("Standard Android mode")
             Text(
-                "Unavailable for cellular-call audio. During a voice call Android gives the input to the call; " +
-                    "a normal app's MIC source cannot be used as a guaranteed call-recording fallback. " +
-                    "The app does not force speakerphone or save one-sided audio as a call recording.",
+                "Legacy Standard app-UID digital capture is unavailable for cellular-call audio and fails closed. " +
+                    "The separate, explicitly armed Speakerphone + MIC mode is acoustic capture; it is not a guaranteed " +
+                    "digital downlink and may be one-sided on some devices.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Text("Advanced mode · Shizuku")
@@ -632,7 +634,7 @@ private fun DiagnosticsScreen(
         }
 
         DiagnosticCard(title = "Hardware validation") {
-            Text("Call-audio capture is explicit and optional. It is not automatically started when a call arrives.")
+            Text("Automatic acoustic capture can be armed explicitly; digital two-way support remains unverified until physical-device tests.")
             Text(
                 "Robolectric verifies telephony listeners and recording policy. It cannot prove that a particular modem/audio HAL delivers both call directions.",
             )
