@@ -128,7 +128,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [26, 35, 37]
+        # API 37 is covered by Robolectric for now. The current stable emulator-runner
+        # bootstrap still requests platforms;android-37 (not the installed 37.2
+        # extension package), so it cannot provision an API 37 AVD reliably.
+        api-level: [26, 35]
 
     steps:
       - name: Check out source
@@ -162,9 +165,9 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            set +e
             mkdir -p app/build/reports/emulator
-            adb logcat -c
+            # Some API 26 emulator images reject logcat buffer clearing. Diagnostics are best-effort.
+            adb logcat -c || true
             gradle --console=plain :app:connectedDebugAndroidTest
             test_exit_code=$?
             adb logcat -d -t 5000 > app/build/reports/emulator/logcat.txt || true
