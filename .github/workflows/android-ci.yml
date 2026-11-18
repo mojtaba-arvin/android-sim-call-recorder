@@ -50,6 +50,15 @@ jobs:
       - name: Run Android lint
         run: gradle --no-daemon :app:lintDebug
 
+      - name: Run Compose UI tests on Android emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: gradle --no-daemon :app:connectedDebugAndroidTest
+
       - name: Assemble debug APK
         run: gradle --no-daemon :app:assembleDebug
 

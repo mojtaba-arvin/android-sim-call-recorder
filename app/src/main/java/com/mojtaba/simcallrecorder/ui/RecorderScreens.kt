@@ -8,11 +8,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -40,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -195,7 +192,6 @@ fun RecordingsListScreen(
             modifier = Modifier.fillMaxWidth().testTag("recordings-date-filter"),
             label = { Text("Date (YYYY-MM-DD)") },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             FilterChip(
@@ -225,12 +221,11 @@ fun RecordingsListScreen(
                 label = { Text("SIM 2") },
                 modifier = Modifier.testTag("sim-filter-1"),
             )
-            Spacer(Modifier.weight(1f))
-            TextButton(
-                onClick = { oldestFirst = !oldestFirst },
-                modifier = Modifier.testTag("recordings-sort"),
-            ) { Text(if (oldestFirst) "Oldest first" else "Newest first") }
         }
+        TextButton(
+            onClick = { oldestFirst = !oldestFirst },
+            modifier = Modifier.testTag("recordings-sort"),
+        ) { Text(if (oldestFirst) "Oldest first" else "Newest first") }
         if (sortedRecords.isEmpty()) {
             Column(Modifier.fillMaxWidth().padding(vertical = 32.dp)) {
                 Text("No recordings yet", style = MaterialTheme.typography.titleMedium)

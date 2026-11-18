@@ -120,6 +120,57 @@ class DefaultCallRecordRepositoryRobolectricTest {
     }
 
     @Test
+    fun storageLimitDeletesOldestCompletedFilesOnly() = runBlocking {
+        val folder = File(context.filesDir, "recordings").apply { mkdirs() }
+        val oldestFile = File(folder, "oldest.wav").apply { writeBytes(ByteArray(4) { 1 }) }
+        val newestFile = File(folder, "newest.wav").apply { writeBytes(ByteArray(8) { 2 }) }
+
+        suspend fun createCompleted(file: File, start: Long, bytes: Long): Long {
+            val id = repository.createActiveRecording(
+                CallRecord(
+                    startedAtEpochMillis = start,
+                    durationMillis = null,
+                    phoneNumber = null,
+                    simSlotIndex = 0,
+                    filePath = file.absolutePath,
+                    recordingMode = "SHIZUKU_VOICE_CALL",
+                    audioSource = "VOICE_CALL",
+                    sampleRate = 48_000,
+                    channelCount = 2,
+                    dataBytes = 0,
+                    peakSample = 0,
+                    rmsSample = 0,
+                    isSilent = null,
+                    status = "RECORDING",
+                    failureReason = null,
+                ),
+            )
+            assertTrue(
+                repository.completeRecording(
+                    id,
+                    CallRecordCompletion(
+                        durationMillis = 1_000,
+                        dataBytes = bytes,
+                        peakSample = 20,
+                        rmsSample = 10,
+                        isSilent = false,
+                    ),
+                ),
+            )
+            return id
+        }
+
+        val oldestId = createCompleted(oldestFile, 1_000L, 4L)
+        val newestId = createCompleted(newestFile, 2_000L, 8L)
+
+        assertEquals(1, repository.enforceStorageLimit(8L))
+        assertFalse(oldestFile.exists())
+        assertTrue(newestFile.exists())
+        assertEquals(null, database.callRecordDao().findById(oldestId))
+        assertEquals("COMPLETED", database.callRecordDao().findById(newestId)?.status)
+    }
+
+    @Test
     fun activeRowsAreMarkedInterruptedWhenTheAppRestarts() = runBlocking {
         val folder = File(context.filesDir, "recordings").apply { mkdirs() }
         val audio = File(folder, "interrupted.wav")

@@ -36,7 +36,7 @@ Requirements: JDK 21, Android SDK Platform 37, Build Tools 37.0.0, and Gradle 9.
 gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-GitHub Actions runs the same tasks on branch pushes and pull requests. A Gradle Wrapper is not checked in yet; it will be added after the toolchain is validated in CI.
+GitHub Actions runs JUnit/Robolectric, lint, Compose UI instrumentation tests on an Android 35 emulator, and debug APK assembly on branch pushes and pull requests. A Gradle Wrapper is not checked in yet; it will be added after the toolchain is validated in CI.
 
 ## Call-audio capture
 
@@ -81,7 +81,7 @@ Read the detailed research and safety constraints:
 - Recording-service controller tests for shell/root UID gating, duplicate starts, stop/restart, and initialization failure/retry.
 - WAV file tests for RIFF header correctness, PCM lengths, peak/RMS, and empty-stream rejection.
 
-The diagnostics screen does not read phone numbers, ICCIDs, or call-log data, and does not persist subscription identifiers. Recording requires a visible participant-consent acknowledgement, starts only on a SIM slot currently reporting OFFHOOK, and is stopped by the recording service when that slot returns to IDLE. Recording files remain in app-private storage and are not uploaded. The current metadata model keeps phone number nullable; it does not request READ_CALL_LOG because the public telephony callbacks do not consistently expose a number across supported API levels.
+The diagnostics screen does not read phone numbers, ICCIDs, or call-log data, and does not persist subscription identifiers. The recordings UI supports text, SIM-slot, and date filtering with newest/oldest sorting. WAV playback uses Media3 ExoPlayer and is released with the player screen lifecycle. Settings persist the backend choice and storage quota; the recording service prunes oldest completed private files only after a successful finalization. Recording requires a visible participant-consent acknowledgement, starts only on a SIM slot currently reporting OFFHOOK, and is stopped by the recording service when that slot returns to IDLE. Recording files remain in app-private storage and are not uploaded. The current metadata model keeps phone number nullable; it does not request READ_CALL_LOG because the public telephony callbacks do not consistently expose a number across supported API levels.
 
 ## Limits of automated testing
 
