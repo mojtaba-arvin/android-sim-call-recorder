@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_capture_service_description">Optional audio compatibility mode. This service does not inspect screen text, clicks, passwords, or notification contents. Enable it only when you intentionally use the Accessibility capture strategy.</string>
+</resources>
