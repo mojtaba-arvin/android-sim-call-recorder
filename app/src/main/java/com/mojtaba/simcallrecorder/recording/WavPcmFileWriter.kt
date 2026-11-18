@@ -3,6 +3,9 @@ package com.mojtaba.simcallrecorder.recording
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlin.math.sqrt
 
 data class WavCaptureResult(
@@ -28,6 +31,10 @@ object WavPcmFileWriter {
     ): WavCaptureResult {
         require(sampleRate > 0) { "Sample rate must be positive." }
         require(channels in 1..2) { "Only mono and stereo PCM are supported." }
+        val blockAlign = channels * BYTES_PER_SAMPLE
+        require(sampleRate.toLong() * blockAlign <= MAX_UNSIGNED_INT) {
+            "The WAV byte rate exceeds the RIFF/WAVE format limit."
+        }
 
         destination.parentFile?.let { parent ->
             check(parent.exists() || parent.mkdirs()) { "Could not create recording directory." }
@@ -60,6 +67,9 @@ object WavPcmFileWriter {
                         continue
                     }
 
+                    check(dataBytes + alignedCount <= MAX_WAV_DATA_BYTES) {
+                        "The PCM stream exceeds the maximum size supported by a standard RIFF/WAVE file."
+                    }
                     output.write(combined, 0, alignedCount)
                     dataBytes += alignedCount
                     pending = combined.copyOfRange(alignedCount, combined.size)
@@ -88,10 +98,7 @@ object WavPcmFileWriter {
                 output.fd.sync()
             }
 
-            if (destination.exists() && !destination.delete()) {
-                error("Could not replace the previous capture file.")
-            }
-            check(temporary.renameTo(destination)) { "Could not finalize the WAV recording file." }
+            moveIntoPlace(temporary, destination)
             val rms = if (sampleCount == 0L) 0 else sqrt(sumSquares / sampleCount).toInt()
             return WavCaptureResult(destination, dataBytes, peak, rms)
         } catch (exception: Exception) {
@@ -99,6 +106,25 @@ object WavPcmFileWriter {
             throw exception
         } finally {
             input.close()
+        }
+    }
+
+    private fun moveIntoPlace(temporary: File, destination: File) {
+        try {
+            Files.move(
+                temporary.toPath(),
+                destination.toPath(),
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (unsupported: AtomicMoveNotSupportedException) {
+            // Both files share a directory, but some filesystems still reject atomic replacement.
+            // Keep the existing destination intact until the completed temporary file is ready.
+            Files.move(
+                temporary.toPath(),
+                destination.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
         }
     }
 
@@ -110,7 +136,7 @@ object WavPcmFileWriter {
     ) {
         val bytesPerSample = BYTES_PER_SAMPLE
         val blockAlign = channels * bytesPerSample
-        val byteRate = sampleRate * blockAlign
+        val byteRate = sampleRate.toLong() * blockAlign
 
         output.writeBytes("RIFF")
         output.writeIntLittleEndian((36L + dataBytes).toInt())
@@ -120,7 +146,7 @@ object WavPcmFileWriter {
         output.writeShortLittleEndian(1) // PCM
         output.writeShortLittleEndian(channels)
         output.writeIntLittleEndian(sampleRate)
-        output.writeIntLittleEndian(byteRate)
+        output.writeIntLittleEndian(byteRate.toInt())
         output.writeShortLittleEndian(blockAlign)
         output.writeShortLittleEndian(16)
         output.writeBytes("data")
@@ -141,4 +167,7 @@ object WavPcmFileWriter {
 
     private const val COPY_BUFFER_BYTES = 16 * 1024
     private const val BYTES_PER_SAMPLE = 2
+    private const val MAX_UNSIGNED_INT = 0xffff_ffffL
+    // RIFF chunk size includes the 36-byte header prefix preceding PCM data.
+    private const val MAX_WAV_DATA_BYTES = MAX_UNSIGNED_INT - 36L
 }
