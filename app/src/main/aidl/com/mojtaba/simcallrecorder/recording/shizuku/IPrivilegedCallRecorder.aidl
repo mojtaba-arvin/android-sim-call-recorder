@@ -14,6 +14,9 @@ interface IPrivilegedCallRecorder {
 
     String getLastError() = 5;
 
+    // True only when the UserService established the required shell audio attribution.
+    boolean isCaptureReady() = 6;
+
     // Reserved Shizuku UserService destroy transaction.
     void destroy() = 16777114;
 }
