@@ -86,6 +86,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: "9.6.0"
+          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -127,7 +128,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [26, 37]
+        api-level: [26, 35, 37]
 
     steps:
       - name: Check out source
@@ -160,7 +161,16 @@ jobs:
           # Keep Quick Boot snapshots enabled; forcing cold boots added several minutes per PR run.
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
-          script: gradle --console=plain :app:connectedDebugAndroidTest
+          script: |
+            set +e
+            mkdir -p app/build/reports/emulator
+            adb logcat -c
+            gradle --console=plain :app:connectedDebugAndroidTest
+            test_exit_code=$?
+            adb logcat -d -t 5000 > app/build/reports/emulator/logcat.txt || true
+            adb shell dumpsys activity services > app/build/reports/emulator/services.txt || true
+            adb shell dumpsys audio > app/build/reports/emulator/audio.txt || true
+            exit "$test_exit_code"
 
       - name: Upload instrumented test reports
         if: always()
@@ -170,6 +180,7 @@ jobs:
           path: |
             app/build/reports/androidTests/connected/**
             app/build/outputs/androidTest-results/connected/**
+            app/build/reports/emulator/**
           if-no-files-found: warn
           retention-days: 7
 
