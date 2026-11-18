@@ -77,7 +77,7 @@ Read the detailed research and safety constraints:
 
 - **Recordings:** search, SIM-slot filter, date filter, and newest/oldest sorting.
 - **Player:** Media3 ExoPlayer with play/pause, seek/progress controls; only completed readable private WAVs are playable.
-- **Settings:** capture strategy candidates, Shizuku status, microphone permission, local storage quota, and the current manual trigger. Consent-gated automatic Standard acoustic capture can be armed from Diagnostics; its two-way audio performance remains unverified.
+- **Settings:** capture strategy candidates, Shizuku status, microphone permission, and local storage quota. Consent-gated automatic Standard acoustic capture can be armed from Diagnostics; its two-way audio performance remains unverified.
 - **Diagnostics:** the SIM-state, audio-route, and Shizuku connection panel remains available as a dedicated tab.
 
 ## Diagnostics implementation
