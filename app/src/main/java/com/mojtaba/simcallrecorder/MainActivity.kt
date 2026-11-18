@@ -41,7 +41,9 @@ import com.mojtaba.simcallrecorder.domain.model.CallState
 import com.mojtaba.simcallrecorder.domain.model.CallStateEvent
 import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import com.mojtaba.simcallrecorder.domain.repository.DeviceDiagnosticsRepository
+import com.mojtaba.simcallrecorder.domain.repository.CallRecordRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -57,6 +59,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var diagnosticsRepository: DeviceDiagnosticsRepository
+
+    @Inject
+    lateinit var callRecordRepository: CallRecordRepository
 
     @Inject
     lateinit var recorderClient: ShizukuAudioRecorderClient
@@ -95,6 +100,9 @@ class MainActivity : ComponentActivity() {
 
         refreshPermissionState()
         refreshDiagnostics()
+        lifecycleScope.launch(Dispatchers.IO) {
+            callRecordRepository.markActiveRecordingsInterrupted()
+        }
         recorderClient.refreshConnectionStatus()
         lifecycleScope.launch {
             recorderClient.connectionStatus.collect { recorderConnectionStatus = it }

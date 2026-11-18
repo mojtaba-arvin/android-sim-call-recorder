@@ -120,7 +120,7 @@ class CallRecordDaoRobolectricTest {
             assertEquals("legacy.wav", record?.filePath)
             assertEquals("LEGACY", record?.recordingMode)
             assertEquals("LEGACY", record?.status)
-            assertEquals(0, record?.simSlotIndex)
+            assertEquals(-1, record?.simSlotIndex)
                 .also { /* no phone or subscription identifiers are synthesized during migration */ }
         } finally {
             migrated.close()

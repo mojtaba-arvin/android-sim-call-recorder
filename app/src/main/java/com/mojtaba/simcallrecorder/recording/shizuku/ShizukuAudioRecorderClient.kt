@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import rikka.shizuku.Shizuku
 import java.io.File
 import java.text.SimpleDateFormat
@@ -268,14 +269,30 @@ class ShizukuAudioRecorderClient @Inject constructor(
         val startedAtEpochMillis = activeCaptureStartedAtEpochMillis
         val startedAtElapsedRealtime = activeCaptureStartedElapsedRealtime
         val api = remote
-        runCatching { api?.stopVoiceCallCapture() }
-            .onFailure { _captureStatus.value = "Capture stop request failed: ${it.message}" }
+        val remoteStopSucceeded = api != null && runCatching {
+            api.stopVoiceCallCapture()
+        }.onFailure {
+            _captureStatus.value = "Capture stop request failed: ${it.message}"
+        }.isSuccess
 
-        // Closing the reader is also a hard fallback: if the remote binder died, the shell-side
-        // pipe writer receives EPIPE and its AudioRecord loop can release instead of hanging join().
-        activeReadPipe?.let { runCatching { it.close() } }
+        val reader = activeReadPipe
+        val writerJob = copyJob
+        // On a successful remote stop, let the pipe reach EOF so the copy coroutine can drain
+        // every buffered PCM byte before closing the reader. Close early only if the binder died,
+        // the stop transaction failed, or the writer did not finish within the bounded drain time.
+        if (!remoteStopSucceeded) {
+            reader?.let { runCatching { it.close() } }
+        }
+        val drained = writerJob?.let { job ->
+            runCatching { withTimeout(PIPE_DRAIN_TIMEOUT_MS) { job.join() } }.isSuccess
+        } ?: true
+        if (!drained) {
+            reader?.let { runCatching { it.close() } }
+            writerJob?.let { job ->
+                runCatching { withTimeout(PIPE_CLOSE_TIMEOUT_MS) { job.join() } }
+            }
+        }
         activeReadPipe = null
-        copyJob?.join()
         copyJob = null
 
         val wav = lastCaptureResult
@@ -321,5 +338,7 @@ class ShizukuAudioRecorderClient @Inject constructor(
         const val ROOT_UID = 0
         const val SAMPLE_RATE = 48_000
         const val PREFERRED_CHANNELS = 2
+        const val PIPE_DRAIN_TIMEOUT_MS = 5_000L
+        const val PIPE_CLOSE_TIMEOUT_MS = 2_000L
     }
 }
