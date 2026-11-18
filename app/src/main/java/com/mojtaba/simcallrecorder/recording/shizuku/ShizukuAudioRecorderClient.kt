@@ -67,8 +67,9 @@ class ShizukuAudioRecorderClient @Inject constructor(
     private var serviceConnection: ServiceConnection? = null
     private var copyJob: Job? = null
     private var activeReadPipe: ParcelFileDescriptor? = null
-    private var activeFile: File? = null
-    private var lastCaptureResult: WavCaptureResult? = null
+    @Volatile private var activeFile: File? = null
+    @Volatile private var lastCaptureResult: WavCaptureResult? = null
+    @Volatile private var captureGeneration: Long = 0L
 
     @Volatile
     private var lastCaptureChannels: Int = 0
@@ -231,8 +232,10 @@ class ShizukuAudioRecorderClient @Inject constructor(
         val api = remote ?: error("Connect and authorize the Shizuku recorder first.")
 
         // Never let a failed new start expose a previous session's file/result as current.
+        val captureSessionId = ++captureGeneration
         lastCaptureResult = null
         activeFile = null
+        lastCaptureChannels = 0
         activeCaptureStartedAtEpochMillis = null
         activeCaptureStartedElapsedRealtime = null
         _captureStatus.value = "Preparing VOICE_CALL capture…"
@@ -281,15 +284,21 @@ class ShizukuAudioRecorderClient @Inject constructor(
                     channels = channels,
                 )
             }.onSuccess { result ->
-                lastCaptureResult = result
-                val audioAssessment = if (result.isSilent) {
-                    "The WAV contains only digital silence; this device did not deliver usable call audio."
+                if (captureGeneration == captureSessionId) {
+                    lastCaptureResult = result
+                    val audioAssessment = if (result.isSilent) {
+                        "The WAV contains only digital silence; this device did not deliver usable call audio."
+                    } else {
+                        "Peak=${result.peakSample}, RMS=${result.rmsSample}. Both call directions still require device-level verification."
+                    }
+                    _captureStatus.value = "Saved ${result.file.name} · ${result.dataBytes} PCM bytes. $audioAssessment"
                 } else {
-                    "Peak=${result.peakSample}, RMS=${result.rmsSample}. Both call directions still require device-level verification."
+                    runCatching { result.file.delete() }
                 }
-                _captureStatus.value = "Saved ${result.file.name} · ${result.dataBytes} PCM bytes. $audioAssessment"
             }.onFailure { error ->
-                _captureStatus.value = "Recording file was not saved: ${error.message}"
+                if (captureGeneration == captureSessionId) {
+                    _captureStatus.value = "Recording file was not saved: ${error.message}"
+                }
             }
         }
         destination
@@ -339,7 +348,14 @@ class ShizukuAudioRecorderClient @Inject constructor(
         }
         if (captureFailure != null) {
             val incompleteFile = lastCaptureResult?.file ?: activeFile
+            captureGeneration++
             lastCaptureResult = null
+            if (writerJob?.isActive == true && incompleteFile != null) {
+                writerJob.invokeOnCompletion {
+                    if (lastCaptureResult?.file == incompleteFile) lastCaptureResult = null
+                    runCatching { incompleteFile.delete() }
+                }
+            }
             incompleteFile?.let { runCatching { it.delete() } }
             activeFile = null
             activeCaptureStartedAtEpochMillis = null
