@@ -1,0 +1,54 @@
+name: Android 16 Shell call-audio permission probe
+
+on:
+  push:
+    branches:
+      - probe/android16-shell-permission
+
+permissions:
+  contents: read
+
+jobs:
+  shell-permission-probe:
+    name: Verify API 36 shell UID call-audio grants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
+
+      - name: Probe Android 16 Shell permissions
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          force-avd-creation: true
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            shell_uid="$(adb shell id -u | tr -d '\r')"
+            echo "adb shell uid=$shell_uid"
+            test "$shell_uid" = "2000"
+
+            for permission in \
+              android.permission.CALL_AUDIO_INTERCEPTION \
+              android.permission.CAPTURE_AUDIO_OUTPUT; do
+              result="$(adb shell pm check-permission "$permission" com.android.shell | tr -d '\r')"
+              echo "$permission=$result"
+              test "$result" = "granted"
+            done
+
+            adb shell dumpsys package com.android.shell | grep -E 'CALL_AUDIO_INTERCEPTION|CAPTURE_AUDIO_OUTPUT'
