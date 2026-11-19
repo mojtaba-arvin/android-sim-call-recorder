@@ -19,7 +19,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.io.ByteArrayInputStream
 import java.io.File
+import com.mojtaba.simcallrecorder.recording.WavPcmFileWriter
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -45,7 +47,8 @@ class DefaultCallRecordRepositoryRobolectricTest {
     @Test
     fun createsCompletesFiltersAndDeletesPrivateRecording() = runBlocking {
         val folder = File(context.filesDir, "recordings").apply { mkdirs() }
-        val audio = File(folder, "repository-test.wav").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
+        val audio = File(folder, "repository-test.wav")
+        WavPcmFileWriter.copyPcm(ByteArrayInputStream(ByteArray(192_000)), audio, 48_000, 2)
         val id = repository.createActiveRecording(
             CallRecord(
                 startedAtEpochMillis = 100_000L,
@@ -157,8 +160,10 @@ class DefaultCallRecordRepositoryRobolectricTest {
     @Test
     fun storageLimitDeletesOldestCompletedFilesOnly() = runBlocking {
         val folder = File(context.filesDir, "recordings").apply { mkdirs() }
-        val oldestFile = File(folder, "oldest.wav").apply { writeBytes(ByteArray(4) { 1 }) }
-        val newestFile = File(folder, "newest.wav").apply { writeBytes(ByteArray(8) { 2 }) }
+        val oldestFile = File(folder, "oldest.wav")
+        val newestFile = File(folder, "newest.wav")
+        WavPcmFileWriter.copyPcm(ByteArrayInputStream(ByteArray(4) { 1 }), oldestFile, 48_000, 2)
+        WavPcmFileWriter.copyPcm(ByteArrayInputStream(ByteArray(8) { 2 }), newestFile, 48_000, 2)
 
         suspend fun createCompleted(file: File, start: Long, bytes: Long): Long {
             val id = repository.createActiveRecording(
