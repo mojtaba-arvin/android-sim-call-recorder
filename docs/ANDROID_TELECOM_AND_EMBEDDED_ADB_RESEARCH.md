@@ -183,3 +183,18 @@ The `adb-kt`/`spake2-kt` review was extended from README/dependency metadata int
 
 **Decision strengthened:** do not add this ADB stack to the application dependency graph yet. Before a pairing prototype, require an exact immutable commit, published artifact/coordinate reconciliation, strict dependency verification and SBOM, AOSP/BoringSSL oracle-vector tests, malformed-input/fuzz tests, explicit zeroization, bounded I/O, certificate-pin lifecycle, a Keystore-compatible identity design, and an independent cryptographic review. Even if all pass, embedded ADB still yields shell UID 2000 and does not create the missing protected audio permission.
 
+
+## 9. Acoustic microphone capture as a separate fallback (not a digital call tap)
+
+The existing speakerphone + microphone path should be evaluated separately from the three privileged paths above:
+
+- Android's audio-input sharing rules state that during a voice call, the call always receives microphone input; an AccessibilityService may also capture the input, while a privileged preinstalled app with `CAPTURE_AUDIO_OUTPUT` can capture the call using protected call sources. An ordinary app's `AudioRecord` may initialize but receive silence. This explains why non-empty WAV and `RECORDSTATE_RECORDING` are not acceptance evidence.
+- With speakerphone enabled, the far-end party is emitted by the loudspeaker and can be re-captured acoustically by the handset microphone. The near-end party is captured directly by the same microphone. This is an acoustic mix, not the modem's digital downlink/uplink; it is sensitive to speaker volume, distance, room noise, echo cancellation, gain control, device placement, and OEM call routing.
+- Earpiece, wired headset, Bluetooth headset, and USB audio routes generally remove the far-end loudspeaker signal from the handset microphone. Unless the route is deliberately changed to speakerphone, the acoustic path cannot be assumed to contain both parties.
+- `VOICE_COMMUNICATION` is privacy-sensitive and can enable AEC/AGC, but call input-sharing and OEM processing can change the resulting signal. AEC may suppress the remote loudspeaker signal as echo; AGC/noise suppression may damage speech. This must be measured on real devices rather than inferred from source selection.
+- AccessibilityService's ability to receive microphone input does not grant the protected digital `VOICE_CALL` source. Do not describe it as equivalent to `CAPTURE_AUDIO_OUTPUT` or `CALL_AUDIO_INTERCEPTION`.
+
+**Acceptance for this path:** explicitly label it speakerphone/acoustic mode; require user-visible disclosure and consent; capture route changes and AudioRecord silencing callbacks; measure local and remote speech separately using distinct known phrases; test speaker volume, microphone distance, room noise, and route transitions. Never silently fall back from a denied digital strategy to acoustic capture, and never label a one-sided file as a successful call recording.
+
+Reference: [Android audio input sharing rules](https://developer.android.com/media/platform/sharing-audio-input).
+
