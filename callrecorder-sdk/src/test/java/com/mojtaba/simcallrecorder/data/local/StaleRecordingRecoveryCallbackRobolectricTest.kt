@@ -49,7 +49,7 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         val activeWav = File(recordingDirectory, "active.wav")
         val activePart = File(recordingDirectory, "active.wav.part").apply { writeBytes(byteArrayOf(1, 2)) }
         // Models abrupt process death after the WAV header was created and PCM writing began:
-        // the header still advertises an empty data chunk while a partial frame is present.
+        // the header still advertises an empty data chunk while PCM payload bytes are already present.
         val orphanPart = File(recordingDirectory, "orphan.wav.part").apply {
             writeBytes(partialWavFromInterruptedPcmWrite())
         }
