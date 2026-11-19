@@ -306,14 +306,16 @@ internal class CallRecordingForegroundService : Service() {
                             }
                         }
                     }
-                    RecordingMode.SPEAKERPHONE_MIC -> serviceScope.launch {
+                    RecordingMode.SPEAKERPHONE_MIC,
+                    RecordingMode.OEM_VOICE_RECOGNITION,
+                    RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION -> serviceScope.launch {
                         AudioRecordingDiagnostics.status.collect { status ->
                             activeRecordId?.let { recordId ->
                                 callRecordRepository.appendCaptureDiagnostic(recordId, "[${System.currentTimeMillis()}] $status")
                             }
                         }
                     }
-                    else -> null
+                    RecordingMode.STANDARD -> null
                 }
                 watchCallEnd(request.simSlotIndex)
             } catch (cancelled: CancellationException) {
