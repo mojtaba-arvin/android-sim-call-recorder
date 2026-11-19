@@ -17,14 +17,21 @@ internal class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub 
     private val shellAttributionReady = ShizukuShellAttribution.detachFromApplication()
 
     @Volatile
-    private var voiceCallPermissionGranted = Process.myUid() == ROOT_UID
+    private var captureAudioOutputGranted = false
+
+    @Volatile
+    private var callAudioInterceptionGranted = false
 
     private val controller = RecorderServiceController(
         engine = AndroidVoiceCallCaptureEngine(),
         hostUid = { Process.myUid() },
         captureReady = {
             shellAttributionReady &&
-                hasVoiceCallCapturePermission(Process.myUid(), voiceCallPermissionGranted)
+                hasVoiceCallCapturePermission(
+                    uid = Process.myUid(),
+                    captureAudioOutputGranted = captureAudioOutputGranted,
+                    callAudioInterceptionGranted = callAudioInterceptionGranted,
+                )
         },
     )
 
@@ -45,11 +52,8 @@ internal class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub 
             permission = CALL_AUDIO_INTERCEPTION_PERMISSION,
             uid = uid,
         )
-        voiceCallPermissionGranted = hasVoiceCallCapturePermission(
-            uid = uid,
-            captureAudioOutputGranted = captureAudioOutputGranted,
-            callAudioInterceptionGranted = callAudioInterceptionGranted,
-        )
+        this@PrivilegedCallRecorderUserService.captureAudioOutputGranted = captureAudioOutputGranted
+        this@PrivilegedCallRecorderUserService.callAudioInterceptionGranted = callAudioInterceptionGranted
     }
 
     override fun getHostUid(): Int = Process.myUid()
