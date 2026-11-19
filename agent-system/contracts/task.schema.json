@@ -1,0 +1,464 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mojtaba-arvin/android-sim-call-recorder/blob/main/agent-system/contracts/task.schema.json",
+  "title": "Repository R&D Agent Task Contract",
+  "description": "Versioned, evidence-oriented task envelope for agent sessions operating this repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "issue",
+    "repository",
+    "context_snapshot",
+    "objective",
+    "scope",
+    "non_goals",
+    "risk",
+    "dependencies",
+    "acceptance_criteria",
+    "tool_grants",
+    "forbidden_actions",
+    "plan",
+    "verification",
+    "state"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issue": {
+      "$ref": "#/$defs/issue_ref"
+    },
+    "repository": {
+      "type": "string",
+      "const": "mojtaba-arvin/android-sim-call-recorder"
+    },
+    "context_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captured_at",
+        "base_sha",
+        "branch",
+        "active_pr",
+        "ci_runs"
+      ],
+      "properties": {
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "base_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active_pr": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ci_runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "run_id",
+              "head_sha",
+              "status"
+            ],
+            "properties": {
+              "run_id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "head_sha": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "status": {
+                "enum": [
+                  "queued",
+                  "in_progress",
+                  "completed",
+                  "unknown"
+                ]
+              },
+              "conclusion": {
+                "enum": [
+                  "success",
+                  "failure",
+                  "cancelled",
+                  "skipped",
+                  "timed_out",
+                  "action_required",
+                  "neutral",
+                  "unknown",
+                  null
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "non_goals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue_ref"
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "verification",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z0-9][A-Z0-9._-]+$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verification": {
+            "enum": [
+              "automated_test",
+              "ci_check",
+              "manual_review",
+              "official_source",
+              "physical_device",
+              "owner_approval"
+            ]
+          },
+          "evidence_required": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "met",
+              "not_met",
+              "blocked",
+              "not_applicable"
+            ]
+          }
+        }
+      }
+    },
+    "tool_grants": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "read_repository",
+          "read_issues",
+          "write_issue_progress",
+          "write_issue_metadata",
+          "create_branch",
+          "write_feature_branch",
+          "create_pull_request",
+          "read_actions",
+          "read_logs",
+          "read_artifacts",
+          "run_tests",
+          "read_official_web_sources"
+        ]
+      }
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "write_default_branch",
+          "merge_pull_request",
+          "enable_auto_merge",
+          "bypass_ruleset",
+          "change_branch_protection",
+          "change_repository_permissions",
+          "read_or_write_secrets",
+          "publish_release",
+          "create_release_tag",
+          "publish_apk_or_aar",
+          "change_consent_policy",
+          "change_privacy_policy",
+          "accept_external_license",
+          "claim_unverified_device_support",
+          "upload_call_audio"
+        ]
+      }
+    },
+    "approval_gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "reason",
+          "status"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "not_required",
+              "requested",
+              "approved",
+              "denied",
+              "blocked"
+            ]
+          }
+        }
+      }
+    },
+    "plan": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step_id",
+          "description",
+          "estimate_minutes",
+          "depends_on"
+        ],
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "estimate_minutes": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 120
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checks",
+        "negative_cases",
+        "privacy_review_required"
+      ],
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "negative_cases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "privacy_review_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "discovered",
+        "triaged",
+        "ready",
+        "in_progress",
+        "validation",
+        "pr_review",
+        "blocked",
+        "done"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "acceptance_status",
+        "evidence"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "acceptance_status": {
+          "enum": [
+            "complete",
+            "partial",
+            "blocked",
+            "failed"
+          ]
+        },
+        "commit_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([0-9a-f]{40})?$"
+        },
+        "pull_request_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "issue_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "number",
+        "url"
+      ],
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reference",
+        "head_sha",
+        "claim"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "source_file",
+            "official_documentation",
+            "test_report",
+            "workflow_run",
+            "workflow_job",
+            "artifact",
+            "review_comment",
+            "physical_device_record",
+            "owner_approval"
+          ]
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "head_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([0-9a-f]{40})?$"
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "captured_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}
