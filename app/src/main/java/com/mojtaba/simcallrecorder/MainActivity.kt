@@ -145,9 +145,6 @@ class MainActivity : ComponentActivity() {
         automaticRecordingArmed = recorderSdk.automaticRecordingArmed.value
         refreshPermissionState()
         refreshDiagnostics()
-        lifecycleScope.launch(Dispatchers.IO) {
-            recorderSdk.markInterruptedRecordings()
-        }
         recorderSdk.refreshShizukuConnection()
         lifecycleScope.launch {
             recorderSdk.shizukuConnectionStatus.collect { status ->
