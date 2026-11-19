@@ -1,6 +1,8 @@
 package com.mojtaba.simcallrecorder.data.local
 
 import androidx.room.Room
+import com.mojtaba.simcallrecorder.recording.WavPcmFileWriter
+import java.io.ByteArrayInputStream
 import com.mojtaba.simcallrecorder.data.local.entity.CallRecordEntity
 import java.io.File
 import kotlinx.coroutines.flow.first
@@ -51,7 +53,12 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         val completedWav = File(recordingDirectory, "completed.wav").apply { writeBytes(byteArrayOf(7, 8)) }
         // Models a crash after the temporary file was promoted but before the Room commit.
         val promotedBeforeCommitWav = File(recordingDirectory, "promoted-before-commit.wav")
-            .apply { writeBytes(byteArrayOf(9, 10, 11, 12)) }
+        WavPcmFileWriter.copyPcm(
+            ByteArrayInputStream(byteArrayOf(1, 0, 2, 0)),
+            promotedBeforeCommitWav,
+            sampleRate = 48_000,
+            channels = 2,
+        )
         val unrelated = File(recordingDirectory, "notes.txt").apply { writeText("keep") }
 
         // Seed a database as the previous process would have left it, without recovery callback.
@@ -90,6 +97,7 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         assertFalse(completedPart.exists())
         assertTrue(completedWav.exists())
         assertTrue(promotedBeforeCommitWav.exists())
+        assertEquals("RIFF", promotedBeforeCommitWav.readBytes().let { String(it, 0, 4, Charsets.US_ASCII) })
         assertTrue(unrelated.exists())
     }
 
