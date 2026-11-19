@@ -44,11 +44,13 @@ The catalog also exposes:
 Important operational semantics:
 - `create_file` and `update_file` can write to the default branch if the `branch` argument is omitted. Always pass an explicit non-default feature branch and fetch the current blob SHA before updating an existing file.
 - `update_ref` can move a Git ref. Treat it as force-update/high risk; do not grant it to ordinary implementers.
-- `update_issue` can close an issue. Closure requires every acceptance criterion to have evidence.
-- `update_pull_request` can change base/state. Do not close another contributor's PR or retarget without a documented reason.
+- `update_issue` and `update_pull_request` are high-risk mutations because their schemas can close issues/PRs or change PR base/state. Ordinary progress edits must omit state/base fields. Closure and retargeting require separate gates and evidence.
+- `create_file` and `update_file` require explicit non-default branch arguments; `update_file` also requires the current blob SHA. Omitting the branch risks a default-branch write.
+- `update_ref` is denied to ordinary implementers because it can move a ref; use an expected-SHA lease only under separate authorization.
 - `add_comment_to_issue` is described by this connector as a PR Conversation comment and takes a PR number; do not assume it creates an issue comment.
 - `add_review_to_pr` can submit a review. Never self-approve; only submit an authorized COMMENT or REQUEST_CHANGES review when a real independent review is intended.
 - `merge_pull_request` and `enable_auto_merge` are exposed but remain denied to the orchestrator unless a separate explicit merge authorization and all repository gates are satisfied.
+- `add_review_to_pr` is high-risk because it can approve. Self-approval is forbidden; only an authorized COMMENT or REQUEST_CHANGES review is appropriate.
 - CI retry is not a general workflow dispatch. The catalog exposes retry of a failed job or failed jobs, but no direct `workflow_dispatch` or workflow-cancel action.
 
 ## Permissions observed
