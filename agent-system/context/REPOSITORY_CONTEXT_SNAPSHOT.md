@@ -1,10 +1,10 @@
 # Repository Context Pack — Snapshot v1
 
-**Snapshot ID:** `android-sim-call-recorder-2026-11-19T10:23:00Z`  
-**Captured at:** 2026-11-19T10:23:00Z  
+**Snapshot ID:** `android-sim-call-recorder-2026-11-19T10:28:00Z`  
+**Captured at:** 2026-11-19T10:28:00Z  
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Snapshot source branch:** `bootstrap/native-android-foundation`  
-**Snapshot source HEAD:** `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`  
+**Snapshot source HEAD:** `1f6061728d0d9463c1c83ca1591f8790a4854fe1`  
 **Active PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main` at `71fe1f386fffe67547c1848ff12bc844247677de`  
 **Context contract:** [R&D Agent Charter](../../docs/RD_AGENT_CHARTER.md), [Task Contract](../../docs/RD_AGENT_TASK_CONTRACT.md), [JSON Schema](../contracts/task.schema.json)
 
@@ -16,7 +16,7 @@ A consumer MUST refresh GitHub state before starting any implementation or makin
 
 Treat this snapshot as stale if ANY condition is true:
 
-1. The source branch HEAD differs from `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`.
+1. The source branch HEAD differs from `1f6061728d0d9463c1c83ca1591f8790a4854fe1`.
 2. PR #1 has a different head/base SHA, is no longer open, changes Draft state, or receives new review/mergeability information.
 3. Workflow run [#44465011336](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44465011336) changes status/conclusion, or a newer run is associated with the active PR head.
 4. Any referenced issue changes state, body, dependency, assignee, label, or linked PR.
@@ -51,7 +51,7 @@ Read these files in this order at session start:
 - Issue #9 recovery-ordering follow-up is in [PR #23](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/23), open/Draft and stacked on PR #1.
 - A1.1 tool inventory is in [PR #24](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/24), open/Draft and stacked on PR #1. A1.2–A1.5 remain gated.
 - Additional Issue #9 teardown race test is in [PR #25](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/25), open/Draft and stacked on PR #1; it has no CI run yet.
-- Source HEAD under validation: `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`.
+- Source HEAD under validation: `1f6061728d0d9463c1c83ca1591f8790a4854fe1`.
 - PR #1 is a large SDK extraction/foundation PR (367 commits, 114 changed files at capture time); inspect the live diff and current commit history before review. No independent review submissions or inline review threads were present on PRs #1, #22–#25 at refresh.
 - The PR's product acceptance is not complete: physical two-way cellular audio has not been validated on a handset.
 - `main` was not modified by this work.
@@ -62,8 +62,8 @@ Read these files in this order at session start:
 Workflow: [Android CI run #44465011336](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44465011336)  
 Run number: 470  
 Event: `pull_request`  
-Tested SHA: `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`  
-Run state: **completed, success (attempt 2)**.
+Tested SHA: `1f6061728d0d9463c1c83ca1591f8790a4854fe1`  
+Previous run #44465011336 completed successfully on the prior foundation SHA. A new run #44505690931 is now **in_progress** on updated foundation SHA `1f6061728d0d9463c1c83ca1591f8790a4854fe1` after the stacked-PR workflow filter change; do not claim the new foundation head green until it completes.
 
 | Job | Conclusion |
 |---|---|
@@ -111,7 +111,7 @@ The following issues were open when queried. Refresh all relevant issue bodies/c
 
 - Active ruleset `Protect main` (ID `27531148`) applies to the default branch and requires pull requests plus `Android CI / Required checks`; deletion and non-fast-forward protections are enabled.
 - Required approving review count is 0; strict/up-to-date status checks are disabled; no bypass actors are configured. This was read from the ruleset API. Branch-protection GET itself returns 403 through the connector.
-- PR #22 (A0 context/benchmark), PR #23 (Issue #9 startup barrier tests), and PR #24 (A1.1 capability inventory) are Draft stacked PRs based on PR #1 head `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`.
+- PR #22 (A0 context/benchmark), PR #23 (Issue #9 startup barrier tests), and PR #24 (A1.1 capability inventory) are Draft stacked PRs based on PR #1 head `1f6061728d0d9463c1c83ca1591f8790a4854fe1`.
   - PR #22 contains this snapshot; its exact head necessarily changes when the snapshot itself is refreshed, so fetch PR #22 live rather than pinning a self-referential SHA.
   - PR #23 head: `d0397e529d998b5399e29f4cb54a7f23f2665ada`.
   - PR #24 head: `dabc40e4dc9cea0704ccc2b1626f6be88e5f7ac3`.
