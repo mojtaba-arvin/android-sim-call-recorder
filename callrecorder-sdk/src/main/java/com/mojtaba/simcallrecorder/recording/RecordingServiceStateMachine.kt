@@ -58,6 +58,22 @@ internal class RecordingServiceStateMachine {
         return event.state == CallState.IDLE && hasObservedOffhook
     }
 
+    /**
+     * Claims teardown after a start coroutine fails or is cancelled.
+     * STARTING remains owned by the start coroutine until it records failure;
+     * RECORDING atomically transfers ownership to STOPPING. A concurrent
+     * stop/onDestroy path that already owns STOPPING is never duplicated.
+     */
+    @Synchronized
+    fun beginFailureCleanup(): Boolean = when (state) {
+        State.STARTING -> true
+        State.RECORDING -> {
+            state = State.STOPPING
+            true
+        }
+        else -> false
+    }
+
     @Synchronized
     fun beginStop(): Boolean {
         if (state != State.RECORDING) return false
