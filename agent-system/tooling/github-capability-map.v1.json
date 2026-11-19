@@ -427,7 +427,7 @@
     },
     {
       "name": "update_issue",
-      "access": "mutation",
+      "access": "high_risk_mutation",
       "summary": "Update a GitHub issue, including title/body, state, labels, assignees, or milestone. Returns a normalized issue snapshot after the patch. Docs: https://docs.github.com/en/rest/issues/issues?apiVersion=2022-11-28#update-an-issue"
     },
     {
@@ -437,7 +437,7 @@
     },
     {
       "name": "update_pull_request",
-      "access": "mutation",
+      "access": "high_risk_mutation",
       "summary": "Update PR metadata, base branch, or open/closed state. Returns the connector's normalized PR snapshot. Docs: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#update-a-pull-request"
     },
     {
@@ -595,6 +595,8 @@
     "enable_auto_merge",
     "mark_pull_request_ready_for_review",
     "merge_pull_request",
+    "update_issue",
+    "update_pull_request",
     "update_ref"
   ],
   "global_invariants": [
@@ -609,6 +611,19 @@
   "notes": [
     "add_comment_to_issue is a PR conversation comment operation, not an issue-number comment operation.",
     "add_review_to_pr is high-risk because the action can submit an approval; never self-approve.",
-    "label_pr is a mutation even though its name does not use a create/update prefix."
-  ]
+    "label_pr is a mutation even though its name does not use a create/update prefix.",
+    "update_issue and update_pull_request are classified high-risk because their schemas can close issues/PRs or change PR base; use only body/metadata fields unless a separate gate authorizes state changes."
+  ],
+  "argument_constraints": {
+    "create_branch": "Use exactly one of base_ref or sha; prefer an exact reviewed commit SHA.",
+    "create_file": "branch is mandatory and must be an explicitly named non-default feature branch.",
+    "update_file": "branch and current blob sha are mandatory; re-fetch the blob after conflicts; never omit branch.",
+    "update_issue": "Progress/body edits may omit state. Closing is a separate gated operation and requires every acceptance criterion to be evidenced on the final linked SHA.",
+    "update_pull_request": "Base/state changes are denied by default. Draft/ready transitions require the PR readiness gate; closing another contributor's PR is denied.",
+    "add_review_to_pr": "Only COMMENT or REQUEST_CHANGES when explicitly authorized; APPROVE is forbidden for self-authored work.",
+    "update_ref": "Denied for normal implementers; requires a separate explicit ref-movement authorization and expected_sha lease.",
+    "merge_pull_request": "Denied by default; separate merge approval and all branch-protection checks are mandatory.",
+    "enable_auto_merge": "Denied by default; do not use as a substitute for explicit merge authorization.",
+    "rerun_workflow_job": "Only retry a completed failed/cancelled job after inspecting logs and classifying a transient runner/environment failure; do not retry product/test failures blindly."
+  }
 }
