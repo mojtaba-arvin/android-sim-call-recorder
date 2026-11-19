@@ -156,14 +156,17 @@ class CallRecordDaoRobolectricTest {
         ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
         val recordingDirectory = File(context.filesDir, "recordings").apply { mkdirs() }
-        val activeFile = File(recordingDirectory, "active.wav")
+        val activeFile = File(recordingDirectory, "active.wav").apply { writeBytes(byteArrayOf(7, 8, 9)) }
+        val completedFile = File(recordingDirectory, "completed.wav").apply { writeBytes(byteArrayOf(10, 11, 12)) }
         val activePartial = File(recordingDirectory, "active.wav.part").apply { writeBytes(byteArrayOf(1, 2, 3)) }
         val completedPartial = File(recordingDirectory, "completed.wav.part").apply { writeBytes(byteArrayOf(4, 5, 6)) }
+        val orphanPartial = File(recordingDirectory, "orphan.wav.part").apply { writeBytes(byteArrayOf(13, 14, 15)) }
+        val unrelatedFile = File(recordingDirectory, "notes.txt").apply { writeText("keep") }
         val activeId = previousProcess.callRecordDao().insert(
             record(10_000L, 0, activeFile.absolutePath),
         )
         val completedId = previousProcess.callRecordDao().insert(
-            record(20_000L, 1, File(recordingDirectory, "completed.wav").absolutePath),
+            record(20_000L, 1, completedFile.absolutePath),
         )
         previousProcess.callRecordDao().markCompleted(
             completedId,
@@ -193,7 +196,11 @@ class CallRecordDaoRobolectricTest {
             assertEquals("INTERRUPTED", interrupted?.status)
             assertEquals("Process stopped before finalization", interrupted?.failureReason)
             assertEquals(false, activePartial.exists())
-            assertEquals(true, completedPartial.exists())
+            assertEquals(false, completedPartial.exists())
+            assertEquals(false, orphanPartial.exists())
+            assertEquals(true, activeFile.exists())
+            assertEquals(true, completedFile.exists())
+            assertEquals(true, unrelatedFile.exists())
             assertEquals("COMPLETED", completed?.status)
             assertNull(completed?.failureReason)
         } finally {
