@@ -330,7 +330,7 @@ internal class CallRecordingForegroundService : Service() {
                         if (finalized != null) {
                             runCatching {
                                 withContext(NonCancellable) {
-                                    callRecordRepository.completeRecording(insertedRecordId, finalized.toCompletion())
+                                    completeRecordOrFail(insertedRecordId, finalized)
                                 }
                             }
                         } else {
@@ -361,7 +361,7 @@ internal class CallRecordingForegroundService : Service() {
                     if (insertedRecordId != null) {
                         if (finalized != null) {
                             runCatching {
-                                callRecordRepository.completeRecording(insertedRecordId, finalized.toCompletion())
+                                completeRecordOrFail(insertedRecordId, finalized)
                             }
                         } else {
                             runCatching {
@@ -456,7 +456,7 @@ internal class CallRecordingForegroundService : Service() {
                     callRecordRepository.markRecordingFailed(recordId, "Capture ended without a valid finalized WAV file.")
                     updateNotification("Recording was not finalized")
                 } else {
-                    val saved = callRecordRepository.completeRecording(recordId, finalized.toCompletion())
+                    val saved = completeRecordOrFail(recordId, finalized)
                     if (saved) {
                         val limitMb = recorderSettingsRepository.settings.first().storageLimitMb
                         val removed = callRecordRepository.enforceStorageLimit(limitMb.toLong() * 1024L * 1024L)
@@ -477,6 +477,20 @@ internal class CallRecordingForegroundService : Service() {
             updateNotification("Finalization failed · ${exception.message ?: "unknown error"}")
         }
         if (reason == "Call ended" || reason == "Stopped by user") updateNotification(reason)
+    }
+
+    private suspend fun completeRecordOrFail(
+        recordId: Long,
+        finalized: FinalizedAudioCapture,
+    ): Boolean {
+        val completed = callRecordRepository.completeRecording(recordId, finalized.toCompletion())
+        if (!completed) {
+            callRecordRepository.markRecordingFailed(
+                recordId,
+                "Finalized WAV failed integrity validation or the recording was no longer active.",
+            )
+        }
+        return completed
     }
 
     private fun FinalizedAudioCapture.toCompletion() = CallRecordCompletion(
