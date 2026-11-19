@@ -94,7 +94,6 @@ class SimCallRecorderSdk @Inject internal constructor(
     suspend fun activeSimSlots(): List<SimSlot> = diagnostics.getActiveSimSlots()
     fun audioRoutes(): List<AudioRoute> = diagnostics.getAudioRoutes()
     suspend fun deleteRecording(recordId: Long): Boolean = callRecords.deleteRecording(recordId)
-    suspend fun markInterruptedRecordings(): Int = callRecords.markActiveRecordingsInterrupted()
     suspend fun updateStorageLimit(megabytes: Int) = settingsRepository.updateStorageLimit(megabytes)
     suspend fun updateRecordingMode(modeName: String) = settingsRepository.updateRecordingMode(modeName)
 
