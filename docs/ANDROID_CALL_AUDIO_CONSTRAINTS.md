@@ -26,7 +26,7 @@ A successful `MediaRecorder.start()`, a growing file, or non-zero sample count i
 
 The platform permission gate has evolved. Current AOSP AudioPolicy input checks `CALL_AUDIO_INTERCEPTION` first for `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK`, and retains `CAPTURE_AUDIO_OUTPUT` as a legacy fallback for these historical sources. Both permissions are protected (`signature|privileged|role`) and are not ordinary third-party runtime permissions.
 
-The Android 16 AOSP Shell manifest was also checked directly: it does not declare either `CALL_AUDIO_INTERCEPTION` or `CAPTURE_AUDIO_OUTPUT`. Therefore UID 2000 / Shizuku ADB authorization alone must not be treated as sufficient on stock AOSP. OEM images may grant a different set; query the actual permission state from the live helper UID. Root UID remains a separate privilege case and must still pass actual AudioRecord initialization and physical audio tests.
+Correction after full-manifest inspection: Android 16 AOSP Shell **does declare both** `CALL_AUDIO_INTERCEPTION` (for CTS CallAudioInterception tests) and `CAPTURE_AUDIO_OUTPUT` (for GTS DialerAudio tests). The Shell package is built with the platform certificate and is privileged; because both permissions include signature protection, stock AOSP is expected to grant them to shell UID 2000. OEM/product builds may differ, so the live Shizuku UserService must still query and report actual grants. Shizuku connection state alone is not sufficient. Root UID remains a separate privilege case and must still pass actual AudioRecord initialization and physical audio tests.
 
 The Shizuku UserService readiness gate now accepts either protected permission for shell UID:
 - `CALL_AUDIO_INTERCEPTION` (current platform permission)
