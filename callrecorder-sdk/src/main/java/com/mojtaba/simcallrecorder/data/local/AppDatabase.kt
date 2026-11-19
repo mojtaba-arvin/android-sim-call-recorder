@@ -2,6 +2,7 @@ package com.mojtaba.simcallrecorder.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import java.io.File
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mojtaba.simcallrecorder.data.local.dao.CallRecordDao
 import com.mojtaba.simcallrecorder.data.local.entity.CallRecordEntity
@@ -28,14 +29,35 @@ internal abstract class AppDatabase : RoomDatabase() {
  * Room may invoke onOpen again if its database connection is reopened. Keep the recovery
  * idempotent for the lifetime of this callback (the database is a process singleton).
  */
-internal class StaleRecordingRecoveryCallback : RoomDatabase.Callback() {
+internal class StaleRecordingRecoveryCallback(
+    private val recordingDirectory: File? = null,
+) : RoomDatabase.Callback() {
     private val recoveryLock = Any()
     private var recoveryCompleted = false
+
+    private fun cleanupStalePartialFiles(db: SupportSQLiteDatabase) {
+        val root = recordingDirectory?.let { runCatching { it.canonicalFile }.getOrNull() } ?: return
+        db.query("SELECT filePath FROM call_records WHERE status = 'RECORDING'").use { cursor ->
+            val partialFiles = buildList {
+                while (cursor.moveToNext()) {
+                    val target = runCatching { File(cursor.getString(0)).canonicalFile }.getOrNull()
+                        ?: continue
+                    if (target.parentFile != root || !target.name.endsWith(".wav")) continue
+                    val partial = File(root, target.name + ".part")
+                    if (runCatching { partial.canonicalFile.parentFile == root }.getOrDefault(false)) {
+                        add(partial)
+                    }
+                }
+            }
+            partialFiles.forEach { partial -> runCatching { if (partial.isFile) partial.delete() } }
+        }
+    }
 
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
         synchronized(recoveryLock) {
             if (!recoveryCompleted) {
+                cleanupStalePartialFiles(db)
                 db.execSQL(
                     """
                     UPDATE call_records
