@@ -102,7 +102,7 @@ jobs:
         run: bash scripts/verify-sdk-boundary.sh
 
       - name: Run unit tests, lint, and assemble debug APK
-        run: gradle --continue --console=plain :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :app:compileDebugAndroidTestKotlin :callrecorder-sdk:assembleRelease :app:assembleDebug
+        run: gradle --continue --console=plain :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug
 
       - name: Upload unit test and lint reports
         if: always()
@@ -140,8 +140,11 @@ jobs:
 
   instrumented:
     name: Compose UI tests on Android emulator (API ${{ matrix.api-level }})
-    needs: [changes, verify]
-    if: needs.changes.outputs.code == 'true' && needs.verify.result == 'success'
+    # Run both emulator lanes alongside unit/lint/build verification. The required
+    # aggregator still waits for every lane and fails closed; this removes the
+    # verify -> emulator serial dependency from the critical path.
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
