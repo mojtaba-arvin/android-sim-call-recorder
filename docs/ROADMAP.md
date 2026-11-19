@@ -78,6 +78,10 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 **Exit criteria:** a reproducible beta release can be downloaded and verified; SDK consumer integration works; release notes disclose experimental audio support honestly.
 
+## R&D agent system
+
+The agent platform is tracked separately from product implementation under umbrella issue [#10](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/10), with phase issues #11–#15. Its authority and evidence contract is defined in [R&D Agent System Charter](RD_AGENT_CHARTER.md). The planned sequence is A0 (charter/task contract/context pack/benchmark), A1 (GitHub-aware orchestrator and execution ledger), A2 (bounded specialists), A3 (evaluation and safety), and A4 (controlled automation and dry run). The system must operate the existing product backlog (#2–#9), not replace it. Research is read-only; code changes use reviewed branches/PRs; merge, release, permission, and hardware-evidence gates remain human-controlled.
+
 ## Working policy
 
 - Use focused `feat/*`, `fix/*`, `ci/*`, and `docs/*` branches.
