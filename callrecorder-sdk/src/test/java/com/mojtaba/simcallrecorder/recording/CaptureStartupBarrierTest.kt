@@ -67,6 +67,27 @@ class CaptureStartupBarrierTest {
     }
 
     @Test
+    fun backendFailureIsPropagatedAfterRecoveryWithoutRepeatingTheBarrier() = runBlocking {
+        val backendFailure = IllegalStateException("Backend startup failed")
+        var recoveryCalls = 0
+        var backendCalls = 0
+
+        val thrown = runCatching {
+            CaptureStartupBarrier.start(
+                prepareForCapture = { recoveryCalls++ },
+                startBackend = {
+                    backendCalls++
+                    throw backendFailure
+                },
+            )
+        }.exceptionOrNull()
+
+        assertSame(backendFailure, thrown)
+        assertEquals(1, recoveryCalls)
+        assertEquals(1, backendCalls)
+    }
+
+    @Test
     fun recoveryFailureFailsClosedWithoutInvokingBackend() = runBlocking {
         val recoveryFailure = IllegalStateException("Room recovery failed")
         var backendStarted = false
