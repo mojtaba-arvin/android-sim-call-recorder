@@ -49,6 +49,9 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         val orphanPart = File(recordingDirectory, "orphan.wav.part").apply { writeBytes(byteArrayOf(3, 4)) }
         val completedPart = File(recordingDirectory, "completed.wav.part").apply { writeBytes(byteArrayOf(5, 6)) }
         val completedWav = File(recordingDirectory, "completed.wav").apply { writeBytes(byteArrayOf(7, 8)) }
+        // Models a crash after the temporary file was promoted but before the Room commit.
+        val promotedBeforeCommitWav = File(recordingDirectory, "promoted-before-commit.wav")
+            .apply { writeBytes(byteArrayOf(9, 10, 11, 12)) }
         val unrelated = File(recordingDirectory, "notes.txt").apply { writeText("keep") }
 
         // Seed a database as the previous process would have left it, without recovery callback.
@@ -64,6 +67,9 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
             previousProcessDatabase.callRecordDao().insert(
                 record(completedWav, status = "COMPLETED", startedAt = 200L),
             )
+            previousProcessDatabase.callRecordDao().insert(
+                record(promotedBeforeCommitWav, status = "RECORDING", startedAt = 300L),
+            )
         } finally {
             previousProcessDatabase.close()
         }
@@ -75,13 +81,15 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
 
         val records = database!!.callRecordDao().observeAll().first()
 
-        assertEquals(2, records.size)
+        assertEquals(3, records.size)
         assertEquals("INTERRUPTED", records.single { it.startedAtEpochMillis == 100L }.status)
         assertEquals("COMPLETED", records.single { it.startedAtEpochMillis == 200L }.status)
+        assertEquals("INTERRUPTED", records.single { it.startedAtEpochMillis == 300L }.status)
         assertFalse(activePart.exists())
         assertFalse(orphanPart.exists())
         assertFalse(completedPart.exists())
         assertTrue(completedWav.exists())
+        assertTrue(promotedBeforeCommitWav.exists())
         assertTrue(unrelated.exists())
     }
 
