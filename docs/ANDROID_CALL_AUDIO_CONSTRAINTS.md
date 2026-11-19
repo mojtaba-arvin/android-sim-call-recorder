@@ -22,6 +22,24 @@ Turning on speakerphone does not change Android's permission/concurrency rules. 
 
 A successful `MediaRecorder.start()`, a growing file, or non-zero sample count is not proof that both call participants were captured. The app's automatic Speakerphone + MIC mode is an explicitly armed acoustic strategy with an honest label; it is not a digital downlink and does not claim two-way support.
 
+## Android 16+ protected call-audio permission update
+
+The platform permission gate has evolved. Current AOSP AudioPolicy input checks `CALL_AUDIO_INTERCEPTION` first for `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK`, and retains `CAPTURE_AUDIO_OUTPUT` as a legacy fallback for these historical sources. Both permissions are protected (`signature|privileged|role`) and are not ordinary third-party runtime permissions.
+
+The Android 16 AOSP Shell manifest was also checked directly: it does not declare either `CALL_AUDIO_INTERCEPTION` or `CAPTURE_AUDIO_OUTPUT`. Therefore UID 2000 / Shizuku ADB authorization alone must not be treated as sufficient on stock AOSP. OEM images may grant a different set; query the actual permission state from the live helper UID. Root UID remains a separate privilege case and must still pass actual AudioRecord initialization and physical audio tests.
+
+The Shizuku UserService readiness gate now accepts either protected permission for shell UID:
+- `CALL_AUDIO_INTERCEPTION` (current platform permission)
+- `CAPTURE_AUDIO_OUTPUT` (legacy AudioPolicy fallback)
+
+It does not accept either permission for an ordinary app UID. A false result remains fail-closed. The engine still attempts only `VOICE_CALL`; it does not substitute one-sided uplink/downlink or microphone capture.
+
+AOSP source references:
+- [Android 16 Shell manifest](https://android.googlesource.com/platform/frameworks/base/+/android16-release/packages/Shell/AndroidManifest.xml)
+- [Android 16+ permission declarations](https://android.googlesource.com/platform/frameworks/base/+/master/core/res/AndroidManifest.xml)
+- [Current AOSP AudioPolicy input permission checks](https://android.googlesource.com/platform/frameworks/av/+/master/services/audiopolicy/service/AudioPolicyInterfaceImpl.cpp)
+- [Android 16 AudioManager call-audio API](https://android.googlesource.com/platform/frameworks/base/+/master/media/java/android/media/AudioManager.java)
+
 ## Open-source implementation research
 
 ### ShizuCallRecorder
