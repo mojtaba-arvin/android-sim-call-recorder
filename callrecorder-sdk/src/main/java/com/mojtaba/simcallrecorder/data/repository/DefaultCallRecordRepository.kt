@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.RandomAccessFile
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -51,6 +52,12 @@ internal class DefaultCallRecordRepository @Inject constructor(
     ): Boolean = withContext(Dispatchers.IO) {
         require(completion.durationMillis >= 0L) { "Recording duration cannot be negative." }
         require(completion.dataBytes > 0L) { "An empty audio file cannot be marked completed." }
+        val record = dao.findById(recordId) ?: return@withContext false
+        if (record.status != STATUS_RECORDING) return@withContext false
+        val file = resolvePrivateRecordingPath(record.filePath) ?: return@withContext false
+        if (!isValidFinalizedWav(file, record.sampleRate, record.channelCount, completion.dataBytes)) {
+            return@withContext false
+        }
         dao.markCompleted(
             recordId = recordId,
             durationMillis = completion.durationMillis,
@@ -122,6 +129,61 @@ internal class DefaultCallRecordRepository @Inject constructor(
         target.takeIf { it.parentFile == root }
     }.getOrNull()
 
+    /**
+     * Accept only the canonical PCM WAV emitted by WavPcmFileWriter. A non-empty file is not
+     * sufficient: a process death or storage failure can leave a truncated header or payload.
+     */
+    private fun isValidFinalizedWav(
+        file: File,
+        expectedSampleRate: Int,
+        expectedChannels: Int,
+        expectedDataBytes: Long,
+    ): Boolean = runCatching {
+        if (!file.isFile || expectedSampleRate <= 0 || expectedChannels !in 1..2) return false
+        RandomAccessFile(file, "r").use { wav ->
+            val length = wav.length()
+            val blockAlign = expectedChannels * BYTES_PER_SAMPLE
+            if (expectedDataBytes <= 0L ||
+                expectedDataBytes % blockAlign != 0L ||
+                length != WAV_HEADER_BYTES + expectedDataBytes
+            ) return false
+
+            fun readAscii(size: Int): String {
+                val bytes = ByteArray(size)
+                wav.readFully(bytes)
+                return String(bytes, Charsets.US_ASCII)
+            }
+            fun readU16(): Int = wav.readUnsignedByte() or (wav.readUnsignedByte() shl 8)
+            fun readU32(): Long =
+                wav.readUnsignedByte().toLong() or
+                    (wav.readUnsignedByte().toLong() shl 8) or
+                    (wav.readUnsignedByte().toLong() shl 16) or
+                    (wav.readUnsignedByte().toLong() shl 24)
+
+            wav.seek(0L)
+            if (readAscii(4) != "RIFF" || readU32() != length - 8L || readAscii(4) != "WAVE") {
+                return false
+            }
+            if (readAscii(4) != "fmt " || readU32() != 16L) return false
+            val audioFormat = readU16()
+            val channels = readU16()
+            val sampleRate = readU32()
+            val byteRate = readU32()
+            val actualBlockAlign = readU16()
+            val bitsPerSample = readU16()
+            if (audioFormat != PCM_FORMAT ||
+                channels != expectedChannels ||
+                sampleRate != expectedSampleRate.toLong() ||
+                byteRate != expectedSampleRate.toLong() * blockAlign ||
+                actualBlockAlign != blockAlign ||
+                bitsPerSample != BITS_PER_SAMPLE ||
+                readAscii(4) != "data" ||
+                readU32() != expectedDataBytes
+            ) return false
+            true
+        }
+    }.getOrDefault(false)
+
     private fun recordingDirectory(): File = File(context.filesDir, "recordings")
 
     private fun CallRecord.toEntity() = CallRecordEntity(
@@ -171,5 +233,9 @@ internal class DefaultCallRecordRepository @Inject constructor(
         const val STATUS_FAILED = "FAILED"
         const val MAX_FAILURE_REASON_LENGTH = 500
         const val MAX_DIAGNOSTIC_EVENT_LENGTH = 500
+        const val BYTES_PER_SAMPLE = 2
+        const val BITS_PER_SAMPLE = 16
+        const val PCM_FORMAT = 1
+        const val WAV_HEADER_BYTES = 44L
     }
 }
