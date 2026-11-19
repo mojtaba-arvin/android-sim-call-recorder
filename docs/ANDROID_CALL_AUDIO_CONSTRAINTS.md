@@ -32,7 +32,7 @@ The Shizuku UserService readiness gate now accepts either protected permission f
 - `CALL_AUDIO_INTERCEPTION` (current platform permission)
 - `CAPTURE_AUDIO_OUTPUT` (legacy AudioPolicy fallback)
 
-It does not accept either permission for an ordinary app UID. A false result remains fail-closed. The engine still attempts only `VOICE_CALL`; it does not substitute one-sided uplink/downlink or microphone capture.
+It does not accept either permission for an ordinary app UID. A false result remains fail-closed. The engine still attempts only `VOICE_CALL`; it does not substitute one-sided uplink/downlink or microphone capture. Embedded ADB would run with the same shell UID and is not a separate privilege path.
 
 AOSP source references:
 - [Android 16 Shell manifest](https://android.googlesource.com/platform/frameworks/base/+/android16-release/packages/Shell/AndroidManifest.xml)
