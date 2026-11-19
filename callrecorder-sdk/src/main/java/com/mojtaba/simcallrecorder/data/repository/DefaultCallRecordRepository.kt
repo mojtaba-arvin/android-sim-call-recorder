@@ -71,6 +71,9 @@ internal class DefaultCallRecordRepository @Inject constructor(
 
     override suspend fun deleteRecording(recordId: Long): Boolean = withContext(Dispatchers.IO) {
         val entity = dao.findById(recordId) ?: return@withContext false
+        // The player screen can be opened for an active session; never unlink a file while
+        // the capture backend may still be writing it.
+        if (entity.status == STATUS_RECORDING) return@withContext false
         val file = resolvePrivateRecordingPath(entity.filePath)
         if (file != null) {
             val partial = File(file.parentFile, file.name + ".part")
