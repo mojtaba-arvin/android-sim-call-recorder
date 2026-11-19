@@ -76,7 +76,7 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         assertEquals("COMPLETED", records.single { it.startedAtEpochMillis == 200L }.status)
         assertFalse(activePart.exists())
         assertFalse(orphanPart.exists())
-        assertTrue(completedPart.exists())
+        assertFalse(completedPart.exists())
         assertTrue(completedWav.exists())
         assertTrue(unrelated.exists())
     }
