@@ -2,6 +2,8 @@ package com.mojtaba.simcallrecorder.recording
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -38,6 +40,30 @@ class CaptureStartupBarrierTest {
 
         assertEquals("capture-output", startup.await())
         assertTrue(backendStarted)
+    }
+
+    @Test
+    fun cancellationWhileRecoveryIsPendingNeverInvokesBackend() = runBlocking {
+        val recoveryStarted = CompletableDeferred<Unit>()
+        val holdRecovery = CompletableDeferred<Unit>()
+        var backendStarted = false
+
+        val startup = launch {
+            CaptureStartupBarrier.start(
+                prepareForCapture = {
+                    recoveryStarted.complete(Unit)
+                    holdRecovery.await()
+                },
+                startBackend = {
+                    backendStarted = true
+                },
+            )
+        }
+
+        recoveryStarted.await()
+        startup.cancelAndJoin()
+
+        assertFalse("Cancelling a pending recovery barrier must not start the backend.", backendStarted)
     }
 
     @Test
