@@ -38,6 +38,25 @@ class RecordingServiceStateMachineTest {
     }
 
     @Test
+    fun failureCleanupClaimsStartingAndRecordingButNeverDuplicatesStopping() {
+        val starting = RecordingServiceStateMachine()
+        assertTrue(starting.beginStart(request()))
+        assertTrue(starting.beginFailureCleanup())
+        assertEquals(RecordingServiceStateMachine.State.STARTING, starting.state)
+        starting.startFailed()
+        assertFalse(starting.beginFailureCleanup())
+
+        val recording = RecordingServiceStateMachine()
+        assertTrue(recording.beginStart(request()))
+        assertTrue(recording.recordingStarted())
+        assertTrue(recording.beginFailureCleanup())
+        assertEquals(RecordingServiceStateMachine.State.STOPPING, recording.state)
+        assertFalse(recording.beginFailureCleanup())
+        recording.stopCompleted()
+        assertEquals(RecordingServiceStateMachine.State.IDLE, recording.state)
+    }
+
+    @Test
     fun failedStartCanBeRetried() {
         val machine = RecordingServiceStateMachine()
         assertTrue(machine.beginStart(request()))
