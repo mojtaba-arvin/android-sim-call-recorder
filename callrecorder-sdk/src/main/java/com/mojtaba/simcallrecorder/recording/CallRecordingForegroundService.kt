@@ -242,11 +242,15 @@ internal class CallRecordingForegroundService : Service() {
             var startedMode: RecordingMode? = null
             var insertedRecordId: Long? = null
             try {
-                // Open Room and finish process-scoped stale-session/.part recovery before a
-                // backend creates a new temporary WAV. This also covers service-first process starts.
-                callRecordRepository.prepareForCapture()
-                val runtimeProfile = captureDeviceProfile()
-                val output = recordingCoordinator.start(request, runtimeProfile)
+                // The startup barrier makes it impossible for backend creation to begin before
+                // first-open process recovery has completed. It also covers service-first process starts.
+                val (runtimeProfile, output) = CaptureStartupBarrier.start(
+                    prepareForCapture = { callRecordRepository.prepareForCapture() },
+                    startBackend = {
+                        val profile = captureDeviceProfile()
+                        profile to recordingCoordinator.start(request, profile)
+                    },
+                )
                 startedMode = request.mode
                 activeMode = request.mode
 
