@@ -21,6 +21,7 @@ import com.mojtaba.simcallrecorder.domain.repository.RecorderSettingsRepository
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -307,6 +309,38 @@ internal class CallRecordingForegroundService : Service() {
                     else -> null
                 }
                 watchCallEnd(request.simSlotIndex)
+            } catch (cancelled: CancellationException) {
+                // Backend start may have crossed its native/binder side-effect boundary before the
+                // coroutine was cancelled. Stop the requested backend even when start() did not
+                // return a File yet, and do cleanup outside the cancelled service scope.
+                val cleanupMode = startedMode ?: request.mode
+                val finalized = withContext(NonCancellable) {
+                    runCatching { recordingCoordinator.stop(cleanupMode) }.getOrNull()
+                }
+                if (insertedRecordId != null) {
+                    if (finalized != null) {
+                        runCatching {
+                            withContext(NonCancellable) {
+                                callRecordRepository.completeRecording(insertedRecordId, finalized.toCompletion())
+                            }
+                        }
+                    } else {
+                        runCatching {
+                            withContext(NonCancellable) {
+                                callRecordRepository.markRecordingFailed(
+                                    insertedRecordId,
+                                    "Capture start was cancelled before setup completed.",
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    finalized?.file?.delete()
+                }
+                activeMode = null
+                activeRecordId = null
+                stateMachine.startFailed()
+                throw cancelled
             } catch (exception: Exception) {
                 if (startedMode != null) {
                     val finalized = runCatching { recordingCoordinator.stop(startedMode) }.getOrNull()
