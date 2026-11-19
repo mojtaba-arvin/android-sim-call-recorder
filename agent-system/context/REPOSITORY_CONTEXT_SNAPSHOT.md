@@ -1,10 +1,10 @@
 # Repository Context Pack — Snapshot v1
 
-**Snapshot ID:** `android-sim-call-recorder-2026-11-19T10:28:00Z`  
-**Captured at:** 2026-11-19T10:28:00Z  
+**Snapshot ID:** `android-sim-call-recorder-2026-11-19T12:58:00Z`  
+**Captured at:** 2026-11-19T12:58:00Z  
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Snapshot source branch:** `bootstrap/native-android-foundation`  
-**Snapshot source HEAD:** `1f6061728d0d9463c1c83ca1591f8790a4854fe1`  
+**Snapshot source HEAD:** `cc49c2dca4defe17578fdabe9d2d30e083c2f726`  
 **Active PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main` at `71fe1f386fffe67547c1848ff12bc844247677de`  
 **Context contract:** [R&D Agent Charter](../../docs/RD_AGENT_CHARTER.md), [Task Contract](../../docs/RD_AGENT_TASK_CONTRACT.md), [JSON Schema](../contracts/task.schema.json)
 
@@ -16,9 +16,9 @@ A consumer MUST refresh GitHub state before starting any implementation or makin
 
 Treat this snapshot as stale if ANY condition is true:
 
-1. The source branch HEAD differs from `1f6061728d0d9463c1c83ca1591f8790a4854fe1`.
+1. The source branch HEAD differs from `cc49c2dca4defe17578fdabe9d2d30e083c2f726`.
 2. PR #1 has a different head/base SHA, is no longer open, changes Draft state, or receives new review/mergeability information.
-3. Workflow run [#44465011336](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44465011336) changes status/conclusion, or a newer run is associated with the active PR head.
+3. Workflow run [#44512168015](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44512168015) changes status/conclusion, or a newer run is associated with the active PR head.
 4. Any referenced issue changes state, body, dependency, assignee, label, or linked PR.
 5. More than 30 minutes have elapsed since `captured_at`.
 6. PR #1, #23, #24, or #25 changes state/head/base, PR #22 changes state/base, or a linked issue is updated. PR #22's head is intentionally not pinned because this snapshot is stored on that branch; fetch its live head directly.
@@ -47,44 +47,37 @@ Read these files in this order at session start:
 
 - PR #1 is open and Draft; it targets `main`. Do not mark it ready, merge it, or create a release from this snapshot.
 - The repository default branch `main` contains only `LICENSE` at capture time; the canonical agent instructions, architecture, and CI workflow currently exist on PR #1's feature branch, not on `main`.
-- A0 PR #22 is open and Draft, stacked on PR #1 so canonical links resolve. The earlier PR #21 was closed without merging because `main` did not contain the canonical docs it referenced.
+- A0 PR #22 is open and Draft, stacked on PR #1 so canonical links resolve. Its exact-head CI passed, but its snapshot is being refreshed here to correct stale source SHA and issue/PR state. The earlier PR #21 was closed without merging because `main` did not contain the canonical docs it referenced.
 - Issue #9 recovery-ordering follow-up is in [PR #23](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/23), open/Draft and stacked on PR #1.
 - A1.1 tool inventory is in [PR #24](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/24), open/Draft and stacked on PR #1. A1.2–A1.5 remain gated.
-- Additional Issue #9 teardown race test is in [PR #25](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/25), open/Draft and stacked on PR #1; it has no CI run yet.
-- Source HEAD under validation: `1f6061728d0d9463c1c83ca1591f8790a4854fe1`.
+- Additional Issue #9 teardown race test is in [PR #25](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/25), open/Draft and stacked on PR #1; its exact-head CI passed in run #44506093375.
+- Source HEAD under validation: `cc49c2dca4defe17578fdabe9d2d30e083c2f726` (current Foundation head).
 - PR #1 is a large SDK extraction/foundation PR (367 commits, 114 changed files at capture time); inspect the live diff and current commit history before review. No independent review submissions or inline review threads were present on PRs #1, #22–#25 at refresh.
+- Research follow-up is tracked in [PR #26](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/26), Draft, based on the current Foundation head. It rejects InCallService/CallStreamingService as PSTN audio capture paths and rejects Kadb as-is because of GPL-3.0 SPAKE2 + HiddenApiBypass dependencies; adb-kt/spake2-kt remains an unaudited Apache-2.0 research candidate.
 - The PR's product acceptance is not complete: physical two-way cellular audio has not been validated on a handset.
 - `main` was not modified by this work.
 - The active `Protect main` ruleset already requires PR + `Android CI / Required checks`; approvals are 0 and strict up-to-date checks are disabled. See issue [#8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) for remaining validation and policy decisions.
 
 ## 4. Exact CI evidence — refreshed 2026-11-19
 
-Workflow: [Android CI run #44465011336](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44465011336)  
-Run number: 470  
-Event: `pull_request`  
-Tested SHA: `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`  
-Run #44465011336 completed successfully on that prior foundation SHA. A new run #44505690931 is now **in_progress** on updated foundation SHA `1f6061728d0d9463c1c83ca1591f8790a4854fe1` after the stacked-PR workflow filter change; do not claim the new foundation head green until it completes.
+The current Foundation head is `cc49c2dca4defe17578fdabe9d2d30e083c2f726`. Exact-head run [#44512168015](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44512168015) completed successfully.
 
-| Job | Conclusion |
-|---|---|
-| Detect code changes | success |
-| SDK and app tests, lint, AAR, and debug APK | success |
-| Compose UI tests on Android emulator (API 26), job `135447144223` | success |
-| Compose UI tests on Android emulator (API 35), job `135447068266` | success |
-| Required checks aggregator, job `135462442366` | success |
+| PR | Exact tested HEAD | Run | Result |
+|---|---|---|---|
+| #1 Foundation | `cc49c2dca4defe17578fdabe9d2d30e083c2f726` | [#44512168015](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44512168015) | Required checks, SDK/app tests, lint, AAR/APK, API 26 and API 35 instrumentation passed |
+| #22 A0 Context | `82f7371b4f64a3823697ebe594f1653108c57777` | [#44505898021](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44505898021) | Attempt 2 passed all jobs and Required checks |
+| #23 Recovery barrier | `3a167c5a2624241859e26d419b723a85918fed13` | [#44506546299](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44506546299) | 117 unit/Robolectric tests; API 26/API 35 instrumentation 4/4 each; Required checks passed |
+| #24 GitHub tool inventory | `0e75d11673990327396f0e9f05ffab0b36982587` | [#44511238777](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44511238777) | SDK/app verification, API 26/API 35 instrumentation and Required checks passed |
+| #25 Teardown race | `7d8af2d994e4efd84c18ecf14bab8bc323f2c27b` | [#44506093375](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44506093375) | 114 unit/Robolectric tests; API 26/API 35 instrumentation and Required checks passed |
+| #26 Telecom/ADB research | `834c9bb13a380701ac5a77f03e48e8a329e4bce6` | [#44527858587](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44527858587) | Docs-only classification and Required checks passed; SDK/app and emulator jobs correctly skipped |
 
-Attempt 1's API 35 emulator boot timeout was resolved by retrying only the failed job. No tests, CI conditions, or required checks were weakened.
+PR #1's current head has full software/emulator CI evidence, but no physical two-way audio evidence. PRs #22–#25 still report older base SHA `728dbfdcb6e888a6870fd5234d6b4325b262a4ed` in live PR metadata, so their green CI is not integration validation against the current Foundation head. PR #26 is based on the current Foundation head.
 
-Available artifacts from the completed run:
-- `android-unit-lint-reports` — artifact ID `14502026870`
-- `callrecorder-sdk-release-aar` — artifact ID `14501942260`
-- `sim-call-recorder-debug-apk` — artifact ID `14501209939`
-- `compose-instrumented-test-reports-api-26` — artifact ID `14502797558`
-- `compose-instrumented-test-reports-api-35` — artifact ID `14514527516`
+PR #23 report audit: 15 suites / 117 tests, 0 failures/errors/skips; API 26 and API 35 each 4/4 instrumentation tests passed. PR #25 report audit: 14 suites / 114 tests, 0 failures/errors/skips; its 25-round concurrent teardown ownership test passed. These are JVM/Compose test results, not Service-level or modem-audio proof.
 
-The convenience bundle `android-sim-call-recorder-ci-artifacts.zip` was verified locally: its embedded SHA256SUMS entries validate the APK and AAR bytes. The bundle SHA-256 is `60238ce60eec7e01997798a50294517fb842b827ec5197f32ac7695e0ebbfa49`. This is a debug-signed CI artifact, not a published GitHub Release.
+Two separate documentation-only runs on PR #26 confirmed that the Android SDK/app and emulator jobs are skipped while the stable Required checks aggregator remains green: runs #44527510835 (initial research head) and #44527858587 (latest research head).
 
-This CI result applies only to PR #1's tested SHA. The current heads of PRs #22, #23, #24, and #25 had no associated workflow runs at capture time and must not inherit this green status. The updated workflow now allows pull requests targeting the foundation branch, but each stacked PR needs a fresh synchronize event and its own run. No physical-device evidence confirms intelligible near-end and far-end cellular speech.
+No tests or required checks were weakened. All results above are tied to the exact SHA shown. This evidence does not prove real near-end/far-end cellular audio, OEM compatibility, service-level recovery ordering, or process-death behavior.
 
 ## 5. Open GitHub backlog at capture time
 
@@ -96,9 +89,9 @@ The following issues were open when queried. Refresh all relevant issue bodies/c
 | [#3](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/3) | Device/audio-route evidence | Physical incoming/outgoing calls; independently assess local and remote speech; no audio uploads |
 | [#4](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/4) | Consent-gated automatic lifecycle | Finish persistence, diagnostics and adversarial lifecycle/service tests |
 | [#5](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/5) | Audio silence diagnostics | Callback registration/session filtering/transitions/cleanup tests; silence status is not two-way proof |
-| [#6](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/6) | Embedded ADB shell capture research | GPL provenance boundary, libadb security/license review, secure pairing/IPC and human approval before implementation |
+| [#6](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/6) | Embedded ADB shell capture research | Kadb rejected due GPL-3.0 SPAKE2 + HiddenApiBypass; adb-kt/spake2-kt Apache-2.0 candidate remains unaudited; crypto/security/device pairing gates open |
 | [#7](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/7) | Android API-floor audit | Verify direct API guards and resolved dependency minSdk; API 26 remains experimental |
-| [#8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) | Stable CI branch protection | Active ruleset ID `27531148` now requires PR + `Android CI / Required checks`; approval count 0, strict up-to-date checks disabled; further workflow behavior tests remain |
+| [#8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) | Stable CI branch protection | Docs-only Android-job skip + Required checks success proven twice; deliberate failing-test propagation and observed superseded-run cancellation remain; strict checks deferred |
 | [#9](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/9) | Process-scoped interrupted-session recovery | Service startup-order and process-death/fault-injection tests still required |
 | [#10](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/10) | R&D agent system umbrella | Parent tracking issue |
 | [#11](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/11) | A0 charter, contract, context, benchmark | A0.1–A0.4 implemented; PR #22 pending review and post-foundation CI |
@@ -111,7 +104,8 @@ The following issues were open when queried. Refresh all relevant issue bodies/c
 
 - Active ruleset `Protect main` (ID `27531148`) applies to the default branch and requires pull requests plus `Android CI / Required checks`; deletion and non-fast-forward protections are enabled.
 - Required approving review count is 0; strict/up-to-date status checks are disabled; no bypass actors are configured. This was read from the ruleset API. Branch-protection GET itself returns 403 through the connector.
-- PR #22 (A0 context/benchmark), PR #23 (Issue #9 startup barrier tests), and PR #24 (A1.1 capability inventory) are Draft stacked PRs based on PR #1 head `1f6061728d0d9463c1c83ca1591f8790a4854fe1`.
+- PR #22 (A0 context/benchmark), PR #23 (Issue #9 startup barrier tests), PR #24 (A1.1 capability inventory), and PR #25 (teardown race) remain Draft stacked PRs. Their live base SHA is still the older `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`; synchronize/retarget after Foundation acceptance.
+- PR #26 (Telecom/ADB research) is Draft and targets current Foundation head `cc49c2dca4defe17578fdabe9d2d30e083c2f726`.
   - PR #22 contains this snapshot; its exact head necessarily changes when the snapshot itself is refreshed, so fetch PR #22 live rather than pinning a self-referential SHA.
   - PR #23 head: `d0397e529d998b5399e29f4cb54a7f23f2665ada`.
   - PR #24 head: `dabc40e4dc9cea0704ccc2b1626f6be88e5f7ac3`.
@@ -158,4 +152,4 @@ Issue #9 must remain open until its acceptance criteria are covered by evidence.
 
 ## 10. Snapshot provenance
 
-This document was assembled from the PR #1 feature-branch canonical instructions/docs, live GitHub issue state, PR #1/#21/#22 metadata, and Actions run/job/artifact metadata at the timestamp above. It contains no credentials, personal call identifiers, or audio. The source HEAD is the provenance anchor; the freshness contract supersedes any assumption that these values remain current. The PR head SHAs above are the exact heads at capture, except PR #22 whose self-referential head must be fetched live.
+This document was assembled from the PR #1 feature-branch canonical instructions/docs, live GitHub issue state, PR #1/#21/#22 metadata, and Actions run/job/artifact metadata at the timestamp above. It contains no credentials, personal call identifiers, or audio. The benchmark `source_head_sha` was reconciled to the exact `source HEAD` above; both are `${sha}`. The source HEAD is the provenance anchor; the freshness contract supersedes any assumption that these values remain current. The PR head SHAs above are the exact heads at capture, except PR #22 whose self-referential head must be fetched live.
