@@ -2,6 +2,7 @@ package com.mojtaba.simcallrecorder.data.repository
 
 import androidx.room.Room
 import com.mojtaba.simcallrecorder.data.local.AppDatabase
+import com.mojtaba.simcallrecorder.data.local.StaleRecordingRecoveryCallback
 import com.mojtaba.simcallrecorder.data.local.MIGRATION_1_2
 import com.mojtaba.simcallrecorder.data.local.MIGRATION_2_3
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
@@ -362,22 +363,37 @@ class DefaultCallRecordRepositoryRobolectricTest {
     }
 
     @Test
-    fun promotedWavSurvivesInterruptionBeforeRoomCompletionCommit() = runBlocking {
+    fun prepareForCaptureRunsFirstOpenRecoveryBeforeAnewSessionCanStart() = runBlocking {
+        val databaseName = "process-recovery-test.db"
+        val databaseFile = context.getDatabasePath(databaseName)
+        databaseFile.delete()
         val folder = File(context.filesDir, "recordings").apply { mkdirs() }
-        val audio = File(folder, "promoted-before-commit.wav")
+        val promotedWav = File(folder, "promoted-before-commit.wav")
         WavPcmFileWriter.copyPcm(
             ByteArrayInputStream(byteArrayOf(1, 0, 2, 0)),
-            audio,
+            promotedWav,
             sampleRate = 48_000,
             channels = 2,
         )
-        val id = repository.createActiveRecording(
+        val orphanPart = File(folder, "orphan-from-crash.wav.part")
+            .apply { writeBytes(byteArrayOf(3, 4, 5)) }
+
+        val previousProcessDatabase = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseName,
+        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        val previousProcessRepository = DefaultCallRecordRepository(
+            previousProcessDatabase.callRecordDao(),
+            context,
+        )
+        val staleId = previousProcessRepository.createActiveRecording(
             CallRecord(
                 startedAtEpochMillis = 10L,
                 durationMillis = null,
                 phoneNumber = null,
                 simSlotIndex = 0,
-                filePath = audio.absolutePath,
+                filePath = promotedWav.absolutePath,
                 recordingMode = "SHIZUKU_VOICE_CALL",
                 audioSource = "VOICE_CALL",
                 sampleRate = 48_000,
@@ -390,43 +406,60 @@ class DefaultCallRecordRepositoryRobolectricTest {
                 failureReason = null,
             ),
         )
+        previousProcessDatabase.close()
 
-        assertEquals(1, repository.markActiveRecordingsInterrupted())
-
-        val record = repository.observeRecords().first().single()
-        assertEquals(id, record.id)
-        assertEquals("INTERRUPTED", record.status)
-        assertTrue("A fully promoted WAV must be preserved for recovery or manual inspection.", audio.isFile)
-        assertEquals("RIFF", audio.readBytes().let { String(it, 0, 4, Charsets.US_ASCII) })
-    }
-
-    @Test
-    fun activeRowsAreMarkedInterruptedWhenTheAppRestarts() = runBlocking {
-        val folder = File(context.filesDir, "recordings").apply { mkdirs() }
-        val audio = File(folder, "interrupted.wav")
-        val id = repository.createActiveRecording(
-            CallRecord(
-                startedAtEpochMillis = 10L,
-                durationMillis = null,
-                phoneNumber = null,
-                simSlotIndex = 0,
-                filePath = audio.absolutePath,
-                recordingMode = "SHIZUKU_VOICE_CALL",
-                audioSource = "VOICE_CALL",
-                sampleRate = 48_000,
-                channelCount = 2,
-                dataBytes = 0,
-                peakSample = 0,
-                rmsSample = 0,
-                isSilent = null,
-                status = "RECORDING",
-                failureReason = null,
-            ),
+        val currentProcessDatabase = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseName,
         )
+            .allowMainThreadQueries()
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addCallback(StaleRecordingRecoveryCallback(folder))
+            .build()
+        try {
+            val currentProcessRepository = DefaultCallRecordRepository(
+                currentProcessDatabase.callRecordDao(),
+                context,
+            )
 
-        assertEquals(1, repository.markActiveRecordingsInterrupted())
-        val record = repository.observeRecords().first().single()
-        assertEquals(id, record.id)
-        assertEquals("INTERRUPTED", record.status)
+            // This is the same barrier the foreground service awaits before creating a backend.
+            currentProcessRepository.prepareForCapture()
+
+            val recovered = currentProcessDatabase.callRecordDao().findById(staleId)
+            assertEquals("INTERRUPTED", recovered?.status)
+            assertTrue("A promoted WAV must survive the Room-commit crash window.", promotedWav.isFile)
+            assertEquals("RIFF", promotedWav.readBytes().let { String(it, 0, 4, Charsets.US_ASCII) })
+            assertFalse("An orphaned partial WAV from the old process must be removed.", orphanPart.exists())
+
+            // Re-entry in the same process must not classify a new session as stale.
+            val livePart = File(folder, "live-session.wav.part").apply { writeBytes(byteArrayOf(6, 7)) }
+            val liveId = currentProcessRepository.createActiveRecording(
+                CallRecord(
+                    startedAtEpochMillis = 20L,
+                    durationMillis = null,
+                    phoneNumber = null,
+                    simSlotIndex = 0,
+                    filePath = File(folder, "live-session.wav").absolutePath,
+                    recordingMode = "SPEAKERPHONE_MIC",
+                    audioSource = "MIC",
+                    sampleRate = 16_000,
+                    channelCount = 1,
+                    dataBytes = 0,
+                    peakSample = 0,
+                    rmsSample = 0,
+                    isSilent = null,
+                    status = "RECORDING",
+                    failureReason = null,
+                ),
+            )
+            currentProcessRepository.prepareForCapture()
+
+            assertEquals("RECORDING", currentProcessDatabase.callRecordDao().findById(liveId)?.status)
+            assertTrue("Same-process recovery re-entry must preserve the live partial file.", livePart.exists())
+        } finally {
+            currentProcessDatabase.close()
+            databaseFile.delete()
+        }
     }
 }
