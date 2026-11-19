@@ -139,3 +139,6 @@ Keep call-state detection and audio-capture capability separate. The standard ap
 ## CI verification for Android 16 permission state
 
 The Shizuku permission-gate change is covered by a targeted API 36 emulator job in Android CI. It runs only when files under the Shizuku UserService or its tests change, verifies the emulator shell UID is 2000, and asserts that `com.android.shell` is granted both `CALL_AUDIO_INTERCEPTION` and `CAPTURE_AUDIO_OUTPUT`. This validates the AOSP package/UID permission premise; it does not validate modem audio, AudioRecord signal, or two-way intelligibility.
+
+
+The API 36 CI probe invokes its multi-line script through `bash -c` explicitly. `android-emulator-runner` executes the supplied script with `/usr/bin/sh`; using Bash-only `set -o pipefail` directly would fail before any permission query. The probe's result is therefore tied to the actual `pm check-permission` outputs, not shell startup behavior.
