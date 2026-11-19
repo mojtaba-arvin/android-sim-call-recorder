@@ -234,6 +234,10 @@ internal class CallRecordingForegroundService : Service() {
             return
         }
 
+        // A stop request received during a previous failed STARTING attempt must not
+        // leak into this new session and immediately stop a successful retry.
+        stopRequestedDuringStart = false
+
         serviceScope.launch {
             var startedMode: RecordingMode? = null
             var insertedRecordId: Long? = null
