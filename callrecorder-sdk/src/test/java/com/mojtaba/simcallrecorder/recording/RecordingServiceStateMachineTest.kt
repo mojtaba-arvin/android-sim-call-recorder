@@ -114,46 +114,56 @@ class RecordingServiceStateMachineTest {
 
     @Test
     fun callEndUserStopAndServiceDestroyRaceForExactlyOneStopClaim() {
-        val machine = RecordingServiceStateMachine()
-        assertTrue(machine.beginStart(request()))
-        assertTrue(machine.recordingStarted())
-
-        val ready = CountDownLatch(3)
-        val start = CountDownLatch(1)
-        val stopClaims = AtomicInteger(0)
         val executor = Executors.newFixedThreadPool(3)
 
         try {
-            val callEnd = executor.submit {
-                ready.countDown()
-                check(start.await(5, TimeUnit.SECONDS))
-                if (machine.shouldStopFor(event(slot = 0, state = CallState.IDLE)) &&
-                    machine.beginStop()
-                ) {
-                    stopClaims.incrementAndGet()
+            repeat(25) { iteration ->
+                val machine = RecordingServiceStateMachine()
+                assertTrue(machine.beginStart(request()))
+                assertTrue(machine.recordingStarted())
+
+                val ready = CountDownLatch(3)
+                val start = CountDownLatch(1)
+                val stopClaims = AtomicInteger(0)
+
+                val callEnd = executor.submit {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS))
+                    if (machine.shouldStopFor(event(slot = 0, state = CallState.IDLE)) &&
+                        machine.beginStop()
+                    ) {
+                        stopClaims.incrementAndGet()
+                    }
                 }
-            }
-            val userStop = executor.submit {
-                ready.countDown()
-                check(start.await(5, TimeUnit.SECONDS))
-                if (machine.beginStop()) stopClaims.incrementAndGet()
-            }
-            val serviceDestroy = executor.submit {
-                ready.countDown()
-                check(start.await(5, TimeUnit.SECONDS))
-                if (machine.beginFailureCleanup()) stopClaims.incrementAndGet()
-            }
+                val userStop = executor.submit {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS))
+                    if (machine.beginStop()) stopClaims.incrementAndGet()
+                }
+                val serviceDestroy = executor.submit {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS))
+                    if (machine.beginFailureCleanup()) stopClaims.incrementAndGet()
+                }
 
-            assertTrue("All teardown contenders must be ready.", ready.await(5, TimeUnit.SECONDS))
-            start.countDown()
-            callEnd.get(5, TimeUnit.SECONDS)
-            userStop.get(5, TimeUnit.SECONDS)
-            serviceDestroy.get(5, TimeUnit.SECONDS)
+                assertTrue(
+                    "All teardown contenders must be ready (iteration $iteration).",
+                    ready.await(5, TimeUnit.SECONDS),
+                )
+                start.countDown()
+                callEnd.get(5, TimeUnit.SECONDS)
+                userStop.get(5, TimeUnit.SECONDS)
+                serviceDestroy.get(5, TimeUnit.SECONDS)
 
-            assertEquals("Exactly one lifecycle path may own finalization.", 1, stopClaims.get())
-            assertEquals(RecordingServiceStateMachine.State.STOPPING, machine.state)
-            machine.stopCompleted()
-            assertEquals(RecordingServiceStateMachine.State.IDLE, machine.state)
+                assertEquals(
+                    "Exactly one lifecycle path may own finalization (iteration $iteration).",
+                    1,
+                    stopClaims.get(),
+                )
+                assertEquals(RecordingServiceStateMachine.State.STOPPING, machine.state)
+                machine.stopCompleted()
+                assertEquals(RecordingServiceStateMachine.State.IDLE, machine.state)
+            }
         } finally {
             executor.shutdownNow()
         }
