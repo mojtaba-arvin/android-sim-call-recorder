@@ -77,7 +77,7 @@ Prototype boundary:
 
 References:
 - https://github.com/flyfishxu/Kadb (README, LICENSE, module build files and dependency catalog; reviewed 2026-11-19)
-- https://github.com/Flyfish233/spake2-java (GPL-3.0-only SPAKE2 dependency used by Kadb)
+- https://github.com/Flyfish233/spake2-java (SPAKE2 dependency used by Kadb; current Maven metadata and repository LICENSE identify GPL-3.0; source also limits its scope to ADB pairing and disclaims general-purpose PAKE assurance)
 - https://github.com/LSPosed/AndroidHiddenApiBypass (hidden-API bypass behavior and Play-distribution warning)
 - https://github.com/rhythmcache/adb-kt (Apache-2.0 ADB client candidate)
 - https://github.com/rhythmcache/spake2-kt (Apache-2.0 SPAKE2 candidate; based on BoringSSL/AOSP; not independently audited)
@@ -89,7 +89,7 @@ References:
 | Priority | Candidate | Next action | Production status |
 |---|---|---|---|
 | 1 | Shizuku `VOICE_CALL` | Keep; strengthen service/recovery tests and physical matrix | Implemented prototype; hardware unverified |
-| 2 | Embedded Wireless ADB shell helper | License/security audit, API 30+ pairing proof, fixed-command helper | Research spike authorized; not implemented |
+| 2 | Embedded Wireless ADB shell helper | Review adb-kt/spake2-kt cryptography and dependencies; API 30+ pairing proof; fixed-command helper | Research spike authorized; not implemented |
 | 3 | API 36 protected downlink + local mic | Read-only capability probe, then separate-track experiment on eligible shell/system builds | Research only; not a full-duplex API |
 | 4 | OEM/system signed integration | Seek official partner API/permission contract | Partnership-only |
 | 5 | Speakerphone + MIC | Keep as explicit acoustic experiment with route-specific evidence | Implemented; not digital downlink |
