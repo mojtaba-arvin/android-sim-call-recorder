@@ -106,7 +106,7 @@ The following issues were open when queried. Refresh all relevant issue bodies/c
 - Active ruleset `Protect main` (ID `27531148`) applies to the default branch and requires pull requests plus `Android CI / Required checks`; deletion and non-fast-forward protections are enabled.
 - Required approving review count is 0; strict/up-to-date status checks are disabled; no bypass actors are configured. This was read from the ruleset API. Branch-protection GET itself returns 403 through the connector.
 - PR #22 (A0 context/benchmark), PR #23 (Issue #9 startup barrier tests), and PR #24 (A1.1 capability inventory) are Draft stacked PRs based on PR #1 head `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`.
-  - PR #22 head: `3ea57c5a46ac5977869fe4b2a143c23e318d5b11`.
+  - PR #22 contains this snapshot; its exact head necessarily changes when the snapshot itself is refreshed, so fetch PR #22 live rather than pinning a self-referential SHA.
   - PR #23 head: `da048dd3e540ac6f07df949a8cdf1f1b1029e39f`.
   - PR #24 head: `dabc40e4dc9cea0704ccc2b1626f6be88e5f7ac3`.
 - PR #21 was closed unmerged because its base was the bare `main` containing only `LICENSE`, so its relative references to canonical instructions/docs were broken.
