@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - bootstrap/native-android-foundation
+      - ci/parallel-emulator-gradle-cache
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      audio: ${{ steps.filter.outputs.audio }}
     steps:
       - name: Check out history
         uses: actions/checkout@v5
@@ -54,20 +56,29 @@ jobs:
           else
             # Manual runs and first pushes always execute the full verification pipeline.
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "audio=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           code_changed=false
+          audio_changed=false
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
             case "$file" in
               *.md|docs/*) ;;
-              *) code_changed=true; break ;;
+              *) code_changed=true ;;
+            esac
+            case "$file" in
+              callrecorder-sdk/src/main/java/com/mojtaba/simcallrecorder/recording/shizuku/*|callrecorder-sdk/src/test/java/com/mojtaba/simcallrecorder/recording/shizuku/*)
+                audio_changed=true
+                ;;
             esac
           done <<< "$changed_files"
 
           echo "code=$code_changed" >> "$GITHUB_OUTPUT"
+          echo "audio=$audio_changed" >> "$GITHUB_OUTPUT"
           echo "Code/build changes: $code_changed"
+          echo "Shizuku call-audio changes: $audio_changed"
 
   verify:
     name: SDK and app tests, lint, AAR, and debug APK
@@ -185,38 +196,6 @@ jobs:
           test -r /dev/kvm && test -w /dev/kvm
           ls -l /dev/kvm
 
-      - name: Cache Android emulator AVD
-        id: avd-cache
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: android-avd-${{ runner.os }}-${{ matrix.api-level }}-google-apis-x86_64-pixel2-v1
-
-      - name: Create clean AVD snapshot for cache
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
-        with:
-          api-level: ${{ matrix.api-level }}
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          force-avd-creation: false
-          disable-linux-hw-accel: false
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none
-          disable-animations: false
-          script: echo "Created clean Android emulator snapshot for subsequent CI runs."
-
-      - name: Save clean Android emulator AVD snapshot
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: android-avd-${{ runner.os }}-${{ matrix.api-level }}-google-apis-x86_64-pixel2-v1
-
       - name: Run Compose UI tests on Android emulator
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
@@ -224,9 +203,9 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          force-avd-creation: false
+          force-avd-creation: true
           disable-linux-hw-accel: false
-          emulator-options: -no-snapshot-save -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none
+          emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none
           disable-animations: true
           # Keep this as one physical command: the emulator runner invokes script lines separately.
           script: |
@@ -244,10 +223,56 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  android16-permission-probe:
+    name: Android 16 Shell call-audio permission probe
+    needs: [changes]
+    if: needs.changes.outputs.audio == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
+
+      - name: Probe API 36 Shell permissions
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          force-avd-creation: true
+          disable-linux-hw-accel: false
+          emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            shell_uid="$(adb shell id -u | tr -d '\r')"
+            echo "adb shell uid=$shell_uid"
+            test "$shell_uid" = "2000"
+
+            for permission in \
+              android.permission.CALL_AUDIO_INTERCEPTION \
+              android.permission.CAPTURE_AUDIO_OUTPUT; do
+              result="$(adb shell pm check-permission "$permission" com.android.shell | tr -d '\r')"
+              echo "$permission=$result"
+              test "$result" = "granted"
+            done
+
+            adb shell dumpsys package com.android.shell | grep -E 'CALL_AUDIO_INTERCEPTION|CAPTURE_AUDIO_OUTPUT'
+
   required:
     name: Required checks
     if: always()
-    needs: [changes, verify, instrumented]
+    needs: [changes, verify, instrumented, android16-permission-probe]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -257,6 +282,8 @@ jobs:
           CODE_CHANGED: ${{ needs.changes.outputs.code }}
           VERIFY_RESULT: ${{ needs.verify.result }}
           INSTRUMENTED_RESULT: ${{ needs.instrumented.result }}
+          AUDIO_CHANGED: ${{ needs.changes.outputs.audio }}
+          ANDROID16_RESULT: ${{ needs.android16-permission-probe.result }}
         shell: bash
         run: |
           set -euo pipefail
@@ -278,5 +305,12 @@ jobs:
             echo "Compose emulator tests did not succeed: $INSTRUMENTED_RESULT"
             exit 1
           }
+
+          if [[ "$AUDIO_CHANGED" == "true" ]]; then
+            [[ "$ANDROID16_RESULT" == "success" ]] || {
+              echo "Android 16 Shell call-audio permission probe did not succeed: $ANDROID16_RESULT"
+              exit 1
+            }
+          fi
 
           echo "All required Android CI checks passed."
