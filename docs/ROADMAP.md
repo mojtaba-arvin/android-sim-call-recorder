@@ -38,8 +38,8 @@ A recording is accepted as successful only when the file is finalized, persisted
 1. Verify the state machine for duplicate OFFHOOK events, concurrent starts, SIM switching, call-end during STARTING, service destruction, process death, and retry after failed start.
 2. Keep file finalization independent of service watcher cancellation; atomically replace destination only after a complete WAV has been written.
 3. Persist source, selected strategy, SIM slot, start/stop reason, and capture diagnostics without persisting unnecessary subscription identifiers or call content.
-4. Reconcile stale RECORDING metadata to INTERRUPTED at startup; never expose partial files as playable.
-5. Verify retention cannot delete active/interrupted recordings and cannot delete the last valid recording after a failed replacement.
+4. Reconcile stale RECORDING metadata to INTERRUPTED at process startup; force Room recovery before a new backend starts, remove orphaned app-private `.wav.part` files (including the pre-row-insert crash window), and preserve promoted `.wav` files.
+5. Verify retention cannot delete active/interrupted recordings and cannot delete the last valid recording after a failed replacement. Validate finalized WAV headers and persisted sample-rate/channel metadata before marking COMPLETED.
 6. Test notification Stop, disarm, denied foreground-service start, reboot/force-stop recovery, and Android 14+ microphone foreground-service restrictions.
 
 **Exit criteria:** deterministic automated tests for lifecycle and storage invariants; no lost/false-COMPLETED recordings in fault-injection tests.
@@ -91,5 +91,5 @@ A recording is accepted as successful only when the file is finalized, persisted
 1. Verify the CI fix on the next run and inspect API 35 result.
 2. Resolve any real emulator failures without weakening the required gate.
 3. Audit the service lifecycle and WAV/Room recovery paths against P1.
-4. Add structured, privacy-safe failure diagnostics for runtime strategy selection.
-5. Prepare a physical-device test protocol and begin evidence collection before any beta-support claims.
+4. Add structured, privacy-safe failure diagnostics for runtime strategy selection; ensure the public SDK snapshot reflects build-enabled and actually installed backends.
+5. Add fault-injection coverage for process death during PCM write and after atomic WAV promotion but before Room commit; then prepare a physical-device test protocol and begin evidence collection before any beta-support claims.
