@@ -24,9 +24,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import rikka.shizuku.Shizuku
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -386,12 +383,8 @@ internal class ShizukuAudioRecorderClient @Inject constructor(
 
     fun currentCaptureChannels(): Int = lastCaptureChannels
 
-    private fun createRecordingFile(): File {
-        val folder = File(context.filesDir, "recordings")
-        check(folder.exists() || folder.mkdirs()) { "Could not create the private recordings directory." }
-        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US).format(Date())
-        return File(folder, "call-$stamp.wav")
-    }
+    private fun createRecordingFile(): File =
+        RecordingFileFactory.create(File(context.filesDir, "recordings"), "call")
 
     private companion object {
         const val SHIZUKU_PERMISSION_REQUEST = 5_713
