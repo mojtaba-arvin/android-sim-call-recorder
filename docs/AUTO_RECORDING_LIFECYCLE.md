@@ -62,7 +62,7 @@ Shizuku capture is a privileged automatic candidate after explicit user arming, 
 
 ## Android platform constraints
 
-- The app currently targets Android 9+ (minSdk 28). Shizuku capture requires Android 11+ (API 30).
+- The app currently declares minSdk 26 (Android 8.0) as an experimental compatibility floor; this is not a release-support claim until CI and physical-device validation pass. Shizuku UserService can be attempted on API 26+ only when Shizuku/Sui is already running (for example, started through root or computer ADB on Android 8–10). Wireless-debugging startup is available on Android 11+.
 - Android 10+ applies audio-input sharing priorities. An ordinary app may create an AudioRecord but receive silence while a cellular call owns the input.
 - Android documents that a voice call always receives audio; a normal app can capture call input only when it is an accessibility service or a privileged preinstalled app with `CAPTURE_AUDIO_OUTPUT`. The Shizuku route is a separate shell/root experiment and remains device-dependent.
 - On Android 14+, microphone foreground services require `RECORD_AUDIO` and are subject to while-in-use restrictions. A microphone FGS generally cannot be created from the background. The design therefore arms the monitor while the app is visible and tests whether the already-running foreground service can continue into the call on each API/OEM.
@@ -88,6 +88,12 @@ For Standard mode only, evaluate a bounded microphone/acoustic chain. Do not mix
 - A silenced input is a clear failure signal for that moment. It is not proof that an unsilenced stream contains both participants.
 - The actual selected source and initialization fallback reason are written into the recording's source label. Persisting callback transitions and full diagnostics in Room remains outstanding.
 - A non-zero waveform or non-silent WAV is not proof of two-way speech. Two-way support still requires separate known phrases from both participants in repeated real calls.
+
+## Process-death recovery ordering
+
+The Room recovery callback is process-scoped and runs on the first database open. Before any capture backend starts, the foreground service performs a lightweight repository read to force that open. This ordering is required because a backend may create its `.wav.part` file before the service inserts the corresponding `RECORDING` row.
+
+During first-open recovery, the callback marks stale rows `INTERRUPTED`, removes only app-private `.wav.part` files (including an orphan created before row insertion), and preserves promoted `.wav` files. A crash after WAV promotion but before the Room completion update therefore leaves the audio file intact while its metadata remains recoverable as interrupted; it is never silently treated as a completed playable recording.
 
 ## Current implementation gaps
 
