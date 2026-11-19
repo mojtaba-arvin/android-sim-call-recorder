@@ -30,7 +30,7 @@ internal object DatabaseModule {
         // Runs once when this process first opens the database, before any new session can
         // insert a RECORDING row. Unlike Activity.onCreate, it cannot interrupt a live
         // recording merely because the user returns to the UI.
-        .addCallback(StaleRecordingRecoveryCallback())
+        .addCallback(StaleRecordingRecoveryCallback(File(context.filesDir, "recordings")))
         .setJournalMode(AppDatabase.JOURNAL_MODE)
         .build()
 
