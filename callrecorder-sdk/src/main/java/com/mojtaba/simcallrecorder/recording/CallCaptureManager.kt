@@ -100,8 +100,8 @@ internal class CallCaptureManager(
         return byMode[mode]
     }
 
-    fun availability(profile: CaptureDeviceProfile): List<CaptureStrategyAvailability> =
-        CaptureStrategySelector.evaluate(profile).map { option ->
+    fun availability(profile: CaptureDeviceProfile): List<CaptureStrategyAvailability> {
+        val eligible = CaptureStrategySelector.evaluate(profile).map { option ->
             if (option.mode == RecordingMode.SHIZUKU_VOICE_CALL &&
                 (!shizukuCaptureEnabled || byMode[option.mode] == null)
             ) {
@@ -120,6 +120,13 @@ internal class CallCaptureManager(
                 option
             }
         }
+        // Re-rank after build/backend filtering. Otherwise a disabled Shizuku candidate can
+        // leave every remaining eligible strategy incorrectly marked as not recommended.
+        val recommendedMode = eligible.firstOrNull { it.available }?.mode
+        return eligible.map { option ->
+            option.copy(recommended = option.available && option.mode == recommendedMode)
+        }
+    }
 
     fun selectBest(
         profile: CaptureDeviceProfile,
