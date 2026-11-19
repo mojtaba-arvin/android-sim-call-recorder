@@ -155,11 +155,15 @@ class CallRecordDaoRobolectricTest {
             databaseName,
         ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
+        val recordingDirectory = File(context.filesDir, "recordings").apply { mkdirs() }
+        val activeFile = File(recordingDirectory, "active.wav")
+        val activePartial = File(recordingDirectory, "active.wav.part").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+        val completedPartial = File(recordingDirectory, "completed.wav.part").apply { writeBytes(byteArrayOf(4, 5, 6)) }
         val activeId = previousProcess.callRecordDao().insert(
-            record(10_000L, 0, "/private/recordings/active.wav"),
+            record(10_000L, 0, activeFile.absolutePath),
         )
         val completedId = previousProcess.callRecordDao().insert(
-            record(20_000L, 1, "/private/recordings/completed.wav"),
+            record(20_000L, 1, File(recordingDirectory, "completed.wav").absolutePath),
         )
         previousProcess.callRecordDao().markCompleted(
             completedId,
@@ -178,7 +182,7 @@ class CallRecordDaoRobolectricTest {
         )
             .allowMainThreadQueries()
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-            .addCallback(StaleRecordingRecoveryCallback())
+            .addCallback(StaleRecordingRecoveryCallback(recordingDirectory))
             .build()
 
         try {
@@ -188,6 +192,8 @@ class CallRecordDaoRobolectricTest {
 
             assertEquals("INTERRUPTED", interrupted?.status)
             assertEquals("Process stopped before finalization", interrupted?.failureReason)
+            assertEquals(false, activePartial.exists())
+            assertEquals(true, completedPartial.exists())
             assertEquals("COMPLETED", completed?.status)
             assertNull(completed?.failureReason)
         } finally {
