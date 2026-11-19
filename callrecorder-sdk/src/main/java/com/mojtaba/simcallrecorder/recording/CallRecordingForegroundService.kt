@@ -323,11 +323,7 @@ internal class CallRecordingForegroundService : Service() {
                 // STARTING has not transferred ownership to the normal stop path. Once the
                 // state reaches RECORDING, compete for the same STOPPING transition used by
                 // onDestroy()/user stop so exactly one path owns backend finalization.
-                val ownsCleanup = when (stateMachine.state) {
-                    RecordingServiceStateMachine.State.STARTING -> true
-                    RecordingServiceStateMachine.State.RECORDING -> stateMachine.beginStop()
-                    else -> false
-                }
+                val ownsCleanup = stateMachine.beginFailureCleanup()
                 if (startedMode == null || ownsCleanup) {
                     val cleanupMode = startedMode ?: request.mode
                     val finalized = withContext(NonCancellable) {
@@ -366,11 +362,7 @@ internal class CallRecordingForegroundService : Service() {
                 // A failure after recordingStarted() must claim the same STOPPING transition
                 // as user/call-end teardown. If another path already owns STOPPING, leave its
                 // backend finalization and Room commit untouched.
-                val ownsCleanup = when (stateMachine.state) {
-                    RecordingServiceStateMachine.State.STARTING -> true
-                    RecordingServiceStateMachine.State.RECORDING -> stateMachine.beginStop()
-                    else -> false
-                }
+                val ownsCleanup = stateMachine.beginFailureCleanup()
                 if (ownsCleanup) {
                     if (startedMode != null) {
                         val finalized = runCatching { recordingCoordinator.stop(startedMode) }.getOrNull()
