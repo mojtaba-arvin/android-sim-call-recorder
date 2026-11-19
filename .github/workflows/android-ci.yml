@@ -5,8 +5,12 @@ on:
     branches:
       - main
   pull_request:
+    # PR #1 is the foundation branch for a short-lived stack. Run the same
+    # required gate on dependent PRs targeting it; after foundation acceptance,
+    # those PRs are retargeted to main and continue using this workflow.
     branches:
       - main
+      - bootstrap/native-android-foundation
   workflow_dispatch:
 
 permissions:
