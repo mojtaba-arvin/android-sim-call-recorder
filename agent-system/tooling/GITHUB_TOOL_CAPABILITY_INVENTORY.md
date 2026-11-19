@@ -1,7 +1,7 @@
 # GitHub Tool Capability Inventory
 
 **Version:** 1.0.0  
-**Captured:** 2026-11-19  
+**Captured:** 2026-11-19 (refreshed 10:30 UTC)  
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Machine-readable inventory:** [`github-capability-map.v1.json`](github-capability-map.v1.json)
 
@@ -17,6 +17,11 @@ Before every orchestration session:
 5. Re-check the exact branch/PR/issue/CI state before any write.
 
 This inventory is a capability map, not a standing grant to use every operation.
+
+### Freshness check — 2026-11-19 10:30 UTC
+
+The live GitHub tool catalog was re-enumerated after the additional PR coordination work. The machine-readable inventory still has exact **89/89 name parity**: no new or stale tool names were found. This confirms name coverage only; descriptions and argument schemas must still be re-read for each task-relevant action. The machine-readable `captured_at` and `verification` fields record this refresh.
+
 
 ## Connector surface
 
