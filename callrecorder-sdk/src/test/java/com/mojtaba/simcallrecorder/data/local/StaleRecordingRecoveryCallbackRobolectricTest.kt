@@ -52,17 +52,21 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         val unrelated = File(recordingDirectory, "notes.txt").apply { writeText("keep") }
 
         // Seed a database as the previous process would have left it, without recovery callback.
-        Room.databaseBuilder(context, AppDatabase::class.java, databaseFile.name)
-            .allowMainThreadQueries()
-            .build()
-            .use { previousProcessDatabase ->
-                previousProcessDatabase.callRecordDao().insert(
-                    record(activeWav, status = "RECORDING", startedAt = 100L),
-                )
-                previousProcessDatabase.callRecordDao().insert(
-                    record(completedWav, status = "COMPLETED", startedAt = 200L),
-                )
-            }
+        val previousProcessDatabase = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseFile.name,
+        ).allowMainThreadQueries().build()
+        try {
+            previousProcessDatabase.callRecordDao().insert(
+                record(activeWav, status = "RECORDING", startedAt = 100L),
+            )
+            previousProcessDatabase.callRecordDao().insert(
+                record(completedWav, status = "COMPLETED", startedAt = 200L),
+            )
+        } finally {
+            previousProcessDatabase.close()
+        }
 
         database = Room.databaseBuilder(context, AppDatabase::class.java, databaseFile.name)
             .allowMainThreadQueries()
