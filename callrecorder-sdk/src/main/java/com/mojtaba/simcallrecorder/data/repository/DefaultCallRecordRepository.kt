@@ -138,51 +138,55 @@ internal class DefaultCallRecordRepository @Inject constructor(
         expectedSampleRate: Int,
         expectedChannels: Int,
         expectedDataBytes: Long,
-    ): Boolean = runCatching {
-        if (!file.isFile || expectedSampleRate <= 0 || expectedChannels !in 1..2) return false
-        RandomAccessFile(file, "r").use { wav ->
-            val length = wav.length()
-            val blockAlign = expectedChannels * BYTES_PER_SAMPLE
-            if (expectedDataBytes <= 0L ||
-                expectedDataBytes % blockAlign != 0L ||
-                length != WAV_HEADER_BYTES + expectedDataBytes
-            ) return false
-
-            fun readAscii(size: Int): String {
-                val bytes = ByteArray(size)
-                wav.readFully(bytes)
-                return String(bytes, Charsets.US_ASCII)
+    ): Boolean {
+        return runCatching {
+            if (!file.isFile || expectedSampleRate <= 0 || expectedChannels !in 1..2) {
+                return@runCatching false
             }
-            fun readU16(): Int = wav.readUnsignedByte() or (wav.readUnsignedByte() shl 8)
-            fun readU32(): Long =
-                wav.readUnsignedByte().toLong() or
-                    (wav.readUnsignedByte().toLong() shl 8) or
-                    (wav.readUnsignedByte().toLong() shl 16) or
-                    (wav.readUnsignedByte().toLong() shl 24)
+            RandomAccessFile(file, "r").use { wav ->
+                val length = wav.length()
+                val blockAlign = expectedChannels * BYTES_PER_SAMPLE
+                if (expectedDataBytes <= 0L ||
+                    expectedDataBytes % blockAlign != 0L ||
+                    length != WAV_HEADER_BYTES + expectedDataBytes
+                ) return@use false
 
-            wav.seek(0L)
-            if (readAscii(4) != "RIFF" || readU32() != length - 8L || readAscii(4) != "WAVE") {
-                return false
+                fun readAscii(size: Int): String {
+                    val bytes = ByteArray(size)
+                    wav.readFully(bytes)
+                    return String(bytes, Charsets.US_ASCII)
+                }
+                fun readU16(): Int = wav.readUnsignedByte() or (wav.readUnsignedByte() shl 8)
+                fun readU32(): Long =
+                    wav.readUnsignedByte().toLong() or
+                        (wav.readUnsignedByte().toLong() shl 8) or
+                        (wav.readUnsignedByte().toLong() shl 16) or
+                        (wav.readUnsignedByte().toLong() shl 24)
+
+                wav.seek(0L)
+                if (readAscii(4) != "RIFF" || readU32() != length - 8L || readAscii(4) != "WAVE") {
+                    return@use false
+                }
+                if (readAscii(4) != "fmt " || readU32() != 16L) return@use false
+                val audioFormat = readU16()
+                val channels = readU16()
+                val sampleRate = readU32()
+                val byteRate = readU32()
+                val actualBlockAlign = readU16()
+                val bitsPerSample = readU16()
+                if (audioFormat != PCM_FORMAT ||
+                    channels != expectedChannels ||
+                    sampleRate != expectedSampleRate.toLong() ||
+                    byteRate != expectedSampleRate.toLong() * blockAlign ||
+                    actualBlockAlign != blockAlign ||
+                    bitsPerSample != BITS_PER_SAMPLE ||
+                    readAscii(4) != "data" ||
+                    readU32() != expectedDataBytes
+                ) return@use false
+                true
             }
-            if (readAscii(4) != "fmt " || readU32() != 16L) return false
-            val audioFormat = readU16()
-            val channels = readU16()
-            val sampleRate = readU32()
-            val byteRate = readU32()
-            val actualBlockAlign = readU16()
-            val bitsPerSample = readU16()
-            if (audioFormat != PCM_FORMAT ||
-                channels != expectedChannels ||
-                sampleRate != expectedSampleRate.toLong() ||
-                byteRate != expectedSampleRate.toLong() * blockAlign ||
-                actualBlockAlign != blockAlign ||
-                bitsPerSample != BITS_PER_SAMPLE ||
-                readAscii(4) != "data" ||
-                readU32() != expectedDataBytes
-            ) return false
-            true
-        }
-    }.getOrDefault(false)
+        }.getOrDefault(false)
+    }
 
     private fun recordingDirectory(): File = File(context.filesDir, "recordings")
 
