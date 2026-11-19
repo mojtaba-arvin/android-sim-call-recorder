@@ -26,12 +26,21 @@ The workflow `.github/workflows/android-ci.yml` currently performs. Its `pull_re
 1. SDK boundary guard.
 2. SDK and app JUnit/Robolectric unit tests.
 3. SDK and app Android Lint.
-4. App instrumentation-test Kotlin compilation.
+4. Android instrumentation-test compilation occurs as part of `:app:connectedDebugAndroidTest` on each emulator lane; do not compile the same test sources again in the unit/build lane.
 5. SDK release AAR and app debug APK assembly, with artifacts/reports uploaded.
 6. Compose UI instrumentation on Android emulator API 26 and API 35, with logcat, service, and audio diagnostics collected even after test failure.
 7. A final `Required checks` aggregator that fails unless change detection, verification, and both emulator jobs have the required result.
 
 The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow installs Android SDK Platform 37.2 and Build Tools 37.0.0. Emulator Quick Boot is enabled; do not force cold boots without a reproducible reason.
+
+## Performance controls
+
+- `gradle/actions/setup-gradle@v5` restores/saves Gradle User Home state; `org.gradle.caching=true` enables task-output caching and `org.gradle.parallel=true` enables parallel task execution. Preserve read-only cache behavior for fork PRs.
+- `org.gradle.configuration-cache=true` is enabled experimentally with `org.gradle.configuration-cache.problems=warn`. Check each exact-head CI log for configuration-cache reuse and configuration-cache problems. If a plugin incompatibility disables reuse or introduces correctness risk, fix or revert it rather than claiming a speedup.
+- The two emulator API lanes now start after change detection and run concurrently with unit/lint/build verification. `Required checks` still depends on all jobs and remains fail-closed. This removes the previous serial `verify -> emulator` critical-path dependency without reducing coverage.
+- `:app:compileDebugAndroidTestKotlin` is not separately invoked in the verify job because each emulator lane compiles the instrumentation APK as part of `:app:connectedDebugAndroidTest`; the previous separate compile was redundant work.
+- Measure wall-clock duration and cache hit/reuse evidence on multiple exact-head runs before quantifying improvement. A single run or a runner-side emulator boot stall is not a valid performance benchmark.
+
 
 ## Concurrency and permissions
 
