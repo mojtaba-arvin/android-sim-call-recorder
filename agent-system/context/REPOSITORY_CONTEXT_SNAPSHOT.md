@@ -62,8 +62,8 @@ Read these files in this order at session start:
 Workflow: [Android CI run #44465011336](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44465011336)  
 Run number: 470  
 Event: `pull_request`  
-Tested SHA: `1f6061728d0d9463c1c83ca1591f8790a4854fe1`  
-Previous run #44465011336 completed successfully on the prior foundation SHA. A new run #44505690931 is now **in_progress** on updated foundation SHA `1f6061728d0d9463c1c83ca1591f8790a4854fe1` after the stacked-PR workflow filter change; do not claim the new foundation head green until it completes.
+Tested SHA: `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`  
+Run #44465011336 completed successfully on that prior foundation SHA. A new run #44505690931 is now **in_progress** on updated foundation SHA `1f6061728d0d9463c1c83ca1591f8790a4854fe1` after the stacked-PR workflow filter change; do not claim the new foundation head green until it completes.
 
 | Job | Conclusion |
 |---|---|
@@ -84,7 +84,7 @@ Available artifacts from the completed run:
 
 The convenience bundle `android-sim-call-recorder-ci-artifacts.zip` was verified locally: its embedded SHA256SUMS entries validate the APK and AAR bytes. The bundle SHA-256 is `60238ce60eec7e01997798a50294517fb842b827ec5197f32ac7695e0ebbfa49`. This is a debug-signed CI artifact, not a published GitHub Release.
 
-This CI result applies only to PR #1's tested SHA. The current heads of PRs #22, #23, #24, and #25 have no associated workflow runs and must not inherit this green status. No physical-device evidence confirms intelligible near-end and far-end cellular speech.
+This CI result applies only to PR #1's tested SHA. The current heads of PRs #22, #23, #24, and #25 had no associated workflow runs at capture time and must not inherit this green status. The updated workflow now allows pull requests targeting the foundation branch, but each stacked PR needs a fresh synchronize event and its own run. No physical-device evidence confirms intelligible near-end and far-end cellular speech.
 
 ## 5. Open GitHub backlog at capture time
 
