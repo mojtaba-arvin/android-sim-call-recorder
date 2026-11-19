@@ -24,17 +24,28 @@ internal abstract class AppDatabase : RoomDatabase() {
  * Marks sessions left active by a previous app process as interrupted when this process first
  * opens the database. This must not be called from Activity.onCreate: an Activity can be
  * recreated while a foreground recording service in the same process is still writing audio.
+ *
+ * Room may invoke onOpen again if its database connection is reopened. Keep the recovery
+ * idempotent for the lifetime of this callback (the database is a process singleton).
  */
 internal class StaleRecordingRecoveryCallback : RoomDatabase.Callback() {
+    private val recoveryLock = Any()
+    private var recoveryCompleted = false
+
     override fun onOpen(db: SupportSQLiteDatabase) {
         super.onOpen(db)
-        db.execSQL(
-            """
-            UPDATE call_records
-            SET status = 'INTERRUPTED',
-                failureReason = 'Process stopped before finalization'
-            WHERE status = 'RECORDING'
-            """.trimIndent(),
-        )
+        synchronized(recoveryLock) {
+            if (!recoveryCompleted) {
+                db.execSQL(
+                    """
+                    UPDATE call_records
+                    SET status = 'INTERRUPTED',
+                        failureReason = 'Process stopped before finalization'
+                    WHERE status = 'RECORDING'
+                    """.trimIndent(),
+                )
+                recoveryCompleted = true
+            }
+        }
     }
 }
