@@ -91,6 +91,33 @@ class WavPcmFileWriterTest {
     }
 
     @Test
+    fun readFailureDeletesPartialAndPreservesPreviousDestination() {
+        val destination = File(temporaryFolder.root, "interrupted.wav")
+        val original = byteArrayOf(7, 6, 5, 4)
+        destination.writeBytes(original)
+        val input = object : InputStream() {
+            private var delivered = false
+
+            override fun read(): Int = throw java.io.IOException("simulated PCM pipe failure")
+
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                if (delivered) throw java.io.IOException("simulated PCM pipe failure")
+                delivered = true
+                buffer[offset] = 0x12
+                buffer[offset + 1] = 0x34
+                return 2
+            }
+        }
+
+        org.junit.Assert.assertThrows(java.io.IOException::class.java) {
+            WavPcmFileWriter.copyPcm(input, destination, sampleRate = 8_000, channels = 1)
+        }
+
+        assertArrayEquals(original, destination.readBytes())
+        assertFalse(File(destination.parentFile, destination.name + ".part").exists())
+    }
+
+    @Test
     fun successfulCaptureReplacesExistingFileOnlyAfterFinalization() {
         val destination = File(temporaryFolder.root, "replace.wav")
         destination.writeBytes(byteArrayOf(1, 2, 3))
