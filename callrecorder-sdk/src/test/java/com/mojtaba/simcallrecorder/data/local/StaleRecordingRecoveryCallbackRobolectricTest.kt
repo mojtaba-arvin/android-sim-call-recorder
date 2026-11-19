@@ -93,6 +93,50 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         assertTrue(unrelated.exists())
     }
 
+    @Test
+    fun repeatedOpenDoesNotInterruptOrDeleteFilesFromANewSessionInTheSameProcess() = runBlocking {
+        val previousWav = File(recordingDirectory, "previous.wav")
+        val previousProcessDatabase = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseFile.name,
+        ).allowMainThreadQueries().build()
+        try {
+            previousProcessDatabase.callRecordDao().insert(
+                record(previousWav, status = "RECORDING", startedAt = 100L),
+            )
+        } finally {
+            previousProcessDatabase.close()
+        }
+
+        val callback = StaleRecordingRecoveryCallback(recordingDirectory)
+        database = Room.databaseBuilder(context, AppDatabase::class.java, databaseFile.name)
+            .allowMainThreadQueries()
+            .addCallback(callback)
+            .build()
+
+        // First open represents process startup and must recover the previous process.
+        assertEquals(
+            "INTERRUPTED",
+            database!!.callRecordDao().observeAll().first().single().status,
+        )
+
+        // A new capture begins later in this same process.
+        val newSessionWav = File(recordingDirectory, "new-session.wav")
+        val newSessionPart = File(recordingDirectory, "new-session.wav.part")
+            .apply { writeBytes(byteArrayOf(1, 2, 3)) }
+        val newSessionId = database!!.callRecordDao().insert(
+            record(newSessionWav, status = "RECORDING", startedAt = 200L),
+        )
+
+        // Room may call onOpen again after reopening its connection. Recovery must stay
+        // process-scoped: it must not classify this live session as stale or delete its part.
+        callback.onOpen(database!!.openHelper.writableDatabase)
+
+        assertEquals("RECORDING", database!!.callRecordDao().findById(newSessionId)?.status)
+        assertTrue(newSessionPart.exists())
+    }
+
     private fun record(file: File, status: String, startedAt: Long) = CallRecordEntity(
         startedAtEpochMillis = startedAt,
         durationMillis = if (status == "COMPLETED") 1_000L else null,
