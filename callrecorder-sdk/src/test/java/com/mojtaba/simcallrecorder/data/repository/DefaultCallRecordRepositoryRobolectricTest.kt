@@ -101,6 +101,45 @@ class DefaultCallRecordRepositoryRobolectricTest {
     }
 
     @Test
+    fun refusesToCompleteWhenFinalizedWavIsMissingOrMalformed() = runBlocking {
+        val folder = File(context.filesDir, "recordings").apply { mkdirs() }
+        val audio = File(folder, "invalid-finalization.wav")
+        val id = repository.createActiveRecording(
+            CallRecord(
+                startedAtEpochMillis = 100_000L,
+                durationMillis = null,
+                phoneNumber = null,
+                simSlotIndex = 0,
+                filePath = audio.absolutePath,
+                recordingMode = "SHIZUKU_VOICE_CALL",
+                audioSource = "VOICE_CALL",
+                sampleRate = 48_000,
+                channelCount = 2,
+                dataBytes = 0L,
+                peakSample = 0,
+                rmsSample = 0,
+                isSilent = null,
+                status = "RECORDING",
+                failureReason = null,
+            ),
+        )
+        val completion = CallRecordCompletion(
+            durationMillis = 1_000L,
+            dataBytes = 4L,
+            peakSample = 10,
+            rmsSample = 5,
+            isSilent = false,
+        )
+
+        assertFalse(repository.completeRecording(id, completion))
+        assertEquals("RECORDING", database.callRecordDao().findById(id)?.status)
+
+        audio.writeBytes(ByteArray(48))
+        assertFalse(repository.completeRecording(id, completion))
+        assertEquals("RECORDING", database.callRecordDao().findById(id)?.status)
+    }
+
+    @Test
     fun activeRecordingCannotBeDeletedWhileCaptureMayStillBeWriting() = runBlocking {
         val folder = File(context.filesDir, "recordings").apply { mkdirs() }
         val audio = File(folder, "active.wav").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
