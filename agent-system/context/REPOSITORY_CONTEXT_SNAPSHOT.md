@@ -94,7 +94,7 @@ The following issues were open when queried. Refresh all relevant issue bodies/c
 | [#8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) | Stable CI branch protection | Docs-only Android-job skip + Required checks success proven twice; deliberate failing-test propagation and observed superseded-run cancellation remain; strict checks deferred |
 | [#9](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/9) | Process-scoped interrupted-session recovery | Service startup-order and process-death/fault-injection tests still required |
 | [#10](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/10) | R&D agent system umbrella | Parent tracking issue |
-| [#11](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/11) | A0 charter, contract, context, benchmark | A0.1–A0.4 implemented; PR #22 pending review and post-foundation CI |
+| [#11](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/11) | A0 charter, contract, context, benchmark | A0.1–A0.4 implemented; PR #22 exact-head CI passed, but this snapshot refresh creates a new head and requires another run; base synchronization and review remain |
 | [#12](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/12) | A1 orchestrator and execution ledger | A1.1 read-only tool inventory delivered in PR #24; A1.2–A1.5 gated on A0/foundation acceptance |
 | [#13](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/13) | A2 bounded specialist agents | Depends on A1 |
 | [#14](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/14) | A3 evaluation and safety regression | Depends on A2 |
@@ -147,9 +147,9 @@ Issue #9 must remain open until its acceptance criteria are covered by evidence.
 4. Start A1 only after A0.1–A0.4 are complete and machine-validated.
 5. Continue product issues #2–#8 by priority/dependency; keep physical validation as an explicit owner/device gate.
 6. Keep PRs Draft while criteria or evidence remain incomplete. No merge, tag, release, branch-protection mutation, or privileged-policy change without owner approval.
-7. PR #1 foundation CI is green; do not attribute that result to stacked PRs #22–#25. Their exact heads currently have no associated workflow runs. After foundation acceptance, retarget them to `main` in dependency order and require full CI on each final SHA.
+7. PR #1 foundation CI is green. PRs #22–#25 each have their own exact-head green CI runs, but their live base SHA is still `728dbfd` and they are not integration-tested against current Foundation head `cc49c2d`. After Foundation acceptance, synchronize/retarget them to `main` in dependency order and rerun full CI on each final SHA.
 8. Physical two-way call validation remains a device-owner gate tracked by Issue #3; no current matrix entry is tested.
 
 ## 10. Snapshot provenance
 
-This document was assembled from the PR #1 feature-branch canonical instructions/docs, live GitHub issue state, PR #1/#21/#22 metadata, and Actions run/job/artifact metadata at the timestamp above. It contains no credentials, personal call identifiers, or audio. The benchmark `source_head_sha` was reconciled to the exact `source HEAD` above; both are `${sha}`. The source HEAD is the provenance anchor; the freshness contract supersedes any assumption that these values remain current. The PR head SHAs above are the exact heads at capture, except PR #22 whose self-referential head must be fetched live.
+This document was assembled from the PR #1 feature-branch canonical instructions/docs, live GitHub issue state, PR #1/#21/#22 metadata, and Actions run/job/artifact metadata at the timestamp above. It contains no credentials, personal call identifiers, or audio. The benchmark `source_head_sha` was reconciled to the exact `source HEAD` above; both are `cc49c2dca4defe17578fdabe9d2d30e083c2f726`. The source HEAD is the provenance anchor; the freshness contract supersedes any assumption that these values remain current. The PR head SHAs above are the exact heads at capture, except PR #22 whose self-referential head must be fetched live.
