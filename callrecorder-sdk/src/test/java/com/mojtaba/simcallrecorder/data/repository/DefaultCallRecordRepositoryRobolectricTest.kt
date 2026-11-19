@@ -362,6 +362,45 @@ class DefaultCallRecordRepositoryRobolectricTest {
     }
 
     @Test
+    fun promotedWavSurvivesInterruptionBeforeRoomCompletionCommit() = runBlocking {
+        val folder = File(context.filesDir, "recordings").apply { mkdirs() }
+        val audio = File(folder, "promoted-before-commit.wav")
+        WavPcmFileWriter.copyPcm(
+            ByteArrayInputStream(byteArrayOf(1, 0, 2, 0)),
+            audio,
+            sampleRate = 48_000,
+            channels = 2,
+        )
+        val id = repository.createActiveRecording(
+            CallRecord(
+                startedAtEpochMillis = 10L,
+                durationMillis = null,
+                phoneNumber = null,
+                simSlotIndex = 0,
+                filePath = audio.absolutePath,
+                recordingMode = "SHIZUKU_VOICE_CALL",
+                audioSource = "VOICE_CALL",
+                sampleRate = 48_000,
+                channelCount = 2,
+                dataBytes = 0,
+                peakSample = 0,
+                rmsSample = 0,
+                isSilent = null,
+                status = "RECORDING",
+                failureReason = null,
+            ),
+        )
+
+        assertEquals(1, repository.markActiveRecordingsInterrupted())
+
+        val record = repository.observeRecords().first().single()
+        assertEquals(id, record.id)
+        assertEquals("INTERRUPTED", record.status)
+        assertTrue("A fully promoted WAV must be preserved for recovery or manual inspection.", audio.isFile)
+        assertEquals("RIFF", audio.readBytes().let { String(it, 0, 4, Charsets.US_ASCII) })
+    }
+
+    @Test
     fun activeRowsAreMarkedInterruptedWhenTheAppRestarts() = runBlocking {
         val folder = File(context.filesDir, "recordings").apply { mkdirs() }
         val audio = File(folder, "interrupted.wav")
