@@ -296,7 +296,13 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Recording unavailable", style = MaterialTheme.typography.headlineSmall)
-            Text("This session is ${record.status.lowercase(Locale.ROOT)} or its private WAV file is missing.")
+            Text(
+                if (record.status == "RECORDING") {
+                    "This recording is still active. Stop capture before removing it."
+                } else {
+                    "This session is ${record.status.lowercase(Locale.ROOT)} or its private WAV file is missing."
+                },
+            )
             record.failureReason?.takeIf { it.isNotBlank() }?.let { reason ->
                 Text("Failure reason", style = MaterialTheme.typography.titleSmall)
                 Text(reason, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -319,7 +325,10 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
                 )
             }
             Button(onClick = onBack) { Text("Back") }
-            OutlinedButton(onClick = onDelete) { Text("Remove record") }
+            OutlinedButton(
+                onClick = onDelete,
+                enabled = record.status != "RECORDING",
+            ) { Text("Remove record") }
         }
         return
     }
