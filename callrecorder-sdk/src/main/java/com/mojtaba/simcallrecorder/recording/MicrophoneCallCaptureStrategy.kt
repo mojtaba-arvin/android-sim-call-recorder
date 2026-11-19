@@ -168,10 +168,8 @@ private class MicrophoneCaptureSession(
             throw IllegalStateException("AudioRecord rejected 16 kHz mono PCM on this device.")
         }
 
-        val outputDir = File(context.filesDir, "recordings").apply {
-            check(exists() || mkdirs()) { "Could not create the private recordings directory." }
-        }
-        val outputFile = File(outputDir, "capture_${System.currentTimeMillis()}_${mode.name.lowercase()}.wav")
+        val outputDir = File(context.filesDir, "recordings")
+        val outputFile = RecordingFileFactory.create(outputDir, "capture_${mode.name.lowercase()}")
         var selectedRecord: AudioRecord? = null
         try {
             applyAudioRoute()
