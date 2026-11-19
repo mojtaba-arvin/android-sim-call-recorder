@@ -140,6 +140,63 @@ class DefaultCallRecordRepositoryRobolectricTest {
     }
 
     @Test
+    fun rejectsValidWavWhenItsFormatDoesNotMatchPersistedCaptureMetadata() = runBlocking {
+        val folder = File(context.filesDir, "recordings").apply { mkdirs() }
+        val audio = File(folder, "metadata-mismatch.wav")
+        val id = repository.createActiveRecording(
+            CallRecord(
+                startedAtEpochMillis = 100_000L,
+                durationMillis = null,
+                phoneNumber = null,
+                simSlotIndex = 0,
+                filePath = audio.absolutePath,
+                recordingMode = "SHIZUKU_VOICE_CALL",
+                audioSource = "VOICE_CALL",
+                sampleRate = 48_000,
+                channelCount = 2,
+                dataBytes = 0L,
+                peakSample = 0,
+                rmsSample = 0,
+                isSilent = null,
+                status = "RECORDING",
+                failureReason = null,
+            ),
+        )
+        val completion = CallRecordCompletion(
+            durationMillis = 1_000L,
+            dataBytes = 4L,
+            peakSample = 10,
+            rmsSample = 5,
+            isSilent = false,
+        )
+
+        WavPcmFileWriter.copyPcm(
+            ByteArrayInputStream(byteArrayOf(1, 0, 2, 0)),
+            audio,
+            sampleRate = 44_100,
+            channels = 2,
+        )
+        assertFalse(repository.completeRecording(id, completion))
+
+        WavPcmFileWriter.copyPcm(
+            ByteArrayInputStream(byteArrayOf(1, 0)),
+            audio,
+            sampleRate = 48_000,
+            channels = 1,
+        )
+        assertFalse(repository.completeRecording(id, completion))
+
+        WavPcmFileWriter.copyPcm(
+            ByteArrayInputStream(byteArrayOf(1, 0, 2, 0)),
+            audio,
+            sampleRate = 48_000,
+            channels = 2,
+        )
+        assertTrue(repository.completeRecording(id, completion))
+        assertEquals("COMPLETED", database.callRecordDao().findById(id)?.status)
+    }
+
+    @Test
     fun activeRecordingCannotBeDeletedWhileCaptureMayStillBeWriting() = runBlocking {
         val folder = File(context.filesDir, "recordings").apply { mkdirs() }
         val audio = File(folder, "active.wav").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
