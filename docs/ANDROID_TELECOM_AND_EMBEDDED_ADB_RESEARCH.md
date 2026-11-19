@@ -123,7 +123,7 @@ References:
 - No automatic fallback between privileged digital capture and acoustic microphone capture.
 - Physical acceptance remains separate local/remote phrase intelligibility across repeated incoming/outgoing calls, SIMs and routes.
 
-## 6. Engineering assessment of the three capture paths
+## 6. Engineering assessment of the three approaches considered
 
 The three candidates are not three equivalent audio APIs. One is a privileged source already prototyped, one is a newer protected receive/inject API pair, and one is a transport for obtaining shell identity.
 
