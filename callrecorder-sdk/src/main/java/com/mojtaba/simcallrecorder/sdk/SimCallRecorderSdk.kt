@@ -17,7 +17,6 @@ import com.mojtaba.simcallrecorder.recording.AudioRecordingDiagnostics
 import com.mojtaba.simcallrecorder.recording.CallRecordingForegroundService
 import com.mojtaba.simcallrecorder.recording.CaptureDeviceProfileProvider
 import com.mojtaba.simcallrecorder.recording.RecordingCoordinator
-import com.mojtaba.simcallrecorder.recording.CaptureStrategySelector
 import com.mojtaba.simcallrecorder.recording.shizuku.ShizukuAudioRecorderClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -111,7 +110,7 @@ class SimCallRecorderSdk @Inject internal constructor(
     fun captureStrategySnapshot(): CaptureStrategySnapshot {
         val profile = profileProvider.snapshot()
         return CaptureStrategySnapshot(
-            options = CaptureStrategySelector.evaluate(profile).map { option ->
+            options = coordinator.availability(profile).map { option ->
                 CaptureStrategyOption(
                     mode = option.mode,
                     displayName = option.displayName,
