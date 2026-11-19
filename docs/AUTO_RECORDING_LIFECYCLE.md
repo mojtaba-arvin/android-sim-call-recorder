@@ -104,7 +104,7 @@ During first-open recovery, the callback marks stale rows `INTERRUPTED`, removes
 - AudioRecordingCallback / client-silenced diagnostics are visible live but are not yet persisted as a complete timeline in Room.
 - No physical modem/OEM/carrier two-way result has been recorded.
 
-Tracked work:
-- Issue #2: runtime capability probing and strategy selection.
-- Issue #4: consent-gated automatic OFFHOOK recording and dual-mode lifecycle.
-- Issue #5: audio-capture silence diagnostics and Standard-mode fallback.
+Tracked follow-up issues (all remain open for validation and hardening; the core flows described above are implemented):
+- Issue #2: prove exact selector-to-backend invocation, complete selection/fallback-reason presentation and persistence, and add service-level coverage for runtime gates.
+- Issue #4: finish adversarial service tests for permission/notification revocation, foreground-service denial/destruction, recovery, and call-waiting edge cases; physical-device validation remains separate.
+- Issue #5: complete callback registration/session-filtering/silenced-transition/cleanup tests and evaluate any user-visible retry policy strictly within Standard acoustic mode.
