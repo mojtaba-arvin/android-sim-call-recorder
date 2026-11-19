@@ -47,14 +47,14 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 ### P2 — Runtime strategy selection and observability
 
-1. Keep strategy capability, runtime eligibility, session selection, observed signal, and verified device support separate.
-2. Probe live Shizuku binder and helper UID/attribution at session start; freeze the selected strategy for that session.
-3. Record explicit selection/failure reason codes and the actual capture source.
-4. Expose actionable diagnostics for permission denial, service-start denial, audio input sharing/silencing, route changes, empty stream, silent stream, and finalization failure.
-5. Preserve fail-closed boundaries: no implicit source substitution, no one-sided VOICE_UPLINK/DOWNLINK fallback, and no Shizuku-to-MIC fallback.
+1. Preserve the distinction between strategy capability, runtime eligibility, arm-time session selection, observed signal, and verified device support.
+2. **Implemented:** best-eligible selection snapshots live Shizuku UserService/UID/attribution readiness when the user arms monitoring, then fixes the selected mode until disarm. Remaining work is adversarial service-level coverage for stale/disconnected readiness and exact backend invocation.
+3. **Partially implemented:** actual source and bounded diagnostic history are persisted. Add an explicit structured selection/fallback reason where it is still missing, and ensure notification/recording-detail UI consistently reports the actual selected mode rather than a preferred candidate.
+4. **Partially implemented:** permission, service, source, silence, and finalization diagnostics exist across the UI/recording metadata. Complete tests for callback registration/session filtering, silenced-state transitions, cleanup, and failure reason persistence.
+5. Preserve the fail-closed contract: no implicit cross-mode substitution, no one-sided VOICE_UPLINK/DOWNLINK success path, and no Shizuku-to-MIC fallback.
 6. Ensure observability never logs phone numbers, ICCIDs, subscription IDs, call content, or audio samples.
 
-**Exit criteria:** tests cover selector ordering, missing/stale binder, UID mismatch, missing attribution, consent gates, audio-source failure, route change, and no-silent-fallback behavior.
+**Exit criteria:** tests prove selector-to-backend invocation, stale/missing binder handling, UID/attribution/API/feature-flag gates, consent gates, actual-source persistence, diagnostic callback cleanup, route/source failures, and no-silent-fallback behavior.
 
 ### P3 — Physical-device validation and compatibility evidence
 
