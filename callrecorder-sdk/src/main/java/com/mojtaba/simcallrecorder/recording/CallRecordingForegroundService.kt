@@ -238,6 +238,9 @@ internal class CallRecordingForegroundService : Service() {
             var startedMode: RecordingMode? = null
             var insertedRecordId: Long? = null
             try {
+                // Open Room and finish process-scoped stale-session/.part recovery before a
+                // backend creates a new temporary WAV. This also covers service-first process starts.
+                callRecordRepository.countRecordings()
                 val runtimeProfile = captureDeviceProfile()
                 val output = recordingCoordinator.start(request, runtimeProfile)
                 startedMode = request.mode
