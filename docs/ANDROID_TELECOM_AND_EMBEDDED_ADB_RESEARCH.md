@@ -122,3 +122,50 @@ References:
 - Never copy GPL code into this MIT repository without an explicit license decision.
 - No automatic fallback between privileged digital capture and acoustic microphone capture.
 - Physical acceptance remains separate local/remote phrase intelligibility across repeated incoming/outgoing calls, SIMs and routes.
+
+## 6. Engineering assessment of the three capture paths
+
+The three candidates are not three equivalent audio APIs. One is a privileged source already prototyped, one is a newer protected receive/inject API pair, and one is a transport for obtaining shell identity.
+
+### A. Shizuku UserService + `AudioRecord(VOICE_CALL)`
+
+**What it can do:** ask AudioFlinger/AudioPolicy for the full call mix through the legacy `VOICE_CALL` source, but only when the actual helper UID passes the protected permission gate and the device's audio policy/HAL supports the source. The project keeps 48 kHz PCM16 stereo as the preferred format and mono as the only format fallback.
+
+**What blocks it:** Android 16+ AOSP checks `CALL_AUDIO_INTERCEPTION` first for VOICE_CALL and retains `CAPTURE_AUDIO_OUTPUT` as a legacy fallback. Both are signature/privileged/role permissions. The Android 16 AOSP Shell manifest does not request either. Thus an ordinary Shizuku session launched as shell UID 2000 is not automatically eligible on stock AOSP. OEM builds can grant different permissions; root/Sui is a separate possibility. Even with permission, AudioRecord may be rejected, silent, one-sided, or unsupported by the modem/HAL/route.
+
+**Project status:** existing prototype; the permission gate correction and unit tests are in [PR #29](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/29). It is not hardware-verified. No one-sided or microphone fallback is allowed.
+
+**Next decisive experiment:** on at least one stock Android 16 device and one OEM Android 16 device, record the helper's actual UID, both permission results, shell attribution readiness, AudioRecord initialization/read errors, and separate local/remote phrase intelligibility. If stock shell lacks both permissions, record it as an expected denied capability, not an implementation failure.
+
+### B. Android 16+ `CALL_AUDIO_INTERCEPTION`
+
+**What it can do:** when permission and Telecom's call-redirection/screening mode requirements are met, `isPstnCallAudioInterceptable()` can report whether a PSTN call is interceptable; `getCallDownlinkExtractionAudioRecord()` creates a receive-side track. The paired `getCallUplinkInjectionAudioTrack()` is an injection output, not a recording input.
+
+**What it cannot do:** it is not a public two-track recorder. The API does not provide a local-microphone recording track. Composing downlink extraction with a separate local MIC/VOICE_RECOGNITION capture remains a separate hypothesis, because call input-sharing may silence the ordinary microphone client. The API is `@SystemApi`/`@TestApi` and protected by `CALL_AUDIO_INTERCEPTION` (`signature|privileged|role`); consumer apps cannot request it through a runtime prompt. The AOSP shell manifest does not declare that permission either.
+
+**Project status:** research only. No API call, reflection path, selector entry, or audio backend has been added.
+
+**Next implementation slice:** a read-only API-36+ capability probe in the Shizuku helper: report API availability, actual `CALL_AUDIO_INTERCEPTION` grant, `isPstnCallAudioInterceptable()` result, and exact failure category. Only after the probe passes on real hardware should a test-only downlink track be opened. Keep downlink and local mic in separate files/tracks with independent signal metrics; never merge or mark success unless both phrases are intelligible and the microphone is not silenced.
+
+### C. Embedded Wireless ADB + fixed helper launch
+
+**What it can do:** implement the ADB host side inside the APK, pair with Android's user-visible Wireless Debugging pairing code, establish TLS, authenticate a host key, and use a narrowly fixed shell-v2 operation to start a helper under UID 2000. This can replace the separate Shizuku app/service UX in principle.
+
+**What it cannot do:** it does not grant root, `CALL_AUDIO_INTERCEPTION`, or `CAPTURE_AUDIO_OUTPUT`. It obtains the same shell UID as ADB-backed Shizuku. On stock Android 16, the Shell manifest's lack of both protected audio permissions means embedded ADB does not solve the call-audio permission gate. It is a transport/bootstrapping alternative, not a new audio source.
+
+**Security/maintenance concerns:** wireless pairing writes a trusted ADB host key to the device's ADB trust store. The key is broad device-debugging authority, not a recorder-only capability. The ADB client library exposes much more than a fixed helper launch (interactive shell, sync, install, root/unroot requests, TCP mode, forwarding, rescue/sideload features). The app must not expose or accidentally call those operations. It would need a dedicated allow-listed adapter, Keystore-backed host-key storage, explicit pair/revoke UX, TLS/mDNS lifecycle handling, timeouts, cancellation, disconnect cleanup, and a threat model.
+
+**Dependency finding:** `adb-kt` currently publishes `com.github.rhythmcache:adb-kt:1.0.13` in its module build, while its README/DOCUMENTATION installation snippets still show `io.github.rhythmcache:adb-kt:1.0.0`. Its version catalog pins `com.github.rhythmcache:spake2-kt:v1.0.2`; that library's own README advertises a different `io.github.rhythmache` coordinate while its Gradle publication uses `com.github.rhythmcache` and version `v1.0.2`. The SPAKE2 source has only a small basic test set (matching/mismatched password and state misuse) in the inspected branch; no independently published AOSP/BoringSSL oracle corpus or independent cryptographic audit was found. Its README says 1.0.0 was cryptographically insecure. This is not sufficient evidence to ship a cryptographic transport in a call recorder.
+
+**Project status:** not implemented. Kadb remains rejected due its GPL-3.0 SPAKE2 and HiddenApiBypass dependencies. `adb-kt`/`spake2-kt` remains a research candidate only; no dependency has been added.
+
+**Next decisive experiment:** before adding a dependency, pin exact immutable commits/releases, resolve the actual published coordinates, verify the complete transitive SBOM and licenses, compare SPAKE2 transcript behavior against AOSP/BoringSSL test vectors, add malformed-peer/fuzz/state-wipe tests, independently review the cryptographic implementation, and prove same-device Wireless Debugging discovery/pairing on API 30+ hardware. Do not proceed to shell launch until all gates pass.
+
+## 7. Recommended order of investment
+
+1. Finish and validate the PR #29 permission gate; it corrects a real Android 16 compatibility gap in the existing backend.
+2. Add the read-only Android 16 capability probe. It is lower-risk than opening an audio stream and will reveal whether any target device can use the new API.
+3. Run physical tests for Shizuku `VOICE_CALL` on stock AOSP and OEM builds. Do not spend time on embedded ADB if the shell UID has neither protected permission.
+4. Keep embedded ADB behind an explicit go/no-go decision. It only improves setup UX if the Shizuku flow is a demonstrated bottleneck; it does not improve audio privilege.
+5. Treat an OEM-signed/system integration as the only durable route to broad, repeatable privileged call-audio access where OEMs expose no supported user-grantable privilege.
+
