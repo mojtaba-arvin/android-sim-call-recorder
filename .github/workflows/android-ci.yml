@@ -176,6 +176,14 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -e /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
       - name: Run Compose UI tests on Android emulator
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
