@@ -1,7 +1,7 @@
 # Repository Context Pack — Snapshot v1
 
-**Snapshot ID:** `android-sim-call-recorder-2026-11-19T08:59:20Z`  
-**Captured at:** 2026-11-19T08:59:20Z  
+**Snapshot ID:** `android-sim-call-recorder-2026-11-19T09:01:33Z`  
+**Captured at:** 2026-11-19T09:01:33Z  
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Snapshot source branch:** `bootstrap/native-android-foundation`  
 **Snapshot source HEAD:** `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`  
@@ -54,7 +54,7 @@ Read these files in this order at session start:
 - PR #1 is a large SDK extraction/foundation PR (367 commits, 114 changed files at capture time); inspect the live diff and current commit history before review.
 - The PR's product acceptance is not complete: physical two-way cellular audio has not been validated on a handset.
 - `main` was not modified by this work.
-- Branch protection issue [#8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) requires an owner to configure PR + stable Required checks in repository Settings. Do not claim this is configured.
+- The active `Protect main` ruleset already requires PR + `Android CI / Required checks`; approvals are 0 and strict up-to-date checks are disabled. See issue [#8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) for remaining validation and policy decisions.
 
 ## 4. Exact CI evidence at capture time
 
@@ -106,6 +106,9 @@ The following issues were open when queried. Refresh all relevant issue bodies/c
 - Active ruleset `Protect main` (ID `27531148`) applies to the default branch and requires pull requests plus `Android CI / Required checks`; deletion and non-fast-forward protections are enabled.
 - Required approving review count is 0; strict/up-to-date status checks are disabled; no bypass actors are configured. This was read from the ruleset API. Branch-protection GET itself returns 403 through the connector.
 - PR #22 (A0 context/benchmark), PR #23 (Issue #9 startup barrier tests), and PR #24 (A1.1 capability inventory) are Draft stacked PRs based on PR #1 head `728dbfdcb6e888a6870fd5234d6b4325b262a4ed`.
+  - PR #22 head: `3ea57c5a46ac5977869fe4b2a143c23e318d5b11`.
+  - PR #23 head: `da048dd3e540ac6f07df949a8cdf1f1b1029e39f`.
+  - PR #24 head: `dabc40e4dc9cea0704ccc2b1626f6be88e5f7ac3`.
 - PR #21 was closed unmerged because its base was the bare `main` containing only `LICENSE`, so its relative references to canonical instructions/docs were broken.
 
 ## 7. Product invariants that every task inherits
@@ -147,4 +150,4 @@ Issue #9 must remain open until its acceptance criteria are covered by evidence.
 
 ## 10. Snapshot provenance
 
-This document was assembled from the PR #1 feature-branch canonical instructions/docs, live GitHub issue state, PR #1/#21/#22 metadata, and Actions run/job/artifact metadata at the timestamp above. It contains no credentials, personal call identifiers, or audio. The source HEAD is the provenance anchor; the freshness contract supersedes any assumption that these values remain current.
+This document was assembled from the PR #1 feature-branch canonical instructions/docs, live GitHub issue state, PR #1/#21/#22 metadata, and Actions run/job/artifact metadata at the timestamp above. It contains no credentials, personal call identifiers, or audio. The source HEAD is the provenance anchor; the freshness contract supersedes any assumption that these values remain current. The PR head SHAs above are the exact heads at capture.
