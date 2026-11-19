@@ -12,19 +12,20 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 - The project is split into `:callrecorder-sdk` (recording engine) and `:app` (sample, diagnostics, playback, and integration-test host).
 - The SDK exposes a public facade; implementation packages are internal and guarded against direct app imports.
-- Implemented candidates include Shizuku privileged `VOICE_CALL` and explicitly consented acoustic microphone strategies.
+- The user-armed automatic monitor and best-eligible selection lifecycle are implemented in software. Shizuku privileged `VOICE_CALL` and explicitly consented acoustic microphone strategies remain distinct.
 - Shizuku must remain a strict privilege boundary: live UserService, allowed UID, audio-attribution readiness, and explicit user authorization. Never silently downgrade a Shizuku failure to a microphone source.
 - Standard acoustic capture is not digital cellular downlink. Its limitations must remain explicit in product UI and documentation.
 - Recording data remains app-private. WAV finalization and Room metadata consistency are release-critical.
-- APK/AAR release automation exists, but no first public beta release is accepted until the required CI gate and device validation policy are satisfied.
+- APK/AAR release automation exists, but no first public beta release is accepted until the required CI gate and physical-device validation policy are satisfied.
 - API 26 is an experimental software compatibility floor, not a promise of cellular audio compatibility.
+- The agent workflow is governed by the repository-root `AGENTS.md`; detailed history-derived process lessons are in [Engineering Execution Policy](ENGINEERING_EXECUTION_POLICY.md).
 
 ## Execution plan and acceptance gates
 
 ### P0 — Make CI trustworthy and economical
 
-1. Fix the emulator-runner shell boundary so the Gradle exit code survives diagnostics collection.
-2. Confirm API 26 and API 35 instrumentation jobs complete; classify test failures separately from runner/bootstrap failures.
+1. **Implemented, awaiting proof on the current head:** emulator-runner command now preserves the Gradle exit code while collecting best-effort diagnostics in one physical shell command.
+2. **In progress:** complete API 26 and API 35 instrumentation on the current PR head; classify test failures separately from runner/bootstrap failures. A running job is not a pass.
 3. Keep a single required-check aggregator. Documentation-only changes may skip expensive Android jobs, but every code/build/workflow change must execute the full required pipeline.
 4. Keep PR concurrency cancellation for superseded commits, but do not interpret cancellation as a code failure.
 5. Upload unit, lint, instrumentation, and emulator diagnostics even when tests fail.
@@ -35,18 +36,18 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 ### P1 — Recording lifecycle and file integrity
 
-1. Verify the state machine for duplicate OFFHOOK events, concurrent starts, SIM switching, call-end during STARTING, service destruction, process death, and retry after failed start.
+1. Continue adversarial verification of duplicate OFFHOOK events, concurrent starts, SIM switching, call-end during STARTING, service destruction, process death, and retry after failed start.
 2. Keep file finalization independent of service watcher cancellation; atomically replace destination only after a complete WAV has been written.
-3. Persist source, selected strategy, SIM slot, start/stop reason, and capture diagnostics without persisting unnecessary subscription identifiers or call content.
-4. Reconcile stale RECORDING metadata to INTERRUPTED at process startup; force Room recovery before a new backend starts, remove orphaned app-private `.wav.part` files (including the pre-row-insert crash window), and preserve promoted `.wav` files.
-5. Verify retention cannot delete active/interrupted recordings and cannot delete the last valid recording after a failed replacement. Validate finalized WAV headers and persisted sample-rate/channel metadata before marking COMPLETED.
+3. Verify persisted source, selected strategy, SIM slot, start/stop reason, and capture diagnostics without persisting unnecessary subscription identifiers or call content.
+4. Preserve first-open recovery semantics: stale active rows become INTERRUPTED, orphaned app-private `.wav.part` files are removed (including the pre-row-insert crash window), and promoted `.wav` files are preserved.
+5. Verify retention cannot delete active/interrupted recordings or the last valid recording after a failed replacement. Validate finalized WAV headers and persisted sample-rate/channel metadata before marking COMPLETED.
 6. Test notification Stop, disarm, denied foreground-service start, reboot/force-stop recovery, and Android 14+ microphone foreground-service restrictions.
 
 **Exit criteria:** deterministic automated tests for lifecycle and storage invariants; no lost/false-COMPLETED recordings in fault-injection tests.
 
 ### P2 — Runtime strategy selection and observability
 
-1. Separate strategy capability, runtime eligibility, session selection, observed signal, and verified device support.
+1. Keep strategy capability, runtime eligibility, session selection, observed signal, and verified device support separate.
 2. Probe live Shizuku binder and helper UID/attribution at session start; freeze the selected strategy for that session.
 3. Record explicit selection/failure reason codes and the actual capture source.
 4. Expose actionable diagnostics for permission denial, service-start denial, audio input sharing/silencing, route changes, empty stream, silent stream, and finalization failure.
@@ -81,15 +82,15 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 - Use focused `feat/*`, `fix/*`, `ci/*`, and `docs/*` branches.
 - Keep `main` stable; work through PRs and required CI.
-- Prefer small commits with one concern and explicit validation evidence.
-- Re-run only failed jobs when the source SHA is unchanged; run the full gate after source changes.
+- Prefer coherent, independently reviewable commits with explicit validation evidence; do not split one logical change into repetitive file-by-file commits.
+- Re-run only failed jobs when the source SHA is unchanged; run the full gate after source/build/workflow changes.
 - A cancelled or superseded workflow is neither a pass nor a source failure.
 - Do not create a release tag, mark a PR ready, or claim device support without the corresponding acceptance evidence.
 
 ## Immediate next actions
 
-1. Verify the CI fix on the next run and inspect API 35 result.
+1. Finish the API 26/API 35 run on the current PR head and inspect the required-check aggregator.
 2. Resolve any real emulator failures without weakening the required gate.
-3. Audit the service lifecycle and WAV/Room recovery paths against P1.
-4. Add structured, privacy-safe failure diagnostics for runtime strategy selection; ensure the public SDK snapshot reflects build-enabled and actually installed backends.
-5. Add fault-injection coverage for process death during PCM write and after atomic WAV promotion but before Room commit; then prepare a physical-device test protocol and begin evidence collection before any beta-support claims.
+3. Audit the service lifecycle and WAV/Room recovery paths against P1, adding fault injection for process death during PCM write and after atomic WAV promotion but before Room commit.
+4. Verify the public SDK snapshot reflects build-enabled and actually installed backends, and that diagnostics preserve privacy-safe failure reason codes.
+5. Prepare the physical-device test protocol and begin evidence collection before any beta-support claims.

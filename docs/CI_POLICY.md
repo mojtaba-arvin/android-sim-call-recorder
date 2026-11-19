@@ -6,28 +6,32 @@ The stable branch-protection status check is **Android CI / Required checks** (j
 
 Do not make the conditional `verify` or `instrumented` jobs individually required: documentation-only changes intentionally skip those jobs. The `required` aggregator handles both cases and fails closed if change detection or any required code job fails.
 
-Repository Settings still need to require pull requests and this stable status check in the active `Protect main` ruleset. See [Issue #8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8).
+Repository Settings still need to require pull requests and this stable status check in the active `Protect main` ruleset. See [Issue #8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8); verify the actual ruleset state before claiming branch protection is active.
 
 ## Change classification
 
-The `changes` job always runs and compares the PR base/head or push before/after commits.
+The `changes` job compares the PR base/head or push before/after commits.
 
 - Markdown files and files under `docs/` are documentation-only.
-- Source, Gradle/build files, workflow files, manifests, tests, and all other paths trigger the full Android pipeline.
+- Source, Gradle/build files, workflow files, manifests, tests, scripts, and all other paths trigger the full Android pipeline.
 - Manual workflow dispatch always triggers the full pipeline.
 - Mixed documentation + code changes trigger the full pipeline.
 
-The cheap required-check aggregator still runs for documentation-only changes, so a skipped workflow cannot leave a required check permanently pending.
+The required-check aggregator still runs for documentation-only changes, so skipped Android jobs do not leave the required check pending.
 
 ## Full code pipeline
 
-1. Unit and Robolectric tests.
-2. Android Lint with `abortOnError = true`.
-3. Debug APK assembly and artifact upload.
-4. Compose UI instrumentation on Android API 35 emulator.
-5. Upload instrumentation reports even when the emulator test step fails.
+The workflow `.github/workflows/android-ci.yml` currently performs:
 
-The first three Gradle tasks run in one invocation to share configuration and daemon work. Gradle dependency/build caching is provided by `gradle/actions/setup-gradle`. Emulator Quick Boot is enabled; do not force cold boots without a reproducible reason.
+1. SDK boundary guard.
+2. SDK and app JUnit/Robolectric unit tests.
+3. SDK and app Android Lint.
+4. App instrumentation-test Kotlin compilation.
+5. SDK release AAR and app debug APK assembly, with artifacts/reports uploaded.
+6. Compose UI instrumentation on Android emulator API 26 and API 35, with logcat, service, and audio diagnostics collected even after test failure.
+7. A final `Required checks` aggregator that fails unless change detection, verification, and both emulator jobs have the required result.
+
+The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow installs Android SDK Platform 37.2 and Build Tools 37.0.0. Emulator Quick Boot is enabled; do not force cold boots without a reproducible reason.
 
 ## Concurrency and permissions
 
@@ -35,12 +39,11 @@ The first three Gradle tasks run in one invocation to share configuration and da
 - A newer commit supersedes and cancels older work for the same PR/branch.
 - Do not include the commit SHA in the concurrency group; doing so defeats superseded-run cancellation.
 - Repository token permission is read-only (`contents: read`).
-- Use a stable Ubuntu 24.04 runner and JDK 21.
 - Keep PR checks independent of secrets and safe for forked contributions.
 
 ## What CI does not prove
 
 - Emulator success does not prove cellular modem audio access.
-- An initialized `AudioRecord` or a non-empty WAV does not prove that both call participants are audible.
+- An initialized `AudioRecord` or a non-empty/non-silent WAV does not prove that both call participants are audible.
 - Shizuku eligibility is not a device compatibility result.
-- Physical-device validation must separately record device/build, Android API, carrier/network, SIM, route, actual capture backend/source, and intelligibility of both directions.
+- Physical-device validation must separately record device/build, Android API, carrier/network, SIM slot, route, actual capture backend/source, and intelligibility of both directions.
