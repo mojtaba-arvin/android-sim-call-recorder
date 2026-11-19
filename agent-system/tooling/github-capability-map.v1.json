@@ -37,7 +37,7 @@
     },
     {
       "name": "add_review_to_pr",
-      "access": "mutation",
+      "access": "high_risk_mutation",
       "summary": "Add a review to a GitHub pull request. review is required for REQUEST_CHANGES and COMMENT events."
     },
     {
@@ -527,8 +527,7 @@
         "create_issue",
         "update_issue",
         "add_issue_labels",
-        "add_issue_assignees",
-        "add_comment_to_issue"
+        "add_issue_assignees"
       ],
       "deny": [
         "close_issue_without_evidence",
@@ -558,7 +557,8 @@
         "self_approval",
         "dismiss_review_without_reason",
         "merge_pull_request",
-        "enable_auto_merge"
+        "enable_auto_merge",
+        "approve_own_pull_request"
       ]
     },
     "release_manager": {
@@ -570,9 +570,26 @@
         "merge",
         "default_branch_write"
       ]
+    },
+    "pr_coordinator": {
+      "allow": [
+        "create_pull_request",
+        "update_pull_request",
+        "convert_pull_request_to_draft",
+        "add_comment_to_issue",
+        "reply_to_review_comment"
+      ],
+      "deny": [
+        "self_approval",
+        "mark_pull_request_ready_for_review_without_all_gates",
+        "merge_pull_request",
+        "enable_auto_merge",
+        "unauthorized_close_or_base_change"
+      ]
     }
   },
   "high_risk_tools": [
+    "add_review_to_pr",
     "delete_file",
     "dismiss_pull_request_review",
     "enable_auto_merge",
@@ -588,5 +605,10 @@
     "Every write must be followed by a read-back verification.",
     "Never attribute a CI result to a different tested SHA or attempt.",
     "No issue closure, merge, tag, release, publish, permission change or ruleset change without its own evidence and approval gate."
+  ],
+  "notes": [
+    "add_comment_to_issue is a PR conversation comment operation, not an issue-number comment operation.",
+    "add_review_to_pr is high-risk because the action can submit an approval; never self-approve.",
+    "label_pr is a mutation even though its name does not use a create/update prefix."
   ]
 }
