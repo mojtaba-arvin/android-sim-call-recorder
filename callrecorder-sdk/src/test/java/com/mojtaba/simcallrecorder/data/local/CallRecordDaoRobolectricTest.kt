@@ -143,6 +143,60 @@ class CallRecordDaoRobolectricTest {
         }
     }
 
+
+    @Test
+    fun processRecoveryInterruptsOnlySessionsLeftActiveByThePreviousProcess() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "recording-process-recovery-test.db"
+        context.deleteDatabase(databaseName)
+
+        val previousProcess = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseName,
+        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+
+        val activeId = previousProcess.callRecordDao().insert(
+            record(10_000L, 0, "/private/recordings/active.wav"),
+        )
+        val completedId = previousProcess.callRecordDao().insert(
+            record(20_000L, 1, "/private/recordings/completed.wav"),
+        )
+        previousProcess.callRecordDao().markCompleted(
+            completedId,
+            durationMillis = 2_000L,
+            dataBytes = 8_000L,
+            peakSample = 100,
+            rmsSample = 50,
+            isSilent = false,
+        )
+        previousProcess.close()
+
+        val currentProcess = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseName,
+        )
+            .allowMainThreadQueries()
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addCallback(StaleRecordingRecoveryCallback())
+            .build()
+
+        try {
+            val dao = currentProcess.callRecordDao()
+            val interrupted = dao.findById(activeId)
+            val completed = dao.findById(completedId)
+
+            assertEquals("INTERRUPTED", interrupted?.status)
+            assertEquals("Process stopped before finalization", interrupted?.failureReason)
+            assertEquals("COMPLETED", completed?.status)
+            assertNull(completed?.failureReason)
+        } finally {
+            currentProcess.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
     private fun record(startedAt: Long, simSlot: Int, file: String) = CallRecordEntity(
         startedAtEpochMillis = startedAt,
         durationMillis = null,
