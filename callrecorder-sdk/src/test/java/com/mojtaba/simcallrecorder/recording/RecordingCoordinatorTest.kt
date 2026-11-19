@@ -25,6 +25,25 @@ class RecordingCoordinatorTest {
     }
 
     @Test
+    fun availabilityReflectsBuildFlagsAndInstalledBackends() {
+        val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
+        val coordinator = RecordingCoordinator(
+            setOf(shizuku, microphone),
+            shizukuCaptureEnabled = false,
+        )
+
+        val options = coordinator.availability(profile(microphone = true, shizuku = true))
+        val privileged = options.first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }
+        val acoustic = options.first { it.mode == RecordingMode.SPEAKERPHONE_MIC }
+
+        assertTrue(!privileged.available)
+        assertTrue(!privileged.recommended)
+        assertTrue(acoustic.available)
+        assertTrue(acoustic.recommended)
+    }
+
+    @Test
     fun shizukuModeRequiresExplicitParticipantConsent() = runBlocking {
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
         val coordinator = RecordingCoordinator(setOf(shizuku), shizukuCaptureEnabled = true)
