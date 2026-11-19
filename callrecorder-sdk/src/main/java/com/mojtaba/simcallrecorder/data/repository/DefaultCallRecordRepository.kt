@@ -73,9 +73,6 @@ internal class DefaultCallRecordRepository @Inject constructor(
             dao.updateActiveStatus(recordId, STATUS_FAILED, reason.take(MAX_FAILURE_REASON_LENGTH)) == 1
         }
 
-    override suspend fun markActiveRecordingsInterrupted(): Int =
-        withContext(Dispatchers.IO) { dao.markAllActiveAsInterrupted() }
-
     override suspend fun deleteRecording(recordId: Long): Boolean = withContext(Dispatchers.IO) {
         val entity = dao.findById(recordId) ?: return@withContext false
         // The player screen can be opened for an active session; never unlink a file while
@@ -112,6 +109,10 @@ internal class DefaultCallRecordRepository @Inject constructor(
 
     override suspend fun countRecordings(): Int = withContext(Dispatchers.IO) {
         dao.countAll()
+    }
+
+    override suspend fun prepareForCapture() {
+        withContext(Dispatchers.IO) { dao.countAll() }
     }
 
     private fun requirePrivateRecordingPath(path: String) {
