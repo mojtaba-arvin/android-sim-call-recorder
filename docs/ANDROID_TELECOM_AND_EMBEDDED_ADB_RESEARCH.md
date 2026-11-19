@@ -56,10 +56,10 @@ References:
 
 ## 4. Embedded Wireless ADB: implementation candidate
 
-A current Kotlin option surfaced in this review: **Kadb** (`com.flyfishxu:kadb:2.1.4`) documents Android/JVM support, Wireless Debugging pairing, TLS, mDNS discovery, shell, and sync APIs. Its stated scope is a direct ADB client, not a full ADB server. Another mature Android-focused reference, LADB, demonstrates the on-device pairing/session flow. The older `libadb-android` repository explicitly warns that it has not undergone a security audit; it should not be selected without a focused audit.
+A current Kotlin option surfaced in this review: **Kadb** (`com.flyfishxu:kadb:2.1.5`) documents Android/JVM support, Wireless Debugging pairing, TLS, mDNS discovery, shell, and sync APIs. Its stated scope is a direct ADB client, not a full ADB server. Another mature Android-focused reference, LADB, demonstrates the on-device pairing/session flow. The older `libadb-android` repository explicitly warns that it has not undergone a security audit; it should not be selected without a focused audit.
 
 Candidate comparison:
-- **Kadb:** strongest current candidate for a bounded prototype; Kotlin-native, Android target, pairing and shell API. Must verify license, minSdk, dependency graph, maintenance and security before adoption.
+- **Kadb:** strongest current candidate for a bounded prototype; current upstream README identifies version 2.1.5, Apache-2.0 licensing, Android minSdk 23, TLS pairing, mDNS discovery and shell APIs. The license/minSdk gate is therefore provisionally satisfied from the upstream repository metadata; dependency graph, cryptographic/provider behavior, credential storage, maintenance and security still require audit before adoption.
 - **LADB:** useful architecture/reference for pairing UI, mDNS, TLS identity and lifecycle. Do not copy implementation until license and dependency audit are complete.
 - **libadb-android:** protocol reference only until security review; upstream disclaimer says no security audit.
 
@@ -76,7 +76,7 @@ Prototype boundary:
 **Decision:** authorize a research spike, not production integration. First task is a dependency/license/security audit and a throwaway pairing/shell proof on API 30+; only after that create a constrained helper transport. Do not add Kadb to the app dependency graph in this documentation-only change.
 
 References:
-- https://github.com/flyfishxu/Kadb
+- https://github.com/flyfishxu/Kadb (README, LICENSE, platform/pairing notes; reviewed 2026-11-19)
 - https://github.com/tytydraco/LADB
 - https://github.com/MuntashirAkon/libadb-android
 
