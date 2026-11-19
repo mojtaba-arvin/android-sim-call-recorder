@@ -36,6 +36,8 @@ At the start of each task:
 
 ## 4. AI engineering workflow
 
+- The canonical R&D authority, role boundaries, stop conditions, and evidence rules are defined in `docs/RD_AGENT_CHARTER.md`. Read it before designing or changing agent behavior.
+
 ### Specify before implementation
 - Translate the request into observable behavior, explicit non-goals, and acceptance criteria.
 - Record state invariants, ownership boundaries, permissions, API levels, process assumptions, and failure semantics.
