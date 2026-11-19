@@ -51,6 +51,19 @@ internal class StaleRecordingRecoveryCallback(
             }
             partialFiles.forEach { partial -> runCatching { if (partial.isFile) partial.delete() } }
         }
+
+        // The foreground service forces this database's first open before starting any backend.
+        // Therefore every .wav.part present during this one-time process recovery belongs to a
+        // previous process, including the crash window before its RECORDING row was inserted.
+        root.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.name.endsWith(".wav.part") }
+            .forEach { partial ->
+                runCatching {
+                    val canonical = partial.canonicalFile
+                    if (canonical.parentFile == root && canonical.isFile) canonical.delete()
+                }
+            }
     }
 
     override fun onOpen(db: SupportSQLiteDatabase) {
