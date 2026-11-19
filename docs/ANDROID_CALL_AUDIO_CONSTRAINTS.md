@@ -134,3 +134,8 @@ Standard microphone/acoustic strategies may be evaluated as a separately consent
 - WAV files are app-private. Empty PCM is rejected; all-zero PCM is identified as silence. A non-zero waveform is not proof of two-way call capture.
 
 Keep call-state detection and audio-capture capability separate. The standard app cannot access cellular call uplink/downlink through the public SDK. The Shizuku path is a device-dependent advanced experiment—not a universal guarantee—and still needs physical modem/OEM/route validation.
+
+
+## CI verification for Android 16 permission state
+
+The Shizuku permission-gate change is covered by a targeted API 36 emulator job in Android CI. It runs only when files under the Shizuku UserService or its tests change, verifies the emulator shell UID is 2000, and asserts that `com.android.shell` is granted both `CALL_AUDIO_INTERCEPTION` and `CAPTURE_AUDIO_OUTPUT`. This validates the AOSP package/UID permission premise; it does not validate modem audio, AudioRecord signal, or two-way intelligibility.
