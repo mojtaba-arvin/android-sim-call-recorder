@@ -6,6 +6,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class RecordingServiceStateMachineTest {
 
@@ -106,6 +110,53 @@ class RecordingServiceStateMachineTest {
         assertEquals(null, machine.activeSimSlotIndex)
         assertTrue(machine.beginStart(request(slot = 1)))
         assertEquals(1, machine.activeSimSlotIndex)
+    }
+
+    @Test
+    fun callEndUserStopAndServiceDestroyRaceForExactlyOneStopClaim() {
+        val machine = RecordingServiceStateMachine()
+        assertTrue(machine.beginStart(request()))
+        assertTrue(machine.recordingStarted())
+
+        val ready = CountDownLatch(3)
+        val start = CountDownLatch(1)
+        val stopClaims = AtomicInteger(0)
+        val executor = Executors.newFixedThreadPool(3)
+
+        try {
+            val callEnd = executor.submit {
+                ready.countDown()
+                check(start.await(5, TimeUnit.SECONDS))
+                if (machine.shouldStopFor(event(slot = 0, state = CallState.IDLE)) &&
+                    machine.beginStop()
+                ) {
+                    stopClaims.incrementAndGet()
+                }
+            }
+            val userStop = executor.submit {
+                ready.countDown()
+                check(start.await(5, TimeUnit.SECONDS))
+                if (machine.beginStop()) stopClaims.incrementAndGet()
+            }
+            val serviceDestroy = executor.submit {
+                ready.countDown()
+                check(start.await(5, TimeUnit.SECONDS))
+                if (machine.beginFailureCleanup()) stopClaims.incrementAndGet()
+            }
+
+            assertTrue("All teardown contenders must be ready.", ready.await(5, TimeUnit.SECONDS))
+            start.countDown()
+            callEnd.get(5, TimeUnit.SECONDS)
+            userStop.get(5, TimeUnit.SECONDS)
+            serviceDestroy.get(5, TimeUnit.SECONDS)
+
+            assertEquals("Exactly one lifecycle path may own finalization.", 1, stopClaims.get())
+            assertEquals(RecordingServiceStateMachine.State.STOPPING, machine.state)
+            machine.stopCompleted()
+            assertEquals(RecordingServiceStateMachine.State.IDLE, machine.state)
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     private fun request(
