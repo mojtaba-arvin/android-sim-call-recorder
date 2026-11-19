@@ -313,33 +313,47 @@ internal class CallRecordingForegroundService : Service() {
                 // Backend start may have crossed its native/binder side-effect boundary before the
                 // coroutine was cancelled. Stop the requested backend even when start() did not
                 // return a File yet, and do cleanup outside the cancelled service scope.
-                val cleanupMode = startedMode ?: request.mode
-                val finalized = withContext(NonCancellable) {
-                    runCatching { recordingCoordinator.stop(cleanupMode) }.getOrNull()
+                // STARTING has not transferred ownership to the normal stop path. Once the
+                // state reaches RECORDING, compete for the same STOPPING transition used by
+                // onDestroy()/user stop so exactly one path owns backend finalization.
+                val ownsCleanup = when (stateMachine.state) {
+                    RecordingServiceStateMachine.State.STARTING -> true
+                    RecordingServiceStateMachine.State.RECORDING -> stateMachine.beginStop()
+                    else -> false
                 }
-                if (insertedRecordId != null) {
-                    if (finalized != null) {
-                        runCatching {
-                            withContext(NonCancellable) {
-                                callRecordRepository.completeRecording(insertedRecordId, finalized.toCompletion())
+                if (startedMode == null || ownsCleanup) {
+                    val cleanupMode = startedMode ?: request.mode
+                    val finalized = withContext(NonCancellable) {
+                        runCatching { recordingCoordinator.stop(cleanupMode) }.getOrNull()
+                    }
+                    if (insertedRecordId != null) {
+                        if (finalized != null) {
+                            runCatching {
+                                withContext(NonCancellable) {
+                                    callRecordRepository.completeRecording(insertedRecordId, finalized.toCompletion())
+                                }
+                            }
+                        } else {
+                            runCatching {
+                                withContext(NonCancellable) {
+                                    callRecordRepository.markRecordingFailed(
+                                        insertedRecordId,
+                                        "Capture start was cancelled before setup completed.",
+                                    )
+                                }
                             }
                         }
                     } else {
-                        runCatching {
-                            withContext(NonCancellable) {
-                                callRecordRepository.markRecordingFailed(
-                                    insertedRecordId,
-                                    "Capture start was cancelled before setup completed.",
-                                )
-                            }
-                        }
+                        finalized?.file?.delete()
                     }
-                } else {
-                    finalized?.file?.delete()
+                    activeMode = null
+                    activeRecordId = null
+                    when (stateMachine.state) {
+                        RecordingServiceStateMachine.State.STARTING -> stateMachine.startFailed()
+                        RecordingServiceStateMachine.State.STOPPING -> stateMachine.stopCompleted()
+                        else -> Unit
+                    }
                 }
-                activeMode = null
-                activeRecordId = null
-                stateMachine.startFailed()
                 throw cancelled
             } catch (exception: Exception) {
                 if (startedMode != null) {
