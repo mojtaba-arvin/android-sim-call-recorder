@@ -169,3 +169,17 @@ The three candidates are not three equivalent audio APIs. One is a privileged so
 4. Keep embedded ADB behind an explicit go/no-go decision. It only improves setup UX if the Shizuku flow is a demonstrated bottleneck; it does not improve audio privilege.
 5. Treat an OEM-signed/system integration as the only durable route to broad, repeatable privileged call-audio access where OEMs expose no supported user-grantable privilege.
 
+
+## 8. Additional source-level ADB client audit
+
+The `adb-kt`/`spake2-kt` review was extended from README/dependency metadata into the pairing implementation:
+
+- `adb-kt` uses TLS 1.3 and Bouncy Castle (`BcTlsCrypto`) for the pairing transport, exports 64 bytes with the ADB TLS exporter label, combines that with the six-digit pairing code, then runs SPAKE2 and AES-GCM PeerInfo exchange. This matches the broad AOSP protocol structure; it is not a general-purpose PAKE library.
+- The pairing client sets a TCP connect timeout, but the inspected `PairingClient` does not set a socket read timeout or an overall pairing deadline. A peer that stalls after TCP connect can therefore hold the pairing coroutine/thread longer than the connect timeout suggests. A prototype must impose bounded handshake/read deadlines and cancellation.
+- The inspected `PairingTlsSocket` parses the presented peer certificate during the initial pairing handshake without ordinary PKI trust validation. This can be part of the intended PAKE bootstrap, but must be verified against AOSP's exact pairing transcript and post-pair certificate pinning before relying on it; it must not be treated as authenticated merely because TLS 1.3 negotiated.
+- `PairingIdentity` serializes the long-term RSA private key to PEM. `X509Generator.privateKeyToPem()` uses `privateKey.encoded`; a non-exportable Android Keystore key normally cannot provide PKCS#8 bytes. The library's current pairing path therefore does not directly support a hardware-backed non-exportable key without architectural changes. A software key would need encrypted storage, strict file permissions, backup exclusion, and explicit revoke/rotation handling.
+- `PairingConnection` creates a combined password/exporter buffer and the inspected SPAKE2 context stores scalar/password state in byte arrays; the reviewed code does not show an explicit wipe/zeroization lifecycle for these buffers. Treat this as a memory-hygiene review item, not a proven exploitable flaw.
+- The inspected `spake2-kt` tests cover basic matching/mismatching passwords and API state misuse. They do not establish AOSP interoperability, malformed-point robustness, fuzz resistance, constant-time behavior, or a security audit. Its README explicitly warns against version 1.0.0; the candidate's current catalog uses v1.0.2.
+
+**Decision strengthened:** do not add this ADB stack to the application dependency graph yet. Before a pairing prototype, require an exact immutable commit, published artifact/coordinate reconciliation, strict dependency verification and SBOM, AOSP/BoringSSL oracle-vector tests, malformed-input/fuzz tests, explicit zeroization, bounded I/O, certificate-pin lifecycle, a Keystore-compatible identity design, and an independent cryptographic review. Even if all pass, embedded ADB still yields shell UID 2000 and does not create the missing protected audio permission.
+
