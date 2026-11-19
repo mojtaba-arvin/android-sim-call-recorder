@@ -65,7 +65,7 @@ class CallRecordDaoRobolectricTest {
         assertEquals(1, dao.appendCaptureDiagnostic(id, second))
 
         val saved = dao.findById(id)
-        assertEquals("$first\n$second", saved?.captureDiagnostics)
+        assertEquals("$first\\n$second", saved?.captureDiagnostics)
     }
 
     @Test
@@ -143,7 +143,6 @@ class CallRecordDaoRobolectricTest {
         }
     }
 
-
     @Test
     fun processRecoveryInterruptsOnlySessionsLeftActiveByThePreviousProcess() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
@@ -193,6 +192,35 @@ class CallRecordDaoRobolectricTest {
             assertNull(completed?.failureReason)
         } finally {
             currentProcess.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
+    fun recoveryCallbackDoesNotInterruptSessionsCreatedAfterItsFirstOpen() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "recording-recovery-idempotency-test.db"
+        context.deleteDatabase(databaseName)
+        val callback = StaleRecordingRecoveryCallback()
+        val current = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+            .allowMainThreadQueries()
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addCallback(callback)
+            .build()
+
+        try {
+            val dao = current.callRecordDao()
+            val activeId = dao.insert(
+                record(30_000L, 0, "/private/recordings/current-session.wav"),
+            )
+
+            // Room invokes onOpen when a database connection is opened. Simulate a later
+            // onOpen callback on the same process-owned Room database instance.
+            callback.onOpen(current.openHelper.writableDatabase)
+
+            assertEquals("RECORDING", dao.findById(activeId)?.status)
+        } finally {
+            current.close()
             context.deleteDatabase(databaseName)
         }
     }
