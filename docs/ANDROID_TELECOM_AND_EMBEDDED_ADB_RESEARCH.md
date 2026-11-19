@@ -54,6 +54,24 @@ References:
 - https://android.googlesource.com/platform/frameworks/base/+/refs/heads/master/media/java/android/media/AudioManager.java
 - https://developer.android.com/media/platform/sharing-audio-input
 
+## 3A. Android 16 permission model correction from AOSP source audit
+
+A deeper source-level audit found an important distinction between the public `AudioSource` documentation and the current AOSP AudioPolicy implementation:
+
+- The Android 16+ AudioPolicy input path checks `CALL_AUDIO_INTERCEPTION` first for `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK`.
+- For these historical/legacy audio sources, it retains `CAPTURE_AUDIO_OUTPUT` as a fallback if the newer permission is absent.
+- Both permissions are protected (`signature|privileged|role`) in current AOSP; neither is an ordinary runtime permission available to a consumer APK.
+- The Android 16 AOSP Shell manifest was inspected directly. It does not declare either permission. Consequently, Shizuku's ADB-backed UID 2000 does not imply that either permission is granted on stock AOSP. OEM builds can differ, so the actual live UserService permission state must be queried; do not infer from UID or Shizuku authorization.
+- Root via Sui is a distinct path, but even root must still pass AudioRecord initialization and the physical two-way audio acceptance test.
+
+This exposed a readiness-gate gap in the current implementation: the Shizuku helper checked only `CAPTURE_AUDIO_OUTPUT`. A follow-up implementation PR [#29](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/29) now accepts either `CALL_AUDIO_INTERCEPTION` or the legacy `CAPTURE_AUDIO_OUTPUT` for shell UID, keeps ordinary app UID rejected, and adds unit tests for both grant paths. The runtime engine still attempts only `VOICE_CALL`.
+
+Primary AOSP references:
+- [Android 16 Shell manifest](https://android.googlesource.com/platform/frameworks/base/+/android16-release/packages/Shell/AndroidManifest.xml)
+- [Current permission declarations](https://android.googlesource.com/platform/frameworks/base/+/master/core/res/AndroidManifest.xml)
+- [Current AudioPolicy input permission enforcement](https://android.googlesource.com/platform/frameworks/av/+/master/services/audiopolicy/service/AudioPolicyInterfaceImpl.cpp)
+- [AudioManager protected interception methods](https://android.googlesource.com/platform/frameworks/base/+/master/media/java/android/media/AudioManager.java)
+
 ## 4. Embedded Wireless ADB: implementation candidate
 
 A current Kotlin option surfaced in this review: **Kadb** (`com.flyfishxu:kadb:2.1.5`) documents Android/JVM support, Wireless Debugging pairing, TLS, mDNS discovery, shell, and sync APIs. Its stated scope is a direct ADB client, not a full ADB server. Another mature Android-focused reference, LADB, demonstrates the on-device pairing/session flow. The older `libadb-android` repository explicitly warns that it has not undergone a security audit; it should not be selected without a focused audit.
