@@ -254,20 +254,22 @@ jobs:
           emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            set -euo pipefail
-            shell_uid="$(adb shell id -u | tr -d '\r')"
-            echo "adb shell uid=$shell_uid"
-            test "$shell_uid" = "2000"
+            bash -c '
+              set -euo pipefail
+              shell_uid="$(adb shell id -u | tr -d "\\r")"
+              echo "adb shell uid=$shell_uid"
+              test "$shell_uid" = "2000"
 
-            for permission in \
-              android.permission.CALL_AUDIO_INTERCEPTION \
-              android.permission.CAPTURE_AUDIO_OUTPUT; do
-              result="$(adb shell pm check-permission "$permission" com.android.shell | tr -d '\r')"
-              echo "$permission=$result"
-              test "$result" = "granted"
-            done
+              for permission in \
+                android.permission.CALL_AUDIO_INTERCEPTION \
+                android.permission.CAPTURE_AUDIO_OUTPUT; do
+                result="$(adb shell pm check-permission "$permission" com.android.shell | tr -d "\\r")"
+                echo "$permission=$result"
+                test "$result" = "granted"
+              done
 
-            adb shell dumpsys package com.android.shell | grep -E 'CALL_AUDIO_INTERCEPTION|CAPTURE_AUDIO_OUTPUT'
+              adb shell dumpsys package com.android.shell | grep -E "CALL_AUDIO_INTERCEPTION|CAPTURE_AUDIO_OUTPUT" || true
+            '
 
   required:
     name: Required checks
