@@ -41,6 +41,16 @@ Rules:
 
 Tool grants are allow-lists, not suggestions. The runtime must check the requested action against the task's grants before dispatch. A grant does not override the charter's forbidden actions or owner-approval gates.
 
+The live connector-to-semantic mapping is maintained in [the GitHub tool capability inventory](../agent-system/tooling/GITHUB_TOOL_CAPABILITY_INVENTORY.md) and [its machine-readable map](../agent-system/tooling/github-capability-map.v1.json). At session start, refresh the runtime tool catalog and compare it with that inventory. New or changed tools default to deny until reviewed. A semantic grant (for example, `write_feature_branch`) must be mapped to exact tool names, argument constraints, repository, branch, and expected SHA; it is not blanket permission to invoke every mutation exposed by the connector.
+
+Mandatory argument constraints include:
+- File writes always name a non-default branch; updates also include the current blob SHA.
+- Issue/PR state changes are separate high-risk operations, not implied by permission to update progress text.
+- Review submission never permits self-approval.
+- Ref movement, deletion, merge, auto-merge, ruleset/permission changes, release, and publishing remain denied unless a distinct approval gate explicitly authorizes the exact operation.
+- Rate-limit headers and Retry-After are not exposed by the current connector wrappers; 403/429 and secondary-limit errors require stop-and-classify behavior, not blind retries.
+
+
 Default profiles:
 
 | Role | Grants | Explicit exclusions |
