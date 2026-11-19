@@ -354,7 +354,7 @@ class DefaultCallRecordRepositoryRobolectricTest {
         val oldestId = createCompleted(oldestFile, 1_000L, 4L)
         val newestId = createCompleted(newestFile, 2_000L, 8L)
 
-        assertEquals(1, repository.enforceStorageLimit(8L))
+        assertEquals(1, repository.enforceStorageLimit(newestFile.length()))
         assertFalse(oldestFile.exists())
         assertTrue(newestFile.exists())
         assertEquals(null, database.callRecordDao().findById(oldestId))
