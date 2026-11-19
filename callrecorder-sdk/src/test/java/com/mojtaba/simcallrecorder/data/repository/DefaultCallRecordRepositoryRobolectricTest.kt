@@ -98,6 +98,35 @@ class DefaultCallRecordRepositoryRobolectricTest {
     }
 
     @Test
+    fun activeRecordingCannotBeDeletedWhileCaptureMayStillBeWriting() = runBlocking {
+        val folder = File(context.filesDir, "recordings").apply { mkdirs() }
+        val audio = File(folder, "active.wav").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
+        val id = repository.createActiveRecording(
+            CallRecord(
+                startedAtEpochMillis = 100_000L,
+                durationMillis = null,
+                phoneNumber = null,
+                simSlotIndex = 0,
+                filePath = audio.absolutePath,
+                recordingMode = "SHIZUKU_VOICE_CALL",
+                audioSource = "VOICE_CALL",
+                sampleRate = 48_000,
+                channelCount = 2,
+                dataBytes = 0L,
+                peakSample = 0,
+                rmsSample = 0,
+                isSilent = null,
+                status = "RECORDING",
+                failureReason = null,
+            ),
+        )
+
+        assertFalse(repository.deleteRecording(id))
+        assertTrue(audio.exists())
+        assertEquals("RECORDING", database.callRecordDao().findById(id)?.status)
+    }
+
+    @Test
     fun rejectsPathsOutsideThePrivateRecordingDirectory() = runBlocking {
         val failure = runCatching {
             repository.createActiveRecording(
