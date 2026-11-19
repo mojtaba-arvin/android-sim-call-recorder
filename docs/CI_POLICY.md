@@ -6,7 +6,7 @@ The stable branch-protection status check is **Android CI / Required checks** (j
 
 Do not make the conditional `verify` or `instrumented` jobs individually required: documentation-only changes intentionally skip those jobs. The `required` aggregator handles both cases and fails closed if change detection or any required code job fails.
 
-Repository Settings still need to require pull requests and this stable status check in the active `Protect main` ruleset. See [Issue #8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8); verify the actual ruleset state before claiming branch protection is active.
+The active `Protect main` ruleset (ID `27531148`) was verified on 2026-11-19 to require pull requests and this stable status check. It also prevents branch deletion and non-fast-forward updates. Required approving reviews are 0, strict/up-to-date checks are disabled, and no bypass actors are configured. These are observed live settings, not inferred from this document. See [Issue #8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) for outstanding behavior tests and the strict-check policy decision.
 
 ## Change classification
 
@@ -21,7 +21,7 @@ The required-check aggregator still runs for documentation-only changes, so skip
 
 ## Full code pipeline
 
-The workflow `.github/workflows/android-ci.yml` currently performs:
+The workflow `.github/workflows/android-ci.yml` currently performs. Its `pull_request.branches` filter includes both `main` and the temporary `bootstrap/native-android-foundation` base so stacked PRs can receive independent CI before the foundation is accepted; after stack acceptance, dependent PRs are retargeted to `main`:
 
 1. SDK boundary guard.
 2. SDK and app JUnit/Robolectric unit tests.
