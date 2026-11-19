@@ -363,35 +363,49 @@ internal class CallRecordingForegroundService : Service() {
                 }
                 throw cancelled
             } catch (exception: Exception) {
-                if (startedMode != null) {
-                    val finalized = runCatching { recordingCoordinator.stop(startedMode) }.getOrNull()
-                    if (insertedRecordId != null) {
-                        if (finalized != null) {
-                            runCatching {
-                                completeRecordOrFail(insertedRecordId, finalized)
+                // A failure after recordingStarted() must claim the same STOPPING transition
+                // as user/call-end teardown. If another path already owns STOPPING, leave its
+                // backend finalization and Room commit untouched.
+                val ownsCleanup = when (stateMachine.state) {
+                    RecordingServiceStateMachine.State.STARTING -> true
+                    RecordingServiceStateMachine.State.RECORDING -> stateMachine.beginStop()
+                    else -> false
+                }
+                if (ownsCleanup) {
+                    if (startedMode != null) {
+                        val finalized = runCatching { recordingCoordinator.stop(startedMode) }.getOrNull()
+                        if (insertedRecordId != null) {
+                            if (finalized != null) {
+                                runCatching {
+                                    completeRecordOrFail(insertedRecordId, finalized)
+                                }
+                            } else {
+                                runCatching {
+                                    callRecordRepository.markRecordingFailed(insertedRecordId, exception.message ?: "Capture setup failed.")
+                                }
                             }
                         } else {
-                            runCatching {
-                                callRecordRepository.markRecordingFailed(insertedRecordId, exception.message ?: "Capture setup failed.")
-                            }
+                            finalized?.file?.delete()
                         }
-                    } else {
-                        finalized?.file?.delete()
                     }
-                }
-                activeMode = null
-                activeRecordId = null
-                stateMachine.startFailed()
-                updateNotification(
-                    if (automaticArmed) {
-                        "Automatic capture failed · ${exception.message ?: "unsupported device"} · waiting for next call"
-                    } else {
-                        "Capture did not start · ${exception.message ?: "unsupported device"}"
-                    },
-                )
-                if (!automaticArmed) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
+                    activeMode = null
+                    activeRecordId = null
+                    when (stateMachine.state) {
+                        RecordingServiceStateMachine.State.STARTING -> stateMachine.startFailed()
+                        RecordingServiceStateMachine.State.STOPPING -> stateMachine.stopCompleted()
+                        else -> Unit
+                    }
+                    updateNotification(
+                        if (automaticArmed) {
+                            "Automatic capture failed · ${exception.message ?: "unsupported device"} · waiting for next call"
+                        } else {
+                            "Capture did not start · ${exception.message ?: "unsupported device"}"
+                        },
+                    )
+                    if (!automaticArmed) {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
                 }
             }
         }
