@@ -49,7 +49,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
     }
 
     private suspend fun prepareWindowOne() {
-        startSyntheticCapture()
+        startAutomaticCapture()
         val active = awaitActiveRecord()
         awaitPartialFile(active)
         Log.i(TAG, "WINDOW1_READY id=${active.id} path=${active.filePath}")
@@ -58,6 +58,11 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
 
     private suspend fun recoverWindowOneAndPrepareWindowTwo() {
         val recovered = awaitRecordsWithInterruptedCount(1)
+        val persistedState = SecureRecordingStateStore(this).read()
+        check(persistedState.speakerphoneConsentConfirmed) { "Encrypted acoustic consent did not survive process death." }
+        check(persistedState.armRequested) { "Encrypted arm marker was not retained across permission-revocation process death." }
+        check(!sdk.automaticRecordingArmed.value) { "Automatic monitoring must never auto-rearm in a fresh process." }
+        SecureRecordingStateStore(this).setArmRequested(false)
         val windowOne = recovered.filter { it.status == STATUS_INTERRUPTED }.minBy { it.id }
         check(!File(windowOne.filePath).exists()) { "Crash-window-1 must not leave a promoted WAV." }
         check(!File(windowOne.filePath + ".part").exists()) { "Crash-window-1 orphan .part was not removed." }
@@ -68,6 +73,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
         awaitPartialFile(active)
         Log.i(TAG, "WINDOW2_CAPTURE_READY id=${active.id}")
 
+        SecureRecordingStateStore(this).setArmRequested(false)
         val crashStop = sdk.createStopRecordingIntent().putExtra(
             EXTRA_TEST_CRASH_AFTER_PROMOTION,
             true,
@@ -104,6 +110,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
         check(afterStart.single { it.id == active.id }.status == STATUS_RECORDING)
         Log.i(TAG, "RECOVERY_CAPTURE_RACE_PASSED activeId=${active.id}")
 
+        SecureRecordingStateStore(this).setArmRequested(false)
         startService(sdk.createStopRecordingIntent())
         withTimeout(45_000) {
             sdk.observeRecordings(CallRecordFilter()).first { records ->
@@ -124,6 +131,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
             SdkRecordingMode.SPEAKERPHONE_MIC,
             participantConsentConfirmed = true,
         )
+        SecureRecordingStateStore(this).setArmRequested(true)
         try {
             ContextCompat.startForegroundService(this, armIntent)
             val status = withTimeout(15_000) {
@@ -137,21 +145,39 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
             }
             Log.i(TAG, "FGS_START_DENIAL_HANDLED status=$status")
         } catch (denied: IllegalStateException) {
+            SecureRecordingStateStore(this).setArmRequested(false)
             Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
         } catch (denied: SecurityException) {
+            SecureRecordingStateStore(this).setArmRequested(false)
             Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
         }
         finish()
     }
 
-    private fun startSyntheticCapture() {
+    private suspend fun startAutomaticCapture() {
+        SecureRecordingStateStore(this).apply {
+            setConsent(RecordingMode.SPEAKERPHONE_MIC, true)
+            setArmRequested(true)
+        }
+        ContextCompat.startForegroundService(
+            this,
+            sdk.createArmAutomaticRecordingIntent(
+                SdkRecordingMode.SPEAKERPHONE_MIC,
+                participantConsentConfirmed = true,
+            ),
+        )
+        withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
         val start = sdk.createStartRecordingIntent(
             mode = SdkRecordingMode.SPEAKERPHONE_MIC,
             simSlotIndex = 0,
             callState = CallState.OFFHOOK,
             participantConsentConfirmed = true,
-        ).putExtra(EXTRA_TEST_DISABLE_CALL_END_WATCH, true)
-        ContextCompat.startForegroundService(this, start)
+        )
+            .putExtra(EXTRA_AUTOMATIC_TRIGGER, true)
+            .putExtra(EXTRA_TEST_DISABLE_CALL_END_WATCH, true)
+        startService(start)
+        val active = awaitActiveRecord()
+        awaitPartialFile(active)
     }
 
     private suspend fun awaitActiveRecord(excludingIds: Set<Long> = emptySet()): CallRecord =
