@@ -77,7 +77,8 @@ class MainActivity : ComponentActivity() {
     private var recorderCaptureStatus by mutableStateOf("Idle")
     private var participantConsentConfirmed by mutableStateOf(false)
     private var automaticRecordingArmed by mutableStateOf(false)
-    private var audioInputDiagnostics by mutableStateOf(recorderSdk.audioInputDiagnostics.value)
+    // Hilt injects recorderSdk after Activity construction; never dereference it in a property initializer.
+    private var audioInputDiagnostics by mutableStateOf("No microphone capture active")
     private var callRecords by mutableStateOf(emptyList<CallRecord>())
     private var selectedRecord by mutableStateOf<CallRecord?>(null)
     private var recorderSettings by mutableStateOf(RecorderSettings())
@@ -86,6 +87,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        audioInputDiagnostics = recorderSdk.audioInputDiagnostics.value
 
         permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
