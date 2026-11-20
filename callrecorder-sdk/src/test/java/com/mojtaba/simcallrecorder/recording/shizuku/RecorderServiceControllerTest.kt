@@ -16,19 +16,50 @@ import org.robolectric.annotation.Config
 class RecorderServiceControllerTest {
 
     @Test
-    fun shellUid_requiresTheProtectedCallAudioPermission() {
-        assertFalse(hasVoiceCallCapturePermission(2_000, permissionGranted = false))
-        assertTrue(hasVoiceCallCapturePermission(2_000, permissionGranted = true))
+    fun shellUid_requiresAtLeastOnePlatformCallAudioPermission() {
+        assertFalse(
+            hasVoiceCallCapturePermission(
+                2_000,
+                captureAudioOutputGranted = false,
+                callAudioInterceptionGranted = false,
+            ),
+        )
+        assertTrue(
+            hasVoiceCallCapturePermission(
+                2_000,
+                captureAudioOutputGranted = true,
+                callAudioInterceptionGranted = false,
+            ),
+        )
+        assertTrue(
+            hasVoiceCallCapturePermission(
+                2_000,
+                captureAudioOutputGranted = false,
+                callAudioInterceptionGranted = true,
+            ),
+        )
     }
 
     @Test
     fun rootUid_doesNotDependOnThePackagePermissionCheck() {
-        assertTrue(hasVoiceCallCapturePermission(0, permissionGranted = false))
+        assertTrue(
+            hasVoiceCallCapturePermission(
+                0,
+                captureAudioOutputGranted = false,
+                callAudioInterceptionGranted = false,
+            ),
+        )
     }
 
     @Test
     fun unexpectedUid_cannotPassTheCallAudioPermissionGate() {
-        assertFalse(hasVoiceCallCapturePermission(10_123, permissionGranted = true))
+        assertFalse(
+            hasVoiceCallCapturePermission(
+                10_123,
+                captureAudioOutputGranted = true,
+                callAudioInterceptionGranted = true,
+            ),
+        )
     }
 
     @Test

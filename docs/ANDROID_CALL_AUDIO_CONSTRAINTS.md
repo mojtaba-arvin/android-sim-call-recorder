@@ -22,6 +22,24 @@ Turning on speakerphone does not change Android's permission/concurrency rules. 
 
 A successful `MediaRecorder.start()`, a growing file, or non-zero sample count is not proof that both call participants were captured. The app's automatic Speakerphone + MIC mode is an explicitly armed acoustic strategy with an honest label; it is not a digital downlink and does not claim two-way support.
 
+## Android 16+ protected call-audio permission update
+
+The platform permission gate has evolved. Current AOSP AudioPolicy input checks `CALL_AUDIO_INTERCEPTION` first for `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK`, and retains `CAPTURE_AUDIO_OUTPUT` as a legacy fallback for these historical sources. Both permissions are protected (`signature|privileged|role`) and are not ordinary third-party runtime permissions.
+
+Correction after full-manifest inspection: Android 16 AOSP Shell **does declare both** `CALL_AUDIO_INTERCEPTION` (for CTS CallAudioInterception tests) and `CAPTURE_AUDIO_OUTPUT` (for GTS DialerAudio tests). The Shell package is built with the platform certificate and is privileged; because both permissions include signature protection, stock AOSP is expected to grant them to shell UID 2000. OEM/product builds may differ, so the live Shizuku UserService must still query and report actual grants. Shizuku connection state alone is not sufficient. Root UID remains a separate privilege case and must still pass actual AudioRecord initialization and physical audio tests.
+
+The Shizuku UserService readiness gate now accepts either protected permission for shell UID:
+- `CALL_AUDIO_INTERCEPTION` (current platform permission)
+- `CAPTURE_AUDIO_OUTPUT` (legacy AudioPolicy fallback)
+
+It does not accept either permission for an ordinary app UID. A false result remains fail-closed. The engine still attempts only `VOICE_CALL`; it does not substitute one-sided uplink/downlink or microphone capture. Embedded ADB would run with the same shell UID and is not a separate privilege path.
+
+AOSP source references:
+- [Android 16 Shell manifest](https://android.googlesource.com/platform/frameworks/base/+/android16-release/packages/Shell/AndroidManifest.xml)
+- [Android 16+ permission declarations](https://android.googlesource.com/platform/frameworks/base/+/master/core/res/AndroidManifest.xml)
+- [Current AOSP AudioPolicy input permission checks](https://android.googlesource.com/platform/frameworks/av/+/master/services/audiopolicy/service/AudioPolicyInterfaceImpl.cpp)
+- [Android 16 AudioManager call-audio API](https://android.googlesource.com/platform/frameworks/base/+/master/media/java/android/media/AudioManager.java)
+
 ## Open-source implementation research
 
 ### ShizuCallRecorder
@@ -116,3 +134,11 @@ Standard microphone/acoustic strategies may be evaluated as a separately consent
 - WAV files are app-private. Empty PCM is rejected; all-zero PCM is identified as silence. A non-zero waveform is not proof of two-way call capture.
 
 Keep call-state detection and audio-capture capability separate. The standard app cannot access cellular call uplink/downlink through the public SDK. The Shizuku path is a device-dependent advanced experiment—not a universal guarantee—and still needs physical modem/OEM/route validation.
+
+
+## CI verification for Android 16 permission state
+
+The Shizuku permission-gate change is covered by a targeted API 36 emulator job in Android CI. It runs only when files under the Shizuku UserService or its tests change, verifies the emulator shell UID is 2000, and asserts that `com.android.shell` is granted both `CALL_AUDIO_INTERCEPTION` and `CAPTURE_AUDIO_OUTPUT`. This validates the AOSP package/UID permission premise; it does not validate modem audio, AudioRecord signal, or two-way intelligibility.
+
+
+The API 36 CI probe invokes its multi-line script through `bash -c` explicitly. `android-emulator-runner` executes the supplied script with `/usr/bin/sh`; using Bash-only `set -o pipefail` directly would fail before any permission query. The probe's result is therefore tied to the actual `pm check-permission` outputs, not shell startup behavior.
