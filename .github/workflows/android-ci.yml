@@ -257,7 +257,7 @@ jobs:
           # The emulator action executes each script line through /bin/sh. Keep the
           # bash invocation on one physical line so its quoted body is not split.
           script: |
-            bash -c 'set -euo pipefail; shell_uid="$(adb shell id -u | tr -d "\\r")"; echo "adb shell uid=$shell_uid"; test "$shell_uid" = "2000"; for permission in android.permission.CALL_AUDIO_INTERCEPTION android.permission.CAPTURE_AUDIO_OUTPUT; do result="$(adb shell pm check-permission "$permission" com.android.shell | tr -d "\\r")"; echo "$permission=$result"; test "$result" = "granted"; done; adb shell dumpsys package com.android.shell | grep -E "CALL_AUDIO_INTERCEPTION|CAPTURE_AUDIO_OUTPUT" || true'
+            bash -c 'set -euo pipefail; shell_uid="$(adb shell id -u | tr -d "\\r")"; echo "adb shell uid=$shell_uid"; test "$shell_uid" = "2000"; for permission in android.permission.CALL_AUDIO_INTERCEPTION android.permission.CAPTURE_AUDIO_OUTPUT; do if result="$(adb shell pm check-permission "$permission" com.android.shell 2>&1 | tr -d "\\r")"; then echo "$permission=$result"; else status=$?; echo "$permission command_exit=$status result=$result"; fi; test "$result" = "granted"; done; adb shell dumpsys package com.android.shell | grep -E "CALL_AUDIO_INTERCEPTION|CAPTURE_AUDIO_OUTPUT" || true'
 
   required:
     name: Required checks
