@@ -1,6 +1,6 @@
 {
   "capability_map_version": "1.0.0",
-  "captured_at": "2026-11-19T10:30:00Z",
+  "captured_at": "2026-11-20T18:19:00Z",
   "repository": "mojtaba-arvin/android-sim-call-recorder",
   "inventory_source": "Live ALL_TOOLS metadata exposed to the orchestration runtime",
   "github_tool_count": 89,
@@ -627,12 +627,13 @@
     "rerun_workflow_job": "Only retry a completed failed/cancelled job after inspecting logs and classifying a transient runner/environment failure; do not retry product/test failures blindly."
   },
   "verification": {
-    "refreshed_at": "2026-11-19T10:30:00Z",
+    "refreshed_at": "2026-11-20T18:19:00Z",
     "live_catalog_count": 89,
     "recorded_catalog_count": 89,
     "exact_name_parity": true,
     "missing_tools": [],
     "stale_tools": [],
-    "note": "Re-enumerated the connected GitHub tool catalog after PR #25 was created; exact 89/89 name parity remains. Schemas for any task-relevant tool must still be re-read before invocation."
-  }
+    "note": "Re-enumerated the connected GitHub tool catalog after the Foundation CI and A0 context work; exact 89/89 name parity. This verifies names only; task-relevant schemas must be re-read before each invocation."
+  },
+  "source_foundation_head_sha": "bbb32c52081595046a76d4a07e4fa961934e159d"
 }
