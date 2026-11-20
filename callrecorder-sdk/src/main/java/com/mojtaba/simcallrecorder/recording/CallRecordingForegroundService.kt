@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -318,7 +319,13 @@ internal class CallRecordingForegroundService : Service() {
                         null
                     }
                 }
-                watchCallEnd(request.simSlotIndex)
+                // Instrumentation can exercise Service/Activity lifecycle with a synthetic OFFHOOK
+                // request on a non-telephony emulator. This hook is honored only by debuggable
+                // builds; release builds always retain the real SIM call-end watcher.
+                val disableCallEndWatchForTest =
+                    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                        intent.getBooleanExtra(EXTRA_TEST_DISABLE_CALL_END_WATCH, false)
+                if (!disableCallEndWatchForTest) watchCallEnd(request.simSlotIndex)
             } catch (cancelled: CancellationException) {
                 // Backend start may have crossed its native/binder side-effect boundary before the
                 // coroutine was cancelled. Stop the requested backend even when start() did not
@@ -664,6 +671,7 @@ internal class CallRecordingForegroundService : Service() {
         const val EXTRA_SIM_SLOT_INDEX = "com.mojtaba.simcallrecorder.extra.SIM_SLOT_INDEX"
         const val EXTRA_PARTICIPANT_CONSENT = "com.mojtaba.simcallrecorder.extra.PARTICIPANT_CONSENT"
         const val EXTRA_AUTOMATIC_TRIGGER = "com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER"
+        const val EXTRA_TEST_DISABLE_CALL_END_WATCH = "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
 
         private const val NOTIFICATION_CHANNEL = "call_recording"
         private const val NOTIFICATION_ID = 4_201
