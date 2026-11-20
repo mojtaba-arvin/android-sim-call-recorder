@@ -51,7 +51,13 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
     fun firstOpenMarksPriorSessionsInterruptedAndRemovesOnlyStalePartFiles() = runBlocking {
         val activeWav = File(recordingDirectory, "active.wav")
         val activePart = File(recordingDirectory, "active.wav.part").apply { writeBytes(byteArrayOf(1, 2)) }
-        val orphanPart = File(recordingDirectory, "orphan.wav.part").apply { writeBytes(byteArrayOf(3, 4)) }
+        // Models abrupt process death after the WAV header was created and PCM writing began:
+        // the header still advertises an empty data chunk while PCM payload bytes are already present.
+        val orphanPart = File(recordingDirectory, "orphan.wav.part").apply {
+            writeBytes(partialWavFromInterruptedPcmWrite())
+        }
+        assertTrue(orphanPart.readBytes().let { String(it, 0, 4, Charsets.US_ASCII) == "RIFF" })
+        assertFalse(File(recordingDirectory, "orphan.wav").exists())
         val completedPart = File(recordingDirectory, "completed.wav.part").apply { writeBytes(byteArrayOf(5, 6)) }
         val completedWav = File(recordingDirectory, "completed.wav").apply { writeBytes(byteArrayOf(7, 8)) }
         // Models a crash after the temporary file was promoted but before the Room commit.
@@ -206,6 +212,17 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
             executor.shutdownNow()
         }
     }
+
+    private fun partialWavFromInterruptedPcmWrite() = byteArrayOf(
+        0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0,
+        0x57, 0x41, 0x56, 0x45,
+        0x66, 0x6d, 0x74, 0x20, 0x10, 0, 0, 0,
+        0x01, 0, 0x01, 0,
+        0x80.toByte(), 0x3e, 0, 0, 0, 0x7d, 0, 0,
+        0x02, 0, 0x10, 0,
+        0x64, 0x61, 0x74, 0x61, 0, 0, 0, 0,
+        0x01, 0,
+    )
 
     private fun record(file: File, status: String, startedAt: Long) = CallRecordEntity(
         startedAtEpochMillis = startedAt,
