@@ -1,6 +1,7 @@
 package com.mojtaba.simcallrecorder.recording
 
 import android.Manifest
+import android.app.AppOpsManager
 import android.content.Context
 import android.content.ComponentName
 import android.content.pm.PackageManager
@@ -33,13 +34,23 @@ internal class CaptureDeviceProfileProvider @Inject constructor(
         ).orEmpty().split(':')
         val expectedListener = ComponentName(context, VoipCallNotificationListenerService::class.java).flattenToString()
         val notificationListenerEnabled = expectedListener in enabledListeners
+        val recordAudioGranted = runCatching {
+            val permissionGranted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+            val appOpMode = context.getSystemService(AppOpsManager::class.java).checkOpNoThrow(
+                AppOpsManager.OPSTR_RECORD_AUDIO,
+                context.applicationInfo.uid,
+                context.packageName,
+            )
+            permissionGranted && appOpMode != AppOpsManager.MODE_IGNORED &&
+                appOpMode != AppOpsManager.MODE_ERRORED
+        }.getOrDefault(false)
 
         return CaptureDeviceProfile(
             sdkInt = Build.VERSION.SDK_INT,
             manufacturer = Build.MANUFACTURER,
             model = Build.MODEL,
-            recordAudioGranted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED,
+            recordAudioGranted = recordAudioGranted,
             shizukuAuthorized = hostUid == 2_000 || hostUid == 0,
             accessibilityServiceEnabled = accessibilityEnabled,
             notificationListenerEnabled = notificationListenerEnabled,

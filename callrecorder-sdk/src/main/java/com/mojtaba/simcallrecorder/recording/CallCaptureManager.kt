@@ -89,6 +89,11 @@ internal object CaptureStrategySelector {
         evaluate(profile).firstOrNull { it.recommended }?.mode
 }
 
+internal data class CaptureStrategySelection(
+    val backend: CallAudioRecordingBackend,
+    val fallbackReason: String?,
+)
+
 internal class CallCaptureManager(
     strategies: Set<CallAudioRecordingBackend>,
     private val shizukuCaptureEnabled: Boolean,
@@ -131,17 +136,28 @@ internal class CallCaptureManager(
     fun selectBest(
         profile: CaptureDeviceProfile,
         preferred: RecordingMode? = null,
-    ): CallAudioRecordingBackend? {
+    ): CallAudioRecordingBackend? = selectBestWithReason(profile, preferred)?.backend
+
+    fun selectBestWithReason(
+        profile: CaptureDeviceProfile,
+        preferred: RecordingMode? = null,
+    ): CaptureStrategySelection? {
         val options = availability(profile)
-        // A failed privileged selection must never become an implicit microphone recording.
-        if (preferred == RecordingMode.SHIZUKU_VOICE_CALL) {
-            val privileged = options.firstOrNull {
-                it.mode == RecordingMode.SHIZUKU_VOICE_CALL && it.available
-            }
-            return privileged?.let { byMode[it.mode] }
+        // A failed explicit privileged selection must never become an implicit microphone recording.
+        val selected = if (preferred == RecordingMode.SHIZUKU_VOICE_CALL) {
+            options.firstOrNull { it.mode == RecordingMode.SHIZUKU_VOICE_CALL && it.available }
+        } else {
+            preferred?.let { mode -> options.firstOrNull { it.mode == mode && it.available } }
+                ?: options.firstOrNull { it.recommended }
+        } ?: return null
+        val backend = byMode[selected.mode] ?: return null
+        val fallbackReason = if (preferred != null) {
+            null
+        } else {
+            options.takeWhile { it.mode != selected.mode }
+                .firstOrNull { !it.available }
+                ?.let { "${it.displayName} unavailable: ${it.reason}" }
         }
-        val selected = preferred?.let { mode -> options.firstOrNull { it.mode == mode && it.available } }
-            ?: options.firstOrNull { it.recommended }
-        return selected?.let { byMode[it.mode] }
+        return CaptureStrategySelection(backend, fallbackReason)
     }
 }

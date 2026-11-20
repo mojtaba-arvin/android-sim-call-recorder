@@ -277,7 +277,7 @@ private fun RecordingListItem(record: CallRecord, onClick: () -> Unit) {
             )
             Text(formatRecordDate(record.startedAtEpochMillis), style = MaterialTheme.typography.bodySmall)
             Text(
-                "${record.recordingMode} · ${formatDuration(record.durationMillis ?: 0L)}",
+                "${record.recordingMode} · ${record.audioSource} · ${formatDuration(record.durationMillis ?: 0L)}",
                 style = MaterialTheme.typography.bodySmall,
             )
             if (record.isSilent == true) {
@@ -379,7 +379,7 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
         Text("Recording details", style = MaterialTheme.typography.headlineMedium)
         Text(file.name, style = MaterialTheme.typography.titleMedium)
         Text("SIM ${record.simSlotIndex + 1} · ${formatRecordDate(record.startedAtEpochMillis)}")
-        Text("${record.recordingMode} · ${record.channelCount} channel(s)")
+        Text("${record.recordingMode} · ${record.audioSource} · ${record.channelCount} channel(s)")
         Text("Duration: ${formatDuration(record.durationMillis ?: 0L)}")
         if (record.isSilent == true) Text("Digital silence detected", color = MaterialTheme.colorScheme.error)
         if (record.captureProfile != null || record.captureDiagnostics != null) {
@@ -390,7 +390,7 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
                 Text(it, style = MaterialTheme.typography.bodySmall)
             }
             record.captureDiagnostics?.let {
-                Text("Audio input diagnostics", style = MaterialTheme.typography.labelLarge)
+                Text("Capture strategy and diagnostics", style = MaterialTheme.typography.labelLarge)
                 Text(it, style = MaterialTheme.typography.bodySmall)
             }
             Text(

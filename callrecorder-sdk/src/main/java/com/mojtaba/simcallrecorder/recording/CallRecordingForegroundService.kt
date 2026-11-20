@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -51,11 +53,15 @@ internal class CallRecordingForegroundService : Service() {
     private val stateMachine = RecordingServiceStateMachine()
     private val automaticPolicy = AutomaticCallRecordingPolicy()
     private var automaticMonitorJob: Job? = null
+    private var permissionMonitorJob: Job? = null
     @Volatile private var automaticArmed = false
     @Volatile private var stopRequestedDuringStart = false
+    @Volatile private var crashAfterPromotionForTest = false
     @Volatile private var serviceDestroyed = false
     private var activeMode: RecordingMode? = null
+    @Volatile private var selectedFallbackReason: String? = null
     private var activeRecordId: Long? = null
+    @Volatile private var pendingAutomaticSimSlotIndex: Int? = null
     private var watchCaptureStatusJob: Job? = null
     private var watchCallEndJob: Job? = null
     private var latestStartId: Int = 0
@@ -72,6 +78,9 @@ internal class CallRecordingForegroundService : Service() {
             ACTION_START -> startCapture(intent)
             ACTION_ARM_AUTOMATIC -> armAutomaticMonitoring(intent)
             ACTION_STOP -> {
+                crashAfterPromotionForTest =
+                    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                        intent.getBooleanExtra(EXTRA_TEST_CRASH_AFTER_PROMOTION, false)
                 disarmAutomaticMonitoring()
                 when (stateMachine.state) {
                     RecordingServiceStateMachine.State.RECORDING ->
@@ -104,10 +113,14 @@ internal class CallRecordingForegroundService : Service() {
         val profile = captureDeviceProfileProvider.snapshot()
         val requestedMode = intent.getStringExtra(EXTRA_RECORDING_MODE)
             ?.let { runCatching { RecordingMode.valueOf(it) }.getOrNull() }
-        val selectedMode = requestedMode ?: recordingCoordinator.selectBest(profile)?.mode
-        val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val selection = recordingCoordinator.selectBestWithReason(profile)
+        val selectedMode = requestedMode ?: selection?.backend?.mode
+        selectedFallbackReason = if (selection?.backend?.mode == selectedMode) {
+            selection?.fallbackReason
+        } else {
+            null
+        }
+        val notificationsGranted = hasNotificationPermission()
         val strategyAvailable = selectedMode?.let { recordingCoordinator.isAvailable(it, profile) } == true
 
         if (selectedMode == null || !automaticPolicy.arm(
@@ -159,9 +172,21 @@ internal class CallRecordingForegroundService : Service() {
                                 .putExtra(EXTRA_SIM_SLOT_INDEX, event.simSlotIndex)
                                 .putExtra(EXTRA_PARTICIPANT_CONSENT, true)
                                 .putExtra(EXTRA_AUTOMATIC_TRIGGER, true)
-                            startCapture(startIntent)
+                            if (stateMachine.state == RecordingServiceStateMachine.State.IDLE ||
+                                stateMachine.state == RecordingServiceStateMachine.State.FAILED
+                            ) {
+                                startCapture(startIntent)
+                            } else {
+                                // A second SIM can enter OFFHOOK after the first SIM ended but
+                                // while its WAV is still finalizing. Queue it rather than losing
+                                // the event against the STOPPING state machine.
+                                pendingAutomaticSimSlotIndex = event.simSlotIndex
+                            }
                         }
                         AutomaticCallRecordingPolicy.Decision.STOP -> {
+                            if (pendingAutomaticSimSlotIndex == event.simSlotIndex) {
+                                pendingAutomaticSimSlotIndex = null
+                            }
                             when (stateMachine.state) {
                                 RecordingServiceStateMachine.State.RECORDING ->
                                     stopCapture(latestStartId, "Call ended")
@@ -182,6 +207,13 @@ internal class CallRecordingForegroundService : Service() {
                 stopSelf()
             }
         }
+        permissionMonitorJob?.cancel()
+        permissionMonitorJob = serviceScope.launch {
+            while (automaticArmed) {
+                kotlinx.coroutines.delay(PERMISSION_RECHECK_INTERVAL_MILLIS)
+                enforceAutomaticArmPermissions()
+            }
+        }
     }
 
     private fun setAutomaticMonitoringArmed(armed: Boolean) {
@@ -193,8 +225,43 @@ internal class CallRecordingForegroundService : Service() {
     private fun disarmAutomaticMonitoring() {
         setAutomaticMonitoringArmed(false)
         automaticPolicy.disarm()
+        selectedFallbackReason = null
+        pendingAutomaticSimSlotIndex = null
         automaticMonitorJob?.cancel()
         automaticMonitorJob = null
+        permissionMonitorJob?.cancel()
+        permissionMonitorJob = null
+    }
+
+    private fun hasNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        val permissionGranted = checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        return permissionGranted
+    }
+
+    private fun enforceAutomaticArmPermissions() {
+        if (!automaticArmed) return
+        val mode = automaticPolicy.selectedMode ?: return
+        val notificationsGranted = hasNotificationPermission()
+        val callStateGranted = checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) ==
+            PackageManager.PERMISSION_GRANTED
+        val strategyAvailable = recordingCoordinator.isAvailable(mode, captureDeviceProfile())
+        if (notificationsGranted && callStateGranted && strategyAvailable) return
+
+        val reason = when {
+            !notificationsGranted -> "notification permission was revoked"
+            !callStateGranted -> "call-state permission was revoked"
+            else -> "selected capture strategy is no longer authorized"
+        }
+        disarmAutomaticMonitoring()
+        updateNotification("Automatic recording disabled · $reason")
+        if (stateMachine.state == RecordingServiceStateMachine.State.RECORDING) {
+            stopCapture(latestStartId, "Permission revoked")
+        } else {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf(latestStartId)
+        }
     }
 
     private fun startCapture(intent: Intent) {
@@ -224,10 +291,16 @@ internal class CallRecordingForegroundService : Service() {
             return
         }
 
-        startForegroundCompat(
-            buildNotification("Preparing ${request.mode.name} capture"),
-            request.mode,
-        )
+        try {
+            startForegroundCompat(
+                buildNotification("Preparing ${automaticModeLabel(request.mode)} capture"),
+                request.mode,
+            )
+        } catch (exception: Exception) {
+            if (automaticArmed) disarmAutomaticMonitoring()
+            rejectStart("Foreground service start was denied: ${exception.message ?: exception::class.java.simpleName}")
+            return
+        }
 
         if (!stateMachine.beginStart(request)) {
             rejectStart("Recording requires an active SIM call and explicit participant-consent confirmation.")
@@ -242,11 +315,14 @@ internal class CallRecordingForegroundService : Service() {
             var startedMode: RecordingMode? = null
             var insertedRecordId: Long? = null
             try {
-                // Open Room and finish process-scoped stale-session/.part recovery before a
-                // backend creates a new temporary WAV. This also covers service-first process starts.
-                callRecordRepository.prepareForCapture()
-                val runtimeProfile = captureDeviceProfile()
-                val output = recordingCoordinator.start(request, runtimeProfile)
+                // Recovery must finish before profile selection or any backend side effect.
+                val (runtimeProfile, output) = CaptureStartupBarrier.start(
+                    prepareForCapture = { callRecordRepository.prepareForCapture() },
+                    startBackend = {
+                        val profile = captureDeviceProfile()
+                        profile to recordingCoordinator.start(request, profile)
+                    },
+                )
                 startedMode = request.mode
                 activeMode = request.mode
 
@@ -283,14 +359,25 @@ internal class CallRecordingForegroundService : Service() {
                             "shizukuAuthorized=${runtimeProfile.shizukuAuthorized}",
                             "accessibilityEnabled=${runtimeProfile.accessibilityServiceEnabled}",
                         ).joinToString("; "),
+                        captureDiagnostics = buildList {
+                            add("[${System.currentTimeMillis()}] strategy=${request.mode.name}")
+                            add("source=${recordingCoordinator.audioSourceLabel(request.mode)}")
+                            selectedFallbackReason?.let { add("fallbackReason=$it") }
+                        }.joinToString("; "),
                     ),
                 )
                 activeRecordId = insertedRecordId
                 check(stateMachine.recordingStarted()) { "Recording state transition was rejected." }
-                updateNotification("Recording active · ${output.name} · SIM ${request.simSlotIndex + 1}")
+                val fallbackLabel = selectedFallbackReason?.let { " · fallback: $it" }.orEmpty()
+                updateNotification(
+                    "Recording active · ${automaticModeLabel(request.mode)} · ${output.name} · SIM ${request.simSlotIndex + 1}$fallbackLabel",
+                )
                 if (stopRequestedDuringStart) {
                     stopRequestedDuringStart = false
-                    stopCapture(latestStartId, "Stopped by user")
+                    stopCapture(
+                        latestStartId,
+                        if (automaticArmed) "Call ended" else "Stopped by user",
+                    )
                     return@launch
                 }
 
@@ -318,7 +405,13 @@ internal class CallRecordingForegroundService : Service() {
                         null
                     }
                 }
-                watchCallEnd(request.simSlotIndex)
+                // Instrumentation can exercise Service/Activity lifecycle with a synthetic OFFHOOK
+                // request on a non-telephony emulator. This hook is honored only by debuggable
+                // builds; release builds always retain the real SIM call-end watcher.
+                val disableCallEndWatchForTest =
+                    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                        intent.getBooleanExtra(EXTRA_TEST_DISABLE_CALL_END_WATCH, false)
+                if (!disableCallEndWatchForTest) watchCallEnd(request.simSlotIndex)
             } catch (cancelled: CancellationException) {
                 // Backend start may have crossed its native/binder side-effect boundary before the
                 // coroutine was cancelled. Stop the requested backend even when start() did not
@@ -414,8 +507,10 @@ internal class CallRecordingForegroundService : Service() {
 
     private fun captureDeviceProfile(): CaptureDeviceProfile = captureDeviceProfileProvider.snapshot()
 
-    private fun automaticWaitingLabel(): String =
-        automaticPolicy.selectedMode?.let(::automaticModeLabel) ?: "call recording"
+    private fun automaticWaitingLabel(): String {
+        val mode = automaticPolicy.selectedMode?.let(::automaticModeLabel) ?: "call recording"
+        return selectedFallbackReason?.let { "$mode · fallback: $it" } ?: mode
+    }
 
     private fun watchCallEnd(simSlotIndex: Int) {
         watchCallEndJob?.cancel()
@@ -454,7 +549,25 @@ internal class CallRecordingForegroundService : Service() {
             stateMachine.stopCompleted()
             if (!serviceDestroyed) {
                 if (automaticArmed && reason == "Call ended") {
-                    updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
+                    val nextSimSlot = pendingAutomaticSimSlotIndex
+                    if (nextSimSlot != null) {
+                        pendingAutomaticSimSlotIndex = null
+                        val nextIntent = Intent(
+                            this@CallRecordingForegroundService,
+                            CallRecordingForegroundService::class.java,
+                        )
+                            .setAction(ACTION_START)
+                            .putExtra(EXTRA_RECORDING_MODE, automaticPolicy.selectedMode?.name)
+                            .putExtra(EXTRA_CALL_STATE, CallState.OFFHOOK.name)
+                            .putExtra(EXTRA_SIM_SLOT_INDEX, nextSimSlot)
+                            .putExtra(EXTRA_PARTICIPANT_CONSENT, true)
+                            .putExtra(EXTRA_AUTOMATIC_TRIGGER, true)
+                        serviceScope.launch(Dispatchers.Main.immediate) {
+                            startCapture(nextIntent)
+                        }
+                    } else {
+                        updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
+                    }
                 } else {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf(startId)
@@ -467,6 +580,14 @@ internal class CallRecordingForegroundService : Service() {
         val recordId = activeRecordId
         try {
             val finalized = recordingCoordinator.stop(mode)
+            if (crashAfterPromotionForTest && finalized != null &&
+                applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+            ) {
+                crashAfterPromotionForTest = false
+                android.util.Log.i("CallRecorderProcessDeath", "WINDOW2_KILL_AFTER_WAV_PROMOTION")
+                android.os.Process.killProcess(android.os.Process.myPid())
+                return
+            }
             if (recordId != null) {
                 if (finalized == null) {
                     callRecordRepository.markRecordingFailed(recordId, "Capture ended without a valid finalized WAV file.")
@@ -664,7 +785,10 @@ internal class CallRecordingForegroundService : Service() {
         const val EXTRA_SIM_SLOT_INDEX = "com.mojtaba.simcallrecorder.extra.SIM_SLOT_INDEX"
         const val EXTRA_PARTICIPANT_CONSENT = "com.mojtaba.simcallrecorder.extra.PARTICIPANT_CONSENT"
         const val EXTRA_AUTOMATIC_TRIGGER = "com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER"
+        const val EXTRA_TEST_DISABLE_CALL_END_WATCH = "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
+        const val EXTRA_TEST_CRASH_AFTER_PROMOTION = "com.mojtaba.simcallrecorder.extra.TEST_CRASH_AFTER_PROMOTION"
 
+        private const val PERMISSION_RECHECK_INTERVAL_MILLIS = 1_000L
         private const val NOTIFICATION_CHANNEL = "call_recording"
         private const val NOTIFICATION_ID = 4_201
         private const val STATUS_RECORDING = "RECORDING"

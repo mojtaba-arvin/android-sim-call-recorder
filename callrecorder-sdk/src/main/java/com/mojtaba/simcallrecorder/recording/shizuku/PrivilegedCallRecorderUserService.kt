@@ -17,14 +17,21 @@ internal class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub 
     private val shellAttributionReady = ShizukuShellAttribution.detachFromApplication()
 
     @Volatile
-    private var voiceCallPermissionGranted = Process.myUid() == ROOT_UID
+    private var captureAudioOutputGranted = false
+
+    @Volatile
+    private var callAudioInterceptionGranted = false
 
     private val controller = RecorderServiceController(
         engine = AndroidVoiceCallCaptureEngine(),
         hostUid = { Process.myUid() },
         captureReady = {
             shellAttributionReady &&
-                hasVoiceCallCapturePermission(Process.myUid(), voiceCallPermissionGranted)
+                hasVoiceCallCapturePermission(
+                    uid = Process.myUid(),
+                    captureAudioOutputGranted = captureAudioOutputGranted,
+                    callAudioInterceptionGranted = callAudioInterceptionGranted,
+                )
         },
     )
 
@@ -33,14 +40,20 @@ internal class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub 
     @Keep
     constructor(context: Context) : this() {
         val uid = Process.myUid()
-        val permissionGranted = runCatching {
-            context.checkPermission(
-                Manifest.permission.CAPTURE_AUDIO_OUTPUT,
-                Process.myPid(),
-                uid,
-            ) == PackageManager.PERMISSION_GRANTED
-        }.getOrDefault(false)
-        voiceCallPermissionGranted = hasVoiceCallCapturePermission(uid, permissionGranted)
+        val captureAudioOutputGranted = hasPermission(
+            context = context,
+            permission = Manifest.permission.CAPTURE_AUDIO_OUTPUT,
+            uid = uid,
+        )
+        // Android 16+ AudioPolicy checks CALL_AUDIO_INTERCEPTION first for VOICE_CALL,
+        // then retains CAPTURE_AUDIO_OUTPUT as a legacy compatibility fallback.
+        val callAudioInterceptionGranted = hasPermission(
+            context = context,
+            permission = CALL_AUDIO_INTERCEPTION_PERMISSION,
+            uid = uid,
+        )
+        this@PrivilegedCallRecorderUserService.captureAudioOutputGranted = captureAudioOutputGranted
+        this@PrivilegedCallRecorderUserService.callAudioInterceptionGranted = callAudioInterceptionGranted
     }
 
     override fun getHostUid(): Int = Process.myUid()
@@ -82,9 +95,23 @@ internal class PrivilegedCallRecorderUserService : IPrivilegedCallRecorder.Stub 
 }
 
 
-/** Root is accepted explicitly; shell must actually hold Android's protected call-audio permission. */
-internal fun hasVoiceCallCapturePermission(uid: Int, permissionGranted: Boolean): Boolean =
-    uid == ROOT_UID || (uid == SHELL_UID && permissionGranted)
+private fun hasPermission(context: Context, permission: String, uid: Int): Boolean =
+    runCatching {
+        context.checkPermission(permission, Process.myPid(), uid) == PackageManager.PERMISSION_GRANTED
+    }.getOrDefault(false)
+
+/**
+ * Root is accepted explicitly. Shell must actually hold at least one protected permission
+ * accepted by the platform's VOICE_CALL input policy:
+ * CALL_AUDIO_INTERCEPTION (current Android) or CAPTURE_AUDIO_OUTPUT (legacy fallback).
+ */
+internal fun hasVoiceCallCapturePermission(
+    uid: Int,
+    captureAudioOutputGranted: Boolean,
+    callAudioInterceptionGranted: Boolean,
+): Boolean = uid == ROOT_UID ||
+    (uid == SHELL_UID && (captureAudioOutputGranted || callAudioInterceptionGranted))
 
 private const val SHELL_UID = 2_000
 private const val ROOT_UID = 0
+private const val CALL_AUDIO_INTERCEPTION_PERMISSION = "android.permission.CALL_AUDIO_INTERCEPTION"
