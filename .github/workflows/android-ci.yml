@@ -17,11 +17,12 @@ on:
 permissions:
   contents: read
 
-# One active run per PR/branch. A newer commit supersedes the previous commit.
+# Serialize runs per PR/branch without killing an in-progress emulator job.
+# GitHub keeps the newest pending run for the group; the active run finishes first.
 # Do not include github.sha here: that would create a different group for every commit.
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   changes:
