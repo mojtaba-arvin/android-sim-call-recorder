@@ -131,6 +131,23 @@ class ForegroundServiceLifecycleInstrumentedTest {
                 )
             }
             withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
+            scenario.onActivity { activity ->
+                activity.startService(
+                    sdk.createStartRecordingIntent(
+                        mode = SdkRecordingMode.SPEAKERPHONE_MIC,
+                        simSlotIndex = 0,
+                        callState = CallState.OFFHOOK,
+                        participantConsentConfirmed = true,
+                    ).putExtra(
+                        "com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER",
+                        true,
+                    ),
+                )
+            }
+            withTimeout(30_000) { sdk.recordingStatus.first { it.startsWith("Recording active") } }
+            val activeRecord = sdk.observeRecordings(CallRecordFilter()).first { records ->
+                records.any { it.status == "RECORDING" }
+            }.single { it.status == "RECORDING" }
 
             instrumentation.uiAutomation.revokeRuntimePermission(
                 context.packageName,
@@ -138,12 +155,13 @@ class ForegroundServiceLifecycleInstrumentedTest {
             )
 
             withTimeout(30_000) { sdk.automaticRecordingArmed.first { !it } }
-            val status = withTimeout(30_000) {
-                sdk.recordingStatus.first {
-                    it == "Service stopped" || it.contains("microphone permission was revoked")
-                }
+            val stoppedRecord = withTimeout(30_000) {
+                sdk.observeRecordings(CallRecordFilter()).first { records ->
+                    records.any { it.id == activeRecord.id && it.status != "RECORDING" }
+                }.single { it.id == activeRecord.id }
             }
-            assertFalse("Permission revocation must leave automatic monitoring disarmed: $status", sdk.automaticRecordingArmed.value)
+            assertFalse("Permission revocation must leave automatic monitoring disarmed.", sdk.automaticRecordingArmed.value)
+            assertTrue("Permission revocation must stop the active recording.", stoppedRecord.status != "RECORDING")
         } finally {
             context.stopService(sdk.createStopRecordingIntent())
             scenario.close()
