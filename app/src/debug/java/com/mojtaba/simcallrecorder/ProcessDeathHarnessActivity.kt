@@ -1,7 +1,6 @@
 package com.mojtaba.simcallrecorder
 
 import android.app.Activity
-import android.app.ForegroundServiceStartNotAllowedException
 import android.os.Bundle
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -137,7 +136,7 @@ internal class ProcessDeathHarnessActivity : Activity() {
                 "Background microphone FGS unexpectedly remained armed: $status"
             }
             Log.i(TAG, "FGS_START_DENIAL_HANDLED status=$status")
-        } catch (denied: ForegroundServiceStartNotAllowedException) {
+        } catch (denied: IllegalStateException) {
             Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
         } catch (denied: SecurityException) {
             Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
