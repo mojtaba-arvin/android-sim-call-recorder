@@ -63,9 +63,9 @@ internal class SecureRecordingStateStore(context: Context) {
     private fun write(state: State) {
         val plaintext = ByteBuffer.allocate(STATE_BYTES)
             .put(STATE_VERSION.toByte())
-            .put(if (state.speakerphoneConsentConfirmed) 1 else 0)
-            .put(if (state.shizukuConsentConfirmed) 1 else 0)
-            .put(if (state.armRequested) 1 else 0)
+            .put((if (state.speakerphoneConsentConfirmed) 1 else 0).toByte())
+            .put((if (state.shizukuConsentConfirmed) 1 else 0).toByte())
+            .put((if (state.armRequested) 1 else 0).toByte())
             .array()
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, loadOrCreateKey())
