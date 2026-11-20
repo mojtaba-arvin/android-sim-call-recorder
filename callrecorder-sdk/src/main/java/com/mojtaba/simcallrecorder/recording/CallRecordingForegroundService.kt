@@ -239,7 +239,7 @@ internal class CallRecordingForegroundService : Service() {
         val permissionGranted = checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         val appOpMode = getSystemService(AppOpsManager::class.java).checkOpNoThrow(
-            AppOpsManager.OPSTR_POST_NOTIFICATION,
+            "android:post_notification",
             applicationInfo.uid,
             packageName,
         )
