@@ -40,6 +40,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
                     ACTION_RECOVER_ONE_AND_PREPARE_WINDOW_TWO -> recoverWindowOneAndPrepareWindowTwo()
                     ACTION_RECOVER_TWO_AND_TEST_NEW_CAPTURE -> recoverWindowTwoAndTestNewCapture()
                     ACTION_TEST_BACKGROUND_FGS_DENIAL -> testBackgroundForegroundServiceDenial()
+                    ACTION_TEST_NOTIFICATION_PERMISSION_GATE -> testNotificationPermissionGate()
                     else -> error("Unknown process-death harness action: ${intent?.action}")
                 }
             } catch (failure: Throwable) {
@@ -119,6 +120,29 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
             }
         }
         Log.i(TAG, "PROCESS_DEATH_SUITE_PASSED")
+        finish()
+    }
+
+    private suspend fun testNotificationPermissionGate() {
+        check(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            "POST_NOTIFICATIONS runtime permission requires Android 13 or newer."
+        }
+        SecureRecordingStateStore(this).setArmRequested(true)
+        ContextCompat.startForegroundService(
+            this,
+            sdk.createArmAutomaticRecordingIntent(
+                SdkRecordingMode.SPEAKERPHONE_MIC,
+                participantConsentConfirmed = true,
+            ),
+        )
+        val status = withTimeout(15_000) {
+            sdk.recordingStatus.first { it.contains("notification permission is required") }
+        }
+        check(!sdk.automaticRecordingArmed.value) {
+            "Automatic monitoring unexpectedly armed without POST_NOTIFICATIONS: $status"
+        }
+        SecureRecordingStateStore(this).setArmRequested(false)
+        Log.i(TAG, "NOTIFICATION_PERMISSION_GATE_PASSED status=$status")
         finish()
     }
 
@@ -213,6 +237,8 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
             "com.mojtaba.simcallrecorder.debug.RECOVER_TWO_AND_TEST_NEW_CAPTURE"
         const val ACTION_TEST_BACKGROUND_FGS_DENIAL =
             "com.mojtaba.simcallrecorder.debug.TEST_BACKGROUND_FGS_DENIAL"
+        const val ACTION_TEST_NOTIFICATION_PERMISSION_GATE =
+            "com.mojtaba.simcallrecorder.debug.TEST_NOTIFICATION_PERMISSION_GATE"
         const val EXTRA_TEST_DISABLE_CALL_END_WATCH =
             "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
         const val EXTRA_AUTOMATIC_TRIGGER =
