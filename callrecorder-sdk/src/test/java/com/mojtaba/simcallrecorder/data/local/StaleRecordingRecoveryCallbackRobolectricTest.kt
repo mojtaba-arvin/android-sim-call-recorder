@@ -17,6 +17,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -143,6 +146,65 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
 
         assertEquals("RECORDING", database!!.callRecordDao().findById(newSessionId)?.status)
         assertTrue(newSessionPart.exists())
+    }
+
+    @Test
+    fun concurrentRecoveryAndNewCaptureCannotDeleteOrInterruptTheNewSession() {
+        val staleWav = File(recordingDirectory, "stale.wav")
+        val stalePart = File(recordingDirectory, "stale.wav.part").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+        val previousProcessDatabase = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseFile.name,
+        ).allowMainThreadQueries().build()
+        try {
+            previousProcessDatabase.callRecordDao().insert(
+                record(staleWav, status = "RECORDING", startedAt = 100L),
+            )
+        } finally {
+            previousProcessDatabase.close()
+        }
+
+        database = Room.databaseBuilder(context, AppDatabase::class.java, databaseFile.name)
+            .allowMainThreadQueries()
+            .addCallback(StaleRecordingRecoveryCallback(recordingDirectory))
+            .build()
+
+        val executor = Executors.newFixedThreadPool(2)
+        val ready = CountDownLatch(2)
+        val start = CountDownLatch(1)
+        val newPart = File(recordingDirectory, "new-session.wav.part")
+        try {
+            val recovery = executor.submit<Int> {
+                ready.countDown()
+                check(start.await(5, TimeUnit.SECONDS))
+                database!!.callRecordDao().countAll()
+            }
+            val capture = executor.submit<Long> {
+                ready.countDown()
+                check(start.await(5, TimeUnit.SECONDS))
+                // This is the service's prepareForCapture() barrier. A backend may only create
+                // its temporary PCM file after this database open/recovery operation returns.
+                database!!.callRecordDao().countAll()
+                newPart.writeBytes(byteArrayOf(4, 5, 6))
+                database!!.callRecordDao().insert(
+                    record(File(recordingDirectory, "new-session.wav"), status = "RECORDING", startedAt = 200L),
+                )
+            }
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS))
+            start.countDown()
+            recovery.get(10, TimeUnit.SECONDS)
+            val newRecordId = capture.get(10, TimeUnit.SECONDS)
+
+            val records = database!!.callRecordDao().observeAll().first()
+            assertEquals("INTERRUPTED", records.single { it.startedAtEpochMillis == 100L }.status)
+            assertEquals("RECORDING", records.single { it.id == newRecordId }.status)
+            assertFalse(stalePart.exists())
+            assertTrue(newPart.exists())
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     private fun record(file: File, status: String, startedAt: Long) = CallRecordEntity(
