@@ -163,7 +163,9 @@ internal class ProcessDeathHarnessActivity : Activity() {
 
     private suspend fun awaitPartialFile(record: CallRecord) {
         withTimeout(15_000) {
-            while (!File(record.filePath + ".part").isFile) delay(100)
+            val partial = File(record.filePath + ".part")
+            // Do not kill after file creation alone: require PCM payload beyond the 44-byte WAV header.
+            while (!partial.isFile || partial.length() <= 44L) delay(100)
         }
     }
 
