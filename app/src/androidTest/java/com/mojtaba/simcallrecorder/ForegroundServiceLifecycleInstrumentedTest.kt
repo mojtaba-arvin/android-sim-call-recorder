@@ -1,11 +1,11 @@
 package com.mojtaba.simcallrecorder
 
 import android.Manifest
-import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.rule.GrantPermissionRule
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.CallState
 import com.mojtaba.simcallrecorder.sdk.SdkRecordingMode
@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -32,9 +33,12 @@ class ForegroundServiceLifecycleInstrumentedTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
 
+    @get:Rule
+    val recordAudioPermissionRule: GrantPermissionRule =
+        GrantPermissionRule.grant(Manifest.permission.RECORD_AUDIO)
+
     @Test
     fun activeCaptureSurvivesActivityRecreationAndServiceDestructionFinalizesRecord() = runBlocking {
-        grantCapturePermissions()
         val sdk = EntryPointAccessors.fromApplication(
             context.applicationContext,
             SimCallRecorderSdkEntryPoint::class.java,
@@ -91,17 +95,5 @@ class ForegroundServiceLifecycleInstrumentedTest {
         sdk.recordingStatus.first(predicate)
     }
 
-    private fun grantCapturePermissions() {
-        // UiAutomation's runtime-permission API is the same mechanism used by GrantPermissionRule.
-        // A shell `pm grant` command is not reliable for the target app under all emulator images.
-        instrumentation.uiAutomation.grantRuntimePermission(
-            context.packageName,
-            Manifest.permission.RECORD_AUDIO,
-        )
-        assertEquals(
-            "Test requires RECORD_AUDIO to exercise the microphone foreground service.",
-            PackageManager.PERMISSION_GRANTED,
-            context.checkSelfPermission(Manifest.permission.RECORD_AUDIO),
-        )
-    }
+
 }
