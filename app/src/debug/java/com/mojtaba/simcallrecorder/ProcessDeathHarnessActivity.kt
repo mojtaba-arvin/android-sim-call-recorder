@@ -1,6 +1,7 @@
 package com.mojtaba.simcallrecorder
 
 import android.app.Activity
+import android.app.ForegroundServiceStartNotAllowedException
 import android.os.Bundle
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -38,6 +39,7 @@ internal class ProcessDeathHarnessActivity : Activity() {
                     ACTION_PREPARE_WINDOW_ONE -> prepareWindowOne()
                     ACTION_RECOVER_ONE_AND_PREPARE_WINDOW_TWO -> recoverWindowOneAndPrepareWindowTwo()
                     ACTION_RECOVER_TWO_AND_TEST_NEW_CAPTURE -> recoverWindowTwoAndTestNewCapture()
+                    ACTION_TEST_BACKGROUND_FGS_DENIAL -> testBackgroundForegroundServiceDenial()
                     else -> error("Unknown process-death harness action: ${intent?.action}")
                 }
             } catch (failure: Throwable) {
@@ -113,6 +115,36 @@ internal class ProcessDeathHarnessActivity : Activity() {
         finish()
     }
 
+    private suspend fun testBackgroundForegroundServiceDenial() {
+        check(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            "Background FGS denial requires Android 12 or newer."
+        }
+        moveTaskToBack(true)
+        delay(2_000)
+        val armIntent = sdk.createArmAutomaticRecordingIntent(
+            SdkRecordingMode.SPEAKERPHONE_MIC,
+            participantConsentConfirmed = true,
+        )
+        try {
+            ContextCompat.startForegroundService(this, armIntent)
+            val status = withTimeout(15_000) {
+                sdk.recordingStatus.first {
+                    it.contains("could not start") || it.contains("not armed") ||
+                        it.contains("not allowed") || it.contains("permission is required")
+                }
+            }
+            check(!sdk.automaticRecordingArmed.value) {
+                "Background microphone FGS unexpectedly remained armed: $status"
+            }
+            Log.i(TAG, "FGS_START_DENIAL_HANDLED status=$status")
+        } catch (denied: ForegroundServiceStartNotAllowedException) {
+            Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
+        } catch (denied: SecurityException) {
+            Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
+        }
+        finish()
+    }
+
     private fun startSyntheticCapture() {
         val start = sdk.createStartRecordingIntent(
             mode = SdkRecordingMode.SPEAKERPHONE_MIC,
@@ -150,6 +182,8 @@ internal class ProcessDeathHarnessActivity : Activity() {
             "com.mojtaba.simcallrecorder.debug.RECOVER_ONE_AND_PREPARE_WINDOW_TWO"
         const val ACTION_RECOVER_TWO_AND_TEST_NEW_CAPTURE =
             "com.mojtaba.simcallrecorder.debug.RECOVER_TWO_AND_TEST_NEW_CAPTURE"
+        const val ACTION_TEST_BACKGROUND_FGS_DENIAL =
+            "com.mojtaba.simcallrecorder.debug.TEST_BACKGROUND_FGS_DENIAL"
         const val EXTRA_TEST_DISABLE_CALL_END_WATCH =
             "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
         const val EXTRA_TEST_CRASH_AFTER_PROMOTION =
