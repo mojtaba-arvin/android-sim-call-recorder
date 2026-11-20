@@ -45,8 +45,10 @@ wait_for_process_exit() {
 
 adb shell am start -W -n "$COMPONENT" -a "$ACTION_ONE"
 wait_for_marker "WINDOW1_READY"
-adb shell am force-stop "$PACKAGE"
+# Runtime permission revocation is a real platform process-death event for this package.
+adb shell pm revoke "$PACKAGE" android.permission.RECORD_AUDIO
 wait_for_process_exit
+adb shell pm grant "$PACKAGE" android.permission.RECORD_AUDIO
 
 adb shell am start -W -n "$COMPONENT" -a "$ACTION_TWO"
 wait_for_marker "WINDOW1_RECOVERED"
