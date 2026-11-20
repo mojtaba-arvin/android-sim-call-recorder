@@ -81,6 +81,9 @@ internal class CallRecordingForegroundService : Service() {
             ACTION_START -> startCapture(intent)
             ACTION_ARM_AUTOMATIC -> armAutomaticMonitoring(intent)
             ACTION_STOP -> {
+                crashAfterPromotionForTest =
+                    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                        intent.getBooleanExtra(EXTRA_TEST_CRASH_AFTER_PROMOTION, false)
                 disarmAutomaticMonitoring()
                 when (stateMachine.state) {
                     RecordingServiceStateMachine.State.RECORDING ->
@@ -524,6 +527,14 @@ internal class CallRecordingForegroundService : Service() {
         val recordId = activeRecordId
         try {
             val finalized = recordingCoordinator.stop(mode)
+            if (crashAfterPromotionForTest && finalized != null &&
+                applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+            ) {
+                crashAfterPromotionForTest = false
+                android.util.Log.i("CallRecorderProcessDeath", "WINDOW2_KILL_AFTER_WAV_PROMOTION")
+                android.os.Process.killProcess(android.os.Process.myPid())
+                return
+            }
             if (recordId != null) {
                 if (finalized == null) {
                     callRecordRepository.markRecordingFailed(recordId, "Capture ended without a valid finalized WAV file.")
@@ -723,6 +734,7 @@ internal class CallRecordingForegroundService : Service() {
         const val EXTRA_PARTICIPANT_CONSENT = "com.mojtaba.simcallrecorder.extra.PARTICIPANT_CONSENT"
         const val EXTRA_AUTOMATIC_TRIGGER = "com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER"
         const val EXTRA_TEST_DISABLE_CALL_END_WATCH = "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
+        const val EXTRA_TEST_CRASH_AFTER_PROMOTION = "com.mojtaba.simcallrecorder.extra.TEST_CRASH_AFTER_PROMOTION"
 
         private const val NOTIFICATION_CHANNEL = "call_recording"
         private const val NOTIFICATION_ID = 4_201
