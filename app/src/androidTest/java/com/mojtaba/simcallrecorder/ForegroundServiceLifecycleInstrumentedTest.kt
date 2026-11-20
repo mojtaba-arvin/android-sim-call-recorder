@@ -51,17 +51,30 @@ class ForegroundServiceLifecycleInstrumentedTest {
 
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                executeShellCommand("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
+            }
             scenario.onActivity { activity ->
-                val startIntent = sdk.createStartRecordingIntent(
-                    mode = SdkRecordingMode.SPEAKERPHONE_MIC,
-                    simSlotIndex = 0,
-                    callState = CallState.OFFHOOK,
-                    participantConsentConfirmed = true,
-                ).putExtra(
-                    "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH",
-                    true,
+                ContextCompat.startForegroundService(
+                    activity,
+                    sdk.createArmAutomaticRecordingIntent(
+                        SdkRecordingMode.SPEAKERPHONE_MIC,
+                        participantConsentConfirmed = true,
+                    ),
                 )
-                ContextCompat.startForegroundService(activity, startIntent)
+            }
+            withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
+            scenario.onActivity { activity ->
+                activity.startService(
+                    sdk.createStartRecordingIntent(
+                        mode = SdkRecordingMode.SPEAKERPHONE_MIC,
+                        simSlotIndex = 0,
+                        callState = CallState.OFFHOOK,
+                        participantConsentConfirmed = true,
+                    )
+                        .putExtra("com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER", true)
+                        .putExtra("com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH", true),
+                )
             }
 
             val activeStatus = awaitStatus(sdk) { it.startsWith("Recording active") }
@@ -69,6 +82,10 @@ class ForegroundServiceLifecycleInstrumentedTest {
             assertTrue(
                 "The foreground notification must expose the actual selected backend.",
                 activeStatus.contains("Speakerphone + MIC acoustic capture"),
+            )
+            assertTrue(
+                "The notification must retain why Shizuku was not selected.",
+                activeStatus.contains("fallback: Shizuku"),
             )
             val activeRecord = sdk.observeRecordings(CallRecordFilter()).first { records ->
                 records.any { it.status == "RECORDING" }
@@ -78,6 +95,10 @@ class ForegroundServiceLifecycleInstrumentedTest {
             assertTrue(
                 activeRecord.captureDiagnostics.orEmpty(),
                 activeRecord.captureDiagnostics.orEmpty().contains("strategy=SPEAKERPHONE_MIC"),
+            )
+            assertTrue(
+                activeRecord.captureDiagnostics.orEmpty(),
+                activeRecord.captureDiagnostics.orEmpty().contains("fallbackReason=Shizuku"),
             )
 
             // Recreating the UI must not stop or replace the independent foreground Service.
