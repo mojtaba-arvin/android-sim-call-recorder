@@ -37,11 +37,10 @@ jobs:
           disable-linux-hw-accel: false
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
+          # The emulator action invokes each script line in a separate /bin/sh.
+          # Keep the full stateful probe inside one bash -c command.
           script: |
-            set -eu
-            shell_uid="$(adb shell id -u | tr -d '\r')"
-            echo "adb shell uid=$shell_uid"
-            test "$shell_uid" = "2000"
+            bash -c 'set -euo pipefail; shell_uid="$(adb shell id -u | tr -d "\\r")"; echo "adb shell uid=$shell_uid"; test "$shell_uid" = "2000"; for permission in android.permission.CALL_AUDIO_INTERCEPTION android.permission.CAPTURE_AUDIO_OUTPUT; do result="$(adb shell pm check-permission "$permission" com.android.shell | tr -d "\\r")"; echo "$permission=$result"; test "$result" = "granted"; done; adb shell dumpsys package com.android.shell | grep -E "CALL_AUDIO_INTERCEPTION|CAPTURE_AUDIO_OUTPUT"'
 
             for permission in \
               android.permission.CALL_AUDIO_INTERCEPTION \
