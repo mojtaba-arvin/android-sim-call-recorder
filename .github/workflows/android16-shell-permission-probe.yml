@@ -38,7 +38,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             shell_uid="$(adb shell id -u | tr -d '\r')"
             echo "adb shell uid=$shell_uid"
             test "$shell_uid" = "2000"
