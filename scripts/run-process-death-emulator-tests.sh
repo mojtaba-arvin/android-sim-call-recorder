@@ -64,6 +64,15 @@ wait_for_marker "RECOVERY_CAPTURE_RACE_PASSED"
 wait_for_marker "PROCESS_DEATH_SUITE_PASSED"
 
 API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+if [[ "$API_LEVEL" -ge 33 ]]; then
+  # Revoke notification permission while no Service is active, then prove automatic arm fails closed.
+  adb shell pm revoke "$PACKAGE" android.permission.POST_NOTIFICATIONS
+  wait_for_process_exit
+  adb shell am start -W -n "$COMPONENT" -a "com.mojtaba.simcallrecorder.debug.TEST_NOTIFICATION_PERMISSION_GATE"
+  wait_for_marker "NOTIFICATION_PERMISSION_GATE_PASSED"
+  adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS
+  adb shell appops set "$PACKAGE" POST_NOTIFICATION allow || true
+fi
 if [[ "$API_LEVEL" -ge 31 ]]; then
   adb shell am start -W -n "$COMPONENT" -a "com.mojtaba.simcallrecorder.debug.TEST_BACKGROUND_FGS_DENIAL"
   wait_for_marker "FGS_START_DENIED_BY_PLATFORM"
