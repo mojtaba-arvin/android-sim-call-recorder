@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.app.AppOpsManager
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.content.pm.ServiceInfo
@@ -120,9 +121,7 @@ internal class CallRecordingForegroundService : Service() {
         } else {
             null
         }
-        val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val notificationsGranted = hasNotificationPermission()
         val strategyAvailable = selectedMode?.let { recordingCoordinator.isAvailable(it, profile) } == true
 
         if (selectedMode == null || !automaticPolicy.arm(
@@ -235,11 +234,23 @@ internal class CallRecordingForegroundService : Service() {
         permissionMonitorJob = null
     }
 
+    private fun hasNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        val permissionGranted = checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        val appOpMode = getSystemService(AppOpsManager::class.java).checkOpNoThrow(
+            AppOpsManager.OPSTR_POST_NOTIFICATION,
+            applicationInfo.uid,
+            packageName,
+        )
+        return permissionGranted && appOpMode != AppOpsManager.MODE_IGNORED &&
+            appOpMode != AppOpsManager.MODE_ERRORED
+    }
+
     private fun enforceAutomaticArmPermissions() {
         if (!automaticArmed) return
         val mode = automaticPolicy.selectedMode ?: return
-        val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val notificationsGranted = hasNotificationPermission()
         val callStateGranted = checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) ==
             PackageManager.PERMISSION_GRANTED
         val strategyAvailable = recordingCoordinator.isAvailable(mode, captureDeviceProfile())
