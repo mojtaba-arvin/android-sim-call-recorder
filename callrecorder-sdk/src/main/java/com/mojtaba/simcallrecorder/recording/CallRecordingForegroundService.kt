@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -49,6 +50,11 @@ internal class CallRecordingForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // WAV finalization must outlive service-scope cancellation during onDestroy().
     private val finalizationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val permissionsChangedListener = PackageManager.OnPermissionsChangedListener { uid ->
+        if (uid == applicationInfo.uid && automaticArmed) {
+            serviceScope.launch { enforceAutomaticArmPermissions() }
+        }
+    }
     private val stateMachine = RecordingServiceStateMachine()
     private val automaticPolicy = AutomaticCallRecordingPolicy()
     private var automaticMonitorJob: Job? = null
@@ -66,6 +72,7 @@ internal class CallRecordingForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        packageManager.addOnPermissionsChangeListener(permissionsChangedListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -204,6 +211,31 @@ internal class CallRecordingForegroundService : Service() {
         selectedFallbackReason = null
         automaticMonitorJob?.cancel()
         automaticMonitorJob = null
+    }
+
+    private fun enforceAutomaticArmPermissions() {
+        if (!automaticArmed) return
+        val mode = automaticPolicy.selectedMode ?: return
+        val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val callStateGranted = checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) ==
+            PackageManager.PERMISSION_GRANTED
+        val strategyAvailable = recordingCoordinator.isAvailable(mode, captureDeviceProfile())
+        if (notificationsGranted && callStateGranted && strategyAvailable) return
+
+        val reason = when {
+            !notificationsGranted -> "notification permission was revoked"
+            !callStateGranted -> "call-state permission was revoked"
+            else -> "selected capture strategy is no longer authorized"
+        }
+        disarmAutomaticMonitoring()
+        updateNotification("Automatic recording disabled · $reason")
+        if (stateMachine.state == RecordingServiceStateMachine.State.RECORDING) {
+            stopCapture(latestStartId, "Permission revoked")
+        } else {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf(latestStartId)
+        }
     }
 
     private fun startCapture(intent: Intent) {
@@ -629,6 +661,7 @@ internal class CallRecordingForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        packageManager.removeOnPermissionsChangeListener(permissionsChangedListener)
         serviceDestroyed = true
         automaticMonitorJob?.cancel()
         automaticPolicy.disarm()
