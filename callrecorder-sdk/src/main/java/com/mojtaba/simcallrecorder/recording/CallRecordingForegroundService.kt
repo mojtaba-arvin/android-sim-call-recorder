@@ -64,6 +64,7 @@ internal class CallRecordingForegroundService : Service() {
     private var activeMode: RecordingMode? = null
     @Volatile private var selectedFallbackReason: String? = null
     private var activeRecordId: Long? = null
+    @Volatile private var pendingAutomaticSimSlotIndex: Int? = null
     private var watchCaptureStatusJob: Job? = null
     private var watchCallEndJob: Job? = null
     private var latestStartId: Int = 0
@@ -177,7 +178,16 @@ internal class CallRecordingForegroundService : Service() {
                                 .putExtra(EXTRA_SIM_SLOT_INDEX, event.simSlotIndex)
                                 .putExtra(EXTRA_PARTICIPANT_CONSENT, true)
                                 .putExtra(EXTRA_AUTOMATIC_TRIGGER, true)
-                            startCapture(startIntent)
+                            if (stateMachine.state == RecordingServiceStateMachine.State.IDLE ||
+                                stateMachine.state == RecordingServiceStateMachine.State.FAILED
+                            ) {
+                                startCapture(startIntent)
+                            } else {
+                                // A second SIM can enter OFFHOOK after the first SIM ended but
+                                // while its WAV is still finalizing. Queue it rather than losing
+                                // the event against the STOPPING state machine.
+                                pendingAutomaticSimSlotIndex = event.simSlotIndex
+                            }
                         }
                         AutomaticCallRecordingPolicy.Decision.STOP -> {
                             when (stateMachine.state) {
@@ -212,6 +222,7 @@ internal class CallRecordingForegroundService : Service() {
         setAutomaticMonitoringArmed(false)
         automaticPolicy.disarm()
         selectedFallbackReason = null
+        pendingAutomaticSimSlotIndex = null
         automaticMonitorJob?.cancel()
         automaticMonitorJob = null
     }
@@ -342,7 +353,10 @@ internal class CallRecordingForegroundService : Service() {
                 )
                 if (stopRequestedDuringStart) {
                     stopRequestedDuringStart = false
-                    stopCapture(latestStartId, "Stopped by user")
+                    stopCapture(
+                        latestStartId,
+                        if (automaticArmed) "Call ended" else "Stopped by user",
+                    )
                     return@launch
                 }
 
@@ -514,7 +528,25 @@ internal class CallRecordingForegroundService : Service() {
             stateMachine.stopCompleted()
             if (!serviceDestroyed) {
                 if (automaticArmed && reason == "Call ended") {
-                    updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
+                    val nextSimSlot = pendingAutomaticSimSlotIndex
+                    if (nextSimSlot != null) {
+                        pendingAutomaticSimSlotIndex = null
+                        val nextIntent = Intent(
+                            this@CallRecordingForegroundService,
+                            CallRecordingForegroundService::class.java,
+                        )
+                            .setAction(ACTION_START)
+                            .putExtra(EXTRA_RECORDING_MODE, automaticPolicy.selectedMode?.name)
+                            .putExtra(EXTRA_CALL_STATE, CallState.OFFHOOK.name)
+                            .putExtra(EXTRA_SIM_SLOT_INDEX, nextSimSlot)
+                            .putExtra(EXTRA_PARTICIPANT_CONSENT, true)
+                            .putExtra(EXTRA_AUTOMATIC_TRIGGER, true)
+                        serviceScope.launch(Dispatchers.Main.immediate) {
+                            startCapture(nextIntent)
+                        }
+                    } else {
+                        updateNotification("Automatic ${automaticWaitingLabel()} armed · waiting for a SIM call")
+                    }
                 } else {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf(startId)
