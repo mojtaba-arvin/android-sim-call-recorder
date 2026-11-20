@@ -14,7 +14,7 @@ adb shell pm grant "$PACKAGE" android.permission.READ_PHONE_STATE
 if adb shell pm list permissions -d | grep -q android.permission.POST_NOTIFICATIONS; then
   adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS || true
 fi
-adb logcat -c
+adb logcat -c || true
 
 wait_for_marker() {
   local marker="$1"
