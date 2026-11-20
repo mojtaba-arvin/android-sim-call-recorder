@@ -10,9 +10,9 @@ The active `Protect main` ruleset (ID `27531148`) was verified on 2026-11-19 to 
 
 ## Change classification
 
-The `changes` job compares the PR base/head or push before/after commits.
+The `changes` job compares the PR base/head or push before/after commits. Files under `agent-system/` are specifications/benchmarks for the agent platform, not Android app inputs, so they do not boot Gradle or emulator jobs.
 
-- Markdown files and files under `docs/` are documentation-only.
+- Markdown files, files under `docs/`, and `agent-system/` specifications/data are non-Android changes.
 - Source, Gradle/build files, workflow files, manifests, tests, scripts, and all other paths trigger the full Android pipeline.
 - Manual workflow dispatch always triggers the full pipeline.
 - Mixed documentation + code changes trigger the full pipeline.
@@ -48,8 +48,9 @@ The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow
 ## Concurrency and permissions
 
 - One concurrency group per PR, or per branch for pushes/manual runs.
-- A newer commit supersedes and cancels older work for the same PR/branch.
-- Do not include the commit SHA in the concurrency group; doing so defeats superseded-run cancellation.
+- `cancel-in-progress: false`: an active emulator run is allowed to finish; GitHub retains the newest pending run for that group. This avoids killing expensive in-progress emulator jobs merely because another commit arrived.
+- A cancelled/superseded historical run is not retried when a newer head exists. Only the latest PR head is authoritative; retry a cancelled job only if it belongs to the current head and no newer run supersedes it.
+- Do not include the commit SHA in the concurrency group; doing so would allow overlapping runs for every commit.
 - Repository token permission is read-only (`contents: read`).
 - Keep PR checks independent of secrets and safe for forked contributions.
 
