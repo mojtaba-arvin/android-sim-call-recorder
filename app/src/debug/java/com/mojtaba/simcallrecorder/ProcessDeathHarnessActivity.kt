@@ -78,6 +78,11 @@ internal class ProcessDeathHarnessActivity : Activity() {
     }
 
     private suspend fun recoverWindowTwoAndTestNewCapture() {
+        // The foreground Service is deliberately the first database consumer in this fresh
+        // process. Its prepareForCapture() call must recover stale rows before backend startup.
+        startSyntheticCapture()
+        val active = awaitActiveRecord()
+        awaitPartialFile(active)
         val recovered = awaitRecordsWithInterruptedCount(2)
         val interrupted = recovered.filter { it.status == STATUS_INTERRUPTED }.sortedBy { it.id }
         val windowOne = interrupted[0]
@@ -93,11 +98,6 @@ internal class ProcessDeathHarnessActivity : Activity() {
         check(!File(windowTwo.filePath + ".part").exists()) { "Crash-window-2 left a stale .part file." }
         Log.i(TAG, "WINDOW2_RECOVERED id=${windowTwo.id} preserved=${promoted.absolutePath}")
 
-        // Start capture as the first database consumer in this fresh process. The service's
-        // prepareForCapture() barrier must recover before the backend creates the new .part file.
-        startSyntheticCapture()
-        val active = awaitActiveRecord(excludingIds = setOf(windowOne.id, windowTwo.id))
-        awaitPartialFile(active)
         val afterStart = sdk.observeRecordings(CallRecordFilter()).first()
         check(afterStart.single { it.id == windowOne.id }.status == STATUS_INTERRUPTED)
         check(afterStart.single { it.id == windowTwo.id }.status == STATUS_INTERRUPTED)
