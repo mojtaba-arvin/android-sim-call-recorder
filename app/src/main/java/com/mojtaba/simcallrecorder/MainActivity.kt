@@ -231,6 +231,7 @@ class MainActivity : ComponentActivity() {
                                 activeCallSlotIndex = activeCallSlotIndex(),
                                 speakerphoneConsentConfirmed = speakerphoneConsentConfirmed,
                                 shizukuConsentConfirmed = shizukuConsentConfirmed,
+                                manualRecordingConsentConfirmed = hasConsentFor(recorderSettings.recordingMode),
                                 automaticRecordingArmed = automaticRecordingArmed,
                                 onSpeakerphoneConsentChanged = { confirmed ->
                                     speakerphoneConsentConfirmed = confirmed
@@ -510,6 +511,7 @@ private fun DiagnosticsScreen(
     activeCallSlotIndex: Int?,
     speakerphoneConsentConfirmed: Boolean,
     shizukuConsentConfirmed: Boolean,
+    manualRecordingConsentConfirmed: Boolean,
     automaticRecordingArmed: Boolean,
     onSpeakerphoneConsentChanged: (Boolean) -> Unit,
     onShizukuConsentChanged: (Boolean) -> Unit,
@@ -706,7 +708,7 @@ private fun DiagnosticsScreen(
                     onClick = onStartRecording,
                     enabled = recorderConnected &&
                         activeCallSlotIndex != null &&
-                        participantConsentConfirmed &&
+                        manualRecordingConsentConfirmed &&
                         !automaticRecordingArmed &&
                         !recorderCaptureStatus.startsWith("Preparing"),
                 ) {
