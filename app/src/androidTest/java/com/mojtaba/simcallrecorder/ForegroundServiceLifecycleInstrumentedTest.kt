@@ -50,15 +50,16 @@ class ForegroundServiceLifecycleInstrumentedTest {
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         try {
             scenario.onActivity { activity ->
-                ContextCompat.startForegroundService(
-                    activity,
-                    sdk.createStartRecordingIntent(
-                        mode = SdkRecordingMode.SPEAKERPHONE_MIC,
-                        simSlotIndex = 0,
-                        callState = CallState.OFFHOOK,
-                        participantConsentConfirmed = true,
-                    ),
+                val startIntent = sdk.createStartRecordingIntent(
+                    mode = SdkRecordingMode.SPEAKERPHONE_MIC,
+                    simSlotIndex = 0,
+                    callState = CallState.OFFHOOK,
+                    participantConsentConfirmed = true,
+                ).putExtra(
+                    "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH",
+                    true,
                 )
+                ContextCompat.startForegroundService(activity, startIntent)
             }
 
             val activeStatus = awaitStatus(sdk) { it.startsWith("Recording active") }
