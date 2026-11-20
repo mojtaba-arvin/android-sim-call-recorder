@@ -2,7 +2,6 @@ package com.mojtaba.simcallrecorder
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -93,23 +92,16 @@ class ForegroundServiceLifecycleInstrumentedTest {
     }
 
     private fun grantCapturePermissions() {
-        val packageName = context.packageName
-        val permissions = buildList {
-            add(Manifest.permission.RECORD_AUDIO)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-        permissions.forEach { permission ->
-            val result = instrumentation.uiAutomation.executeShellCommand(
-                "pm grant $packageName $permission",
-            )
-            result.close()
-            assertEquals(
-                "Test requires $permission to exercise the microphone foreground service.",
-                PackageManager.PERMISSION_GRANTED,
-                context.checkSelfPermission(permission),
-            )
-        }
+        // UiAutomation's runtime-permission API is the same mechanism used by GrantPermissionRule.
+        // A shell `pm grant` command is not reliable for the target app under all emulator images.
+        instrumentation.uiAutomation.grantRuntimePermission(
+            context.packageName,
+            Manifest.permission.RECORD_AUDIO,
+        )
+        assertEquals(
+            "Test requires RECORD_AUDIO to exercise the microphone foreground service.",
+            PackageManager.PERMISSION_GRANTED,
+            context.checkSelfPermission(Manifest.permission.RECORD_AUDIO),
+        )
     }
 }
