@@ -60,6 +60,7 @@ internal class CallRecordingForegroundService : Service() {
     private var automaticMonitorJob: Job? = null
     @Volatile private var automaticArmed = false
     @Volatile private var stopRequestedDuringStart = false
+    @Volatile private var crashAfterPromotionForTest = false
     @Volatile private var serviceDestroyed = false
     private var activeMode: RecordingMode? = null
     @Volatile private var selectedFallbackReason: String? = null
