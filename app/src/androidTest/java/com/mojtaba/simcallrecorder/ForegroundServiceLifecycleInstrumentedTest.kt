@@ -35,7 +35,10 @@ class ForegroundServiceLifecycleInstrumentedTest {
 
     @get:Rule
     val recordAudioPermissionRule: GrantPermissionRule =
-        GrantPermissionRule.grant(Manifest.permission.RECORD_AUDIO)
+        GrantPermissionRule.grant(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_PHONE_STATE,
+        )
 
     @Test
     fun activeCaptureSurvivesActivityRecreationAndServiceDestructionFinalizesRecord() = runBlocking {
