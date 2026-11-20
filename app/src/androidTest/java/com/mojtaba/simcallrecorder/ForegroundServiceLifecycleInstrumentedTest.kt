@@ -143,7 +143,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
 
     @Test
     @SdkSuppress(minSdkVersion = 33)
-    fun automaticMonitoringDisarmsWhenMicrophonePermissionIsRevoked() = runBlocking {
+    fun automaticMonitoringDisarmsWhenMicrophoneAppOpIsDenied() = runBlocking {
         val sdk = EntryPointAccessors.fromApplication(
             context.applicationContext,
             SimCallRecorderSdkEntryPoint::class.java,
@@ -182,10 +182,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
                 records.any { it.status == "RECORDING" }
             }.single { it.status == "RECORDING" }
 
-            instrumentation.uiAutomation.revokeRuntimePermission(
-                context.packageName,
-                Manifest.permission.RECORD_AUDIO,
-            )
+            executeShellCommand("appops set ${context.packageName} RECORD_AUDIO ignore")
 
             withTimeout(30_000) { sdk.automaticRecordingArmed.first { !it } }
             val stoppedRecord = withTimeout(30_000) {
@@ -196,10 +193,16 @@ class ForegroundServiceLifecycleInstrumentedTest {
             assertFalse("Permission revocation must leave automatic monitoring disarmed.", sdk.automaticRecordingArmed.value)
             assertTrue("Permission revocation must stop the active recording.", stoppedRecord.status != "RECORDING")
         } finally {
+            executeShellCommand("appops set ${context.packageName} RECORD_AUDIO allow")
             context.stopService(sdk.createStopRecordingIntent())
             scenario.close()
         }
     }
+
+    private fun executeShellCommand(command: String): String =
+        ParcelFileDescriptor.AutoCloseInputStream(
+            instrumentation.uiAutomation.executeShellCommand(command),
+        ).bufferedReader().use { it.readText() }
 
     private suspend fun awaitStatus(
         sdk: SimCallRecorderSdk,
