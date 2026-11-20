@@ -58,4 +58,10 @@ adb shell am start -W -n "$COMPONENT" -a "$ACTION_THREE"
 wait_for_marker "RECOVERY_CAPTURE_RACE_PASSED"
 wait_for_marker "PROCESS_DEATH_SUITE_PASSED"
 
-echo "Real process-death recovery, both crash windows, and recovery/new-capture ordering passed."
+API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+if [[ "$API_LEVEL" -ge 31 ]]; then
+  adb shell am start -W -n "$COMPONENT" -a "com.mojtaba.simcallrecorder.debug.TEST_BACKGROUND_FGS_DENIAL"
+  wait_for_marker "FGS_START_DENIED_BY_PLATFORM"
+fi
+
+echo "Real process-death recovery, both crash windows, recovery/new-capture ordering, and background FGS denial passed."
