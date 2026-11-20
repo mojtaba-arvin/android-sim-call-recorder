@@ -144,6 +144,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
             check(!sdk.automaticRecordingArmed.value) {
                 "Background microphone FGS unexpectedly remained armed: $status"
             }
+            SecureRecordingStateStore(this).setArmRequested(false)
             Log.i(TAG, "FGS_START_DENIAL_HANDLED status=$status")
         } catch (denied: IllegalStateException) {
             SecureRecordingStateStore(this).setArmRequested(false)
