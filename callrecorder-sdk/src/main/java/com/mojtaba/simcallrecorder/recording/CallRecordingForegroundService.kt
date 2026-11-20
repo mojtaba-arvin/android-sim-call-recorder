@@ -56,6 +56,7 @@ internal class CallRecordingForegroundService : Service() {
     @Volatile private var stopRequestedDuringStart = false
     @Volatile private var serviceDestroyed = false
     private var activeMode: RecordingMode? = null
+    @Volatile private var selectedFallbackReason: String? = null
     private var activeRecordId: Long? = null
     private var watchCaptureStatusJob: Job? = null
     private var watchCallEndJob: Job? = null
@@ -105,7 +106,13 @@ internal class CallRecordingForegroundService : Service() {
         val profile = captureDeviceProfileProvider.snapshot()
         val requestedMode = intent.getStringExtra(EXTRA_RECORDING_MODE)
             ?.let { runCatching { RecordingMode.valueOf(it) }.getOrNull() }
-        val selectedMode = requestedMode ?: recordingCoordinator.selectBest(profile)?.mode
+        val selection = recordingCoordinator.selectBestWithReason(profile)
+        val selectedMode = requestedMode ?: selection?.backend?.mode
+        selectedFallbackReason = if (requestedMode == null && selection?.backend?.mode == selectedMode) {
+            selection?.fallbackReason
+        } else {
+            null
+        }
         val notificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -194,6 +201,7 @@ internal class CallRecordingForegroundService : Service() {
     private fun disarmAutomaticMonitoring() {
         setAutomaticMonitoringArmed(false)
         automaticPolicy.disarm()
+        selectedFallbackReason = null
         automaticMonitorJob?.cancel()
         automaticMonitorJob = null
     }
@@ -226,7 +234,7 @@ internal class CallRecordingForegroundService : Service() {
         }
 
         startForegroundCompat(
-            buildNotification("Preparing ${request.mode.name} capture"),
+            buildNotification("Preparing ${automaticModeLabel(request.mode)} capture"),
             request.mode,
         )
 
@@ -284,11 +292,19 @@ internal class CallRecordingForegroundService : Service() {
                             "shizukuAuthorized=${runtimeProfile.shizukuAuthorized}",
                             "accessibilityEnabled=${runtimeProfile.accessibilityServiceEnabled}",
                         ).joinToString("; "),
+                        captureDiagnostics = buildList {
+                            add("[${System.currentTimeMillis()}] strategy=${request.mode.name}")
+                            add("source=${recordingCoordinator.audioSourceLabel(request.mode)}")
+                            selectedFallbackReason?.let { add("fallbackReason=$it") }
+                        }.joinToString("; "),
                     ),
                 )
                 activeRecordId = insertedRecordId
                 check(stateMachine.recordingStarted()) { "Recording state transition was rejected." }
-                updateNotification("Recording active · ${output.name} · SIM ${request.simSlotIndex + 1}")
+                val fallbackLabel = selectedFallbackReason?.let { " · fallback: $it" }.orEmpty()
+                updateNotification(
+                    "Recording active · ${automaticModeLabel(request.mode)} · ${output.name} · SIM ${request.simSlotIndex + 1}$fallbackLabel",
+                )
                 if (stopRequestedDuringStart) {
                     stopRequestedDuringStart = false
                     stopCapture(latestStartId, "Stopped by user")
@@ -421,8 +437,10 @@ internal class CallRecordingForegroundService : Service() {
 
     private fun captureDeviceProfile(): CaptureDeviceProfile = captureDeviceProfileProvider.snapshot()
 
-    private fun automaticWaitingLabel(): String =
-        automaticPolicy.selectedMode?.let(::automaticModeLabel) ?: "call recording"
+    private fun automaticWaitingLabel(): String {
+        val mode = automaticPolicy.selectedMode?.let(::automaticModeLabel) ?: "call recording"
+        return selectedFallbackReason?.let { "$mode · fallback: $it" } ?: mode
+    }
 
     private fun watchCallEnd(simSlotIndex: Int) {
         watchCallEndJob?.cancel()
