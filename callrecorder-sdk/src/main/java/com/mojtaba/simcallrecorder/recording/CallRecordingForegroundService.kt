@@ -190,6 +190,9 @@ internal class CallRecordingForegroundService : Service() {
                             }
                         }
                         AutomaticCallRecordingPolicy.Decision.STOP -> {
+                            if (pendingAutomaticSimSlotIndex == event.simSlotIndex) {
+                                pendingAutomaticSimSlotIndex = null
+                            }
                             when (stateMachine.state) {
                                 RecordingServiceStateMachine.State.RECORDING ->
                                     stopCapture(latestStartId, "Call ended")
