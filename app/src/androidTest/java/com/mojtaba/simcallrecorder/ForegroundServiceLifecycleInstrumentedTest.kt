@@ -88,6 +88,8 @@ class ForegroundServiceLifecycleInstrumentedTest {
                 completed.any { it.status == "COMPLETED" && it.dataBytes > 0L },
             )
         } finally {
+            // Do not leak a foreground Service if an assertion fails midway through the test.
+            context.stopService(sdk.createStopRecordingIntent())
             scenario.close()
         }
     }
