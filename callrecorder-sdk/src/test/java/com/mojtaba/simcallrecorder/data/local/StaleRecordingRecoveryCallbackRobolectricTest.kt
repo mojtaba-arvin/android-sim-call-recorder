@@ -17,6 +17,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -48,7 +51,13 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
     fun firstOpenMarksPriorSessionsInterruptedAndRemovesOnlyStalePartFiles() = runBlocking {
         val activeWav = File(recordingDirectory, "active.wav")
         val activePart = File(recordingDirectory, "active.wav.part").apply { writeBytes(byteArrayOf(1, 2)) }
-        val orphanPart = File(recordingDirectory, "orphan.wav.part").apply { writeBytes(byteArrayOf(3, 4)) }
+        // Models abrupt process death after the WAV header was created and PCM writing began:
+        // the header still advertises an empty data chunk while PCM payload bytes are already present.
+        val orphanPart = File(recordingDirectory, "orphan.wav.part").apply {
+            writeBytes(partialWavFromInterruptedPcmWrite())
+        }
+        assertTrue(orphanPart.readBytes().let { String(it, 0, 4, Charsets.US_ASCII) == "RIFF" })
+        assertFalse(File(recordingDirectory, "orphan.wav").exists())
         val completedPart = File(recordingDirectory, "completed.wav.part").apply { writeBytes(byteArrayOf(5, 6)) }
         val completedWav = File(recordingDirectory, "completed.wav").apply { writeBytes(byteArrayOf(7, 8)) }
         // Models a crash after the temporary file was promoted but before the Room commit.
@@ -144,6 +153,82 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         assertEquals("RECORDING", database!!.callRecordDao().findById(newSessionId)?.status)
         assertTrue(newSessionPart.exists())
     }
+
+    @Test
+    fun concurrentRecoveryAndNewCaptureCannotDeleteOrInterruptTheNewSession() {
+        val staleWav = File(recordingDirectory, "stale.wav")
+        val stalePart = File(recordingDirectory, "stale.wav.part").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+        val previousProcessDatabase = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            databaseFile.name,
+        ).allowMainThreadQueries().build()
+        try {
+            runBlocking {
+                previousProcessDatabase.callRecordDao().insert(
+                    record(staleWav, status = "RECORDING", startedAt = 100L),
+                )
+            }
+        } finally {
+            previousProcessDatabase.close()
+        }
+
+        database = Room.databaseBuilder(context, AppDatabase::class.java, databaseFile.name)
+            .allowMainThreadQueries()
+            .addCallback(StaleRecordingRecoveryCallback(recordingDirectory))
+            .build()
+
+        val executor = Executors.newFixedThreadPool(2)
+        val ready = CountDownLatch(2)
+        val start = CountDownLatch(1)
+        val newPart = File(recordingDirectory, "new-session.wav.part")
+        try {
+            val recovery = executor.submit<Int> {
+                runBlocking {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS))
+                    database!!.callRecordDao().countAll()
+                }
+            }
+            val capture = executor.submit<Long> {
+                runBlocking {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS))
+                    // This is the service's prepareForCapture() barrier. A backend may only create
+                    // its temporary PCM file after this database open/recovery operation returns.
+                    database!!.callRecordDao().countAll()
+                    newPart.writeBytes(byteArrayOf(4, 5, 6))
+                    database!!.callRecordDao().insert(
+                        record(File(recordingDirectory, "new-session.wav"), status = "RECORDING", startedAt = 200L),
+                    )
+                }
+            }
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS))
+            start.countDown()
+            recovery.get(10, TimeUnit.SECONDS)
+            val newRecordId = capture.get(10, TimeUnit.SECONDS)
+
+            val records = runBlocking { database!!.callRecordDao().observeAll().first() }
+            assertEquals("INTERRUPTED", records.single { it.startedAtEpochMillis == 100L }.status)
+            assertEquals("RECORDING", records.single { it.id == newRecordId }.status)
+            assertFalse(stalePart.exists())
+            assertTrue(newPart.exists())
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    private fun partialWavFromInterruptedPcmWrite() = byteArrayOf(
+        0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0,
+        0x57, 0x41, 0x56, 0x45,
+        0x66, 0x6d, 0x74, 0x20, 0x10, 0, 0, 0,
+        0x01, 0, 0x01, 0,
+        0x80.toByte(), 0x3e, 0, 0, 0, 0x7d, 0, 0,
+        0x02, 0, 0x10, 0,
+        0x64, 0x61, 0x74, 0x61, 0, 0, 0, 0,
+        0x01, 0,
+    )
 
     private fun record(file: File, status: String, startedAt: Long) = CallRecordEntity(
         startedAtEpochMillis = startedAt,

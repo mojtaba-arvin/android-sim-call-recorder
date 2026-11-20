@@ -108,6 +108,11 @@ internal class RecordingCoordinator(
         preferred: RecordingMode? = null,
     ): CallAudioRecordingBackend? = captureManager.selectBest(profile, preferred)
 
+    fun selectBestWithReason(
+        profile: CaptureDeviceProfile,
+        preferred: RecordingMode? = null,
+    ): CaptureStrategySelection? = captureManager.selectBestWithReason(profile, preferred)
+
     fun availability(profile: CaptureDeviceProfile): List<CaptureStrategyAvailability> =
         captureManager.availability(profile)
 

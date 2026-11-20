@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
     private var pendingAutomaticNotification: Boolean = false
     private var pendingAutomaticMode: SdkRecordingMode? = null
 
+    private lateinit var secureRecordingStateStore: SecureRecordingStateStore
     private var missingPermissions by mutableStateOf(emptyList<String>())
     private var activeSims by mutableStateOf(emptyList<SimSlot>())
     private var callEvents by mutableStateOf(emptyList<CallStateEvent>())
@@ -75,9 +76,11 @@ class MainActivity : ComponentActivity() {
     private var recorderConnectionStatus by mutableStateOf("Checking Shizuku status…")
     private var recorderServiceUid by mutableStateOf<Int?>(null)
     private var recorderCaptureStatus by mutableStateOf("Idle")
-    private var participantConsentConfirmed by mutableStateOf(false)
+    private var speakerphoneConsentConfirmed by mutableStateOf(false)
+    private var shizukuConsentConfirmed by mutableStateOf(false)
     private var automaticRecordingArmed by mutableStateOf(false)
-    private var audioInputDiagnostics by mutableStateOf(recorderSdk.audioInputDiagnostics.value)
+    // Hilt injects recorderSdk after Activity construction; never dereference it in a property initializer.
+    private var audioInputDiagnostics by mutableStateOf("No microphone capture active")
     private var callRecords by mutableStateOf(emptyList<CallRecord>())
     private var selectedRecord by mutableStateOf<CallRecord?>(null)
     private var recorderSettings by mutableStateOf(RecorderSettings())
@@ -86,6 +89,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        audioInputDiagnostics = recorderSdk.audioInputDiagnostics.value
+        secureRecordingStateStore = SecureRecordingStateStore(this)
+        val persistedRecordingState = secureRecordingStateStore.read()
+        speakerphoneConsentConfirmed = persistedRecordingState.speakerphoneConsentConfirmed
+        shizukuConsentConfirmed = persistedRecordingState.shizukuConsentConfirmed
+        val serviceAlreadyArmed = recorderSdk.automaticRecordingArmed.value
+        if (persistedRecordingState.armRequested && !serviceAlreadyArmed) {
+            recorderCaptureStatus = "Previous automatic monitoring was interrupted. Review consent and arm again."
+        }
+        // Never restore monitoring automatically after process death or force-stop.
+        secureRecordingStateStore.setArmRequested(serviceAlreadyArmed)
 
         permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
@@ -161,6 +176,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             recorderSdk.automaticRecordingArmed.collect {
                 automaticRecordingArmed = it
+                secureRecordingStateStore.setArmRequested(it)
             }
         }
 
@@ -213,24 +229,25 @@ class MainActivity : ComponentActivity() {
                                 recorderConnected = recorderServiceUid == 2_000 || recorderServiceUid == 0,
                                 recorderActive = recorderCaptureStatus.startsWith("Recording active"),
                                 activeCallSlotIndex = activeCallSlotIndex(),
-                                participantConsentConfirmed = participantConsentConfirmed,
+                                speakerphoneConsentConfirmed = speakerphoneConsentConfirmed,
+                                shizukuConsentConfirmed = shizukuConsentConfirmed,
+                                manualRecordingConsentConfirmed = hasConsentFor(recorderSettings.recordingMode),
                                 automaticRecordingArmed = automaticRecordingArmed,
-                                onParticipantConsentChanged = { confirmed ->
-                                    participantConsentConfirmed = confirmed
-                                    if (!confirmed && (
-                                        automaticRecordingArmed ||
-                                            recorderCaptureStatus.startsWith("Recording") ||
-                                            recorderCaptureStatus.startsWith("Starting") ||
-                                            recorderCaptureStatus.startsWith("Finalizing") ||
-                                            recorderCaptureStatus.startsWith("Preparing")
+                                onSpeakerphoneConsentChanged = { confirmed ->
+                                    speakerphoneConsentConfirmed = confirmed
+                                    secureRecordingStateStore.setConsent(
+                                        com.mojtaba.simcallrecorder.domain.model.RecordingMode.SPEAKERPHONE_MIC,
+                                        confirmed,
                                     )
-                                ) {
-                                        startService(
-                                            recorderSdk.createStopRecordingIntent(),
-                                        )
-                                        automaticRecordingArmed = false
-                                        recorderCaptureStatus = "Recording stopped because the consent acknowledgement was withdrawn."
-                                    }
+                                    if (!confirmed && consentProtectedCaptureActive()) stopForConsentWithdrawal()
+                                },
+                                onShizukuConsentChanged = { confirmed ->
+                                    shizukuConsentConfirmed = confirmed
+                                    secureRecordingStateStore.setConsent(
+                                        com.mojtaba.simcallrecorder.domain.model.RecordingMode.SHIZUKU_VOICE_CALL,
+                                        confirmed,
+                                    )
+                                    if (!confirmed && consentProtectedCaptureActive()) stopForConsentWithdrawal()
                                 },
                                 onArmAutomaticRecording = ::requestArmAutomaticRecording,
                                 onDisarmAutomaticRecording = ::disarmAutomaticRecording,
@@ -332,10 +349,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestArmAutomaticRecording() {
-        if (!participantConsentConfirmed) {
-            recorderCaptureStatus = "Confirm that you are authorized to record and have obtained all required participant consent."
-            return
-        }
         if (!recorderSdk.hasCallStatePermission()) {
             pendingAutomaticArm = true
             permissionLauncher.launch(
@@ -354,6 +367,10 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
+        if (!hasConsentFor(selectedMode)) {
+            recorderCaptureStatus = "Confirm the separate consent for ${automaticModeLabel(selectedMode)} before arming."
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -366,15 +383,37 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchAutomaticMonitoringService(mode: SdkRecordingMode) {
-        val intent = recorderSdk.createArmAutomaticRecordingIntent(mode, participantConsentConfirmed)
+        val intent = recorderSdk.createArmAutomaticRecordingIntent(mode, hasConsentFor(mode))
         try {
+            secureRecordingStateStore.setArmRequested(true)
             ContextCompat.startForegroundService(this, intent)
             automaticRecordingArmed = true
             recorderCaptureStatus = "Automatic ${automaticModeLabel(mode)} is being armed."
         } catch (exception: Exception) {
+            secureRecordingStateStore.setArmRequested(false)
             automaticRecordingArmed = false
             recorderCaptureStatus = "Automatic recording could not start: ${exception.message}"
         }
+    }
+
+    private fun hasConsentFor(mode: SdkRecordingMode): Boolean = when (mode) {
+        SdkRecordingMode.SPEAKERPHONE_MIC -> speakerphoneConsentConfirmed
+        SdkRecordingMode.SHIZUKU_VOICE_CALL -> shizukuConsentConfirmed
+        else -> false
+    }
+
+    private fun consentProtectedCaptureActive(): Boolean =
+        automaticRecordingArmed ||
+            recorderCaptureStatus.startsWith("Recording") ||
+            recorderCaptureStatus.startsWith("Starting") ||
+            recorderCaptureStatus.startsWith("Finalizing") ||
+            recorderCaptureStatus.startsWith("Preparing")
+
+    private fun stopForConsentWithdrawal() {
+        startService(recorderSdk.createStopRecordingIntent())
+        automaticRecordingArmed = false
+        secureRecordingStateStore.setArmRequested(false)
+        recorderCaptureStatus = "Recording stopped because the applicable consent acknowledgement was withdrawn."
     }
 
     private fun automaticModeLabel(mode: SdkRecordingMode): String = when (mode) {
@@ -388,12 +427,13 @@ class MainActivity : ComponentActivity() {
             recorderSdk.createStopRecordingIntent(),
         )
         automaticRecordingArmed = false
+        secureRecordingStateStore.setArmRequested(false)
         recorderCaptureStatus = "Automatic recording disabled."
     }
 
     private fun requestStartRecording() {
-        if (!participantConsentConfirmed) {
-            recorderCaptureStatus = "Confirm participant consent before starting a recording."
+        if (!hasConsentFor(recorderSettings.recordingMode)) {
+            recorderCaptureStatus = "Confirm the separate consent for ${recorderSettings.recordingMode.name} before recording."
             return
         }
         val microphoneStrategies = setOf(
@@ -431,7 +471,7 @@ class MainActivity : ComponentActivity() {
             mode = recorderSettings.recordingMode,
             simSlotIndex = slotIndex,
             callState = CallState.OFFHOOK,
-            participantConsentConfirmed = participantConsentConfirmed,
+            participantConsentConfirmed = hasConsentFor(recorderSettings.recordingMode),
         )
         ContextCompat.startForegroundService(this, intent)
     }
@@ -469,9 +509,12 @@ private fun DiagnosticsScreen(
     recorderConnected: Boolean,
     recorderActive: Boolean,
     activeCallSlotIndex: Int?,
-    participantConsentConfirmed: Boolean,
+    speakerphoneConsentConfirmed: Boolean,
+    shizukuConsentConfirmed: Boolean,
+    manualRecordingConsentConfirmed: Boolean,
     automaticRecordingArmed: Boolean,
-    onParticipantConsentChanged: (Boolean) -> Unit,
+    onSpeakerphoneConsentChanged: (Boolean) -> Unit,
+    onShizukuConsentChanged: (Boolean) -> Unit,
     onArmAutomaticRecording: () -> Unit,
     onDisarmAutomaticRecording: () -> Unit,
     onRequestPermissions: () -> Unit,
@@ -612,7 +655,7 @@ private fun DiagnosticsScreen(
             } else {
                 Button(
                     onClick = onArmAutomaticRecording,
-                    enabled = participantConsentConfirmed,
+                    enabled = speakerphoneConsentConfirmed || shizukuConsentConfirmed,
                 ) {
                     Text("Arm best available automatic recording")
                 }
@@ -633,11 +676,22 @@ private fun DiagnosticsScreen(
             DiagnosticLine("Call state", activeCallSlotIndex?.let { "OFFHOOK · SIM ${it + 1}" } ?: "No active call detected")
             androidx.compose.foundation.layout.Row {
                 Checkbox(
-                    checked = participantConsentConfirmed,
-                    onCheckedChange = onParticipantConsentChanged,
+                    checked = speakerphoneConsentConfirmed,
+                    onCheckedChange = onSpeakerphoneConsentChanged,
                 )
                 Text(
-                    "I confirm I am authorized to record this call and have obtained all consent required from the participants.",
+                    "I am authorized to use Speakerphone + MIC acoustic recording and have obtained all required participant consent.",
+                    modifier = Modifier.padding(top = 12.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            androidx.compose.foundation.layout.Row {
+                Checkbox(
+                    checked = shizukuConsentConfirmed,
+                    onCheckedChange = onShizukuConsentChanged,
+                )
+                Text(
+                    "I am authorized to use privileged Shizuku call-audio capture and have obtained all required participant consent.",
                     modifier = Modifier.padding(top = 12.dp),
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -654,7 +708,7 @@ private fun DiagnosticsScreen(
                     onClick = onStartRecording,
                     enabled = recorderConnected &&
                         activeCallSlotIndex != null &&
-                        participantConsentConfirmed &&
+                        manualRecordingConsentConfirmed &&
                         !automaticRecordingArmed &&
                         !recorderCaptureStatus.startsWith("Preparing"),
                 ) {
