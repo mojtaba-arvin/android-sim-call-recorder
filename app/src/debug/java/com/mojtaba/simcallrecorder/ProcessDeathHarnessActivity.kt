@@ -1,6 +1,6 @@
 package com.mojtaba.simcallrecorder
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.os.Bundle
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -22,7 +22,7 @@ import java.io.File
  * Debug-only host-driven process-death harness. The host kills the entire app process between
  * phases, so the recovery assertions run in a genuinely new Android process.
  */
-internal class ProcessDeathHarnessActivity : Activity() {
+internal class ProcessDeathHarnessActivity : ComponentActivity() {
     private val sdk: SimCallRecorderSdk by lazy {
         EntryPointAccessors.fromApplication(
             applicationContext,
