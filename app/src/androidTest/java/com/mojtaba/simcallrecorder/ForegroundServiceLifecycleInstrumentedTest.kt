@@ -112,10 +112,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
     @Test
     @SdkSuppress(minSdkVersion = 33)
     fun automaticArmFailsClosedWithoutNotificationPermission() = runBlocking {
-        val notificationPermission = Manifest.permission.POST_NOTIFICATIONS
-        if (context.checkSelfPermission(notificationPermission) == PackageManager.PERMISSION_GRANTED) {
-            instrumentation.uiAutomation.revokeRuntimePermission(context.packageName, notificationPermission)
-        }
+        executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION ignore")
         val sdk = EntryPointAccessors.fromApplication(
             context.applicationContext,
             SimCallRecorderSdkEntryPoint::class.java,
@@ -136,6 +133,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
             }
             assertFalse("Automatic monitoring must remain disarmed without notification permission: $status", sdk.automaticRecordingArmed.value)
         } finally {
+            executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION allow")
             context.stopService(sdk.createStopRecordingIntent())
             scenario.close()
         }
