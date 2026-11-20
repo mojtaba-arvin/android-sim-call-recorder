@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.domain.model.CallState
+import com.mojtaba.simcallrecorder.domain.model.RecordingMode
 import com.mojtaba.simcallrecorder.sdk.SdkRecordingMode
 import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdk
 import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdkEntryPoint
@@ -68,7 +69,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
         check(!File(windowOne.filePath + ".part").exists()) { "Crash-window-1 orphan .part was not removed." }
         Log.i(TAG, "WINDOW1_RECOVERED id=${windowOne.id}")
 
-        startSyntheticCapture()
+        startAutomaticCapture()
         val active = awaitActiveRecord(excludingIds = setOf(windowOne.id))
         awaitPartialFile(active)
         Log.i(TAG, "WINDOW2_CAPTURE_READY id=${active.id}")
@@ -86,7 +87,7 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
     private suspend fun recoverWindowTwoAndTestNewCapture() {
         // The foreground Service is deliberately the first database consumer in this fresh
         // process. Its prepareForCapture() call must recover stale rows before backend startup.
-        startSyntheticCapture()
+        startAutomaticCapture()
         val active = awaitActiveRecord()
         awaitPartialFile(active)
         val recovered = awaitRecordsWithInterruptedCount(2)
