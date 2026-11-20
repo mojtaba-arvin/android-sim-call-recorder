@@ -2,7 +2,6 @@ package com.mojtaba.simcallrecorder
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
