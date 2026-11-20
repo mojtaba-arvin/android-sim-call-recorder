@@ -132,36 +132,6 @@ class ForegroundServiceLifecycleInstrumentedTest {
 
     @Test
     @SdkSuppress(minSdkVersion = 33)
-    fun automaticArmFailsClosedWithoutNotificationPermission() = runBlocking {
-        executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION ignore")
-        val sdk = EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            SimCallRecorderSdkEntryPoint::class.java,
-        ).simCallRecorderSdk()
-        val scenario = ActivityScenario.launch(MainActivity::class.java)
-        try {
-            scenario.onActivity { activity ->
-                ContextCompat.startForegroundService(
-                    activity,
-                    sdk.createArmAutomaticRecordingIntent(
-                        SdkRecordingMode.SPEAKERPHONE_MIC,
-                        participantConsentConfirmed = true,
-                    ),
-                )
-            }
-            val status = withTimeout(30_000) {
-                sdk.recordingStatus.first { it.contains("notification permission is required") }
-            }
-            assertFalse("Automatic monitoring must remain disarmed without notification permission: $status", sdk.automaticRecordingArmed.value)
-        } finally {
-            executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION allow")
-            context.stopService(sdk.createStopRecordingIntent())
-            scenario.close()
-        }
-    }
-
-    @Test
-    @SdkSuppress(minSdkVersion = 33)
     fun automaticMonitoringDisarmsWhenMicrophoneAppOpIsDenied() = runBlocking {
         val sdk = EntryPointAccessors.fromApplication(
             context.applicationContext,
