@@ -119,7 +119,7 @@ internal class CallRecordingForegroundService : Service() {
             ?.let { runCatching { RecordingMode.valueOf(it) }.getOrNull() }
         val selection = recordingCoordinator.selectBestWithReason(profile)
         val selectedMode = requestedMode ?: selection?.backend?.mode
-        selectedFallbackReason = if (requestedMode == null && selection?.backend?.mode == selectedMode) {
+        selectedFallbackReason = if (selection?.backend?.mode == selectedMode) {
             selection?.fallbackReason
         } else {
             null
