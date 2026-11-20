@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -50,14 +49,10 @@ internal class CallRecordingForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // WAV finalization must outlive service-scope cancellation during onDestroy().
     private val finalizationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val permissionsChangedListener = PackageManager.OnPermissionsChangedListener { uid ->
-        if (uid == applicationInfo.uid && automaticArmed) {
-            serviceScope.launch { enforceAutomaticArmPermissions() }
-        }
-    }
     private val stateMachine = RecordingServiceStateMachine()
     private val automaticPolicy = AutomaticCallRecordingPolicy()
     private var automaticMonitorJob: Job? = null
+    private var permissionMonitorJob: Job? = null
     @Volatile private var automaticArmed = false
     @Volatile private var stopRequestedDuringStart = false
     @Volatile private var crashAfterPromotionForTest = false
@@ -74,7 +69,6 @@ internal class CallRecordingForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        packageManager.addOnPermissionsChangeListener(permissionsChangedListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -214,6 +208,13 @@ internal class CallRecordingForegroundService : Service() {
                 stopSelf()
             }
         }
+        permissionMonitorJob?.cancel()
+        permissionMonitorJob = serviceScope.launch {
+            while (automaticArmed) {
+                kotlinx.coroutines.delay(PERMISSION_RECHECK_INTERVAL_MILLIS)
+                enforceAutomaticArmPermissions()
+            }
+        }
     }
 
     private fun setAutomaticMonitoringArmed(armed: Boolean) {
@@ -229,6 +230,8 @@ internal class CallRecordingForegroundService : Service() {
         pendingAutomaticSimSlotIndex = null
         automaticMonitorJob?.cancel()
         automaticMonitorJob = null
+        permissionMonitorJob?.cancel()
+        permissionMonitorJob = null
     }
 
     private fun enforceAutomaticArmPermissions() {
@@ -714,7 +717,6 @@ internal class CallRecordingForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        packageManager.removeOnPermissionsChangeListener(permissionsChangedListener)
         serviceDestroyed = true
         automaticMonitorJob?.cancel()
         automaticPolicy.disarm()
@@ -778,6 +780,7 @@ internal class CallRecordingForegroundService : Service() {
         const val EXTRA_TEST_DISABLE_CALL_END_WATCH = "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
         const val EXTRA_TEST_CRASH_AFTER_PROMOTION = "com.mojtaba.simcallrecorder.extra.TEST_CRASH_AFTER_PROMOTION"
 
+        private const val PERMISSION_RECHECK_INTERVAL_MILLIS = 1_000L
         private const val NOTIFICATION_CHANNEL = "call_recording"
         private const val NOTIFICATION_ID = 4_201
         private const val STATUS_RECORDING = "RECORDING"
