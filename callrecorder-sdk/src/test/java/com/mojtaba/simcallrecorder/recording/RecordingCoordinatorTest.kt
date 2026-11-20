@@ -25,6 +25,26 @@ class RecordingCoordinatorTest {
     }
 
     @Test
+    fun runtimeSelectionReturnsTheExactBackendAndWhyItFellBack() {
+        val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
+        val coordinator = RecordingCoordinator(
+            setOf(shizuku, microphone),
+            shizukuCaptureEnabled = true,
+        )
+
+        val selection = coordinator.selectBestWithReason(profile(microphone = true, shizuku = false))
+
+        assertEquals(RecordingMode.SPEAKERPHONE_MIC, selection?.backend?.mode)
+        assertTrue(selection?.fallbackReason.orEmpty().contains("Shizuku"))
+        assertTrue(selection?.fallbackReason.orEmpty().contains("Start Shizuku"))
+
+        val privileged = coordinator.selectBestWithReason(profile(microphone = true, shizuku = true))
+        assertEquals(RecordingMode.SHIZUKU_VOICE_CALL, privileged?.backend?.mode)
+        assertEquals(null, privileged?.fallbackReason)
+    }
+
+    @Test
     fun availabilityReflectsBuildFlagsAndInstalledBackends() {
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
         val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
