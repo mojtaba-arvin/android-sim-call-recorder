@@ -215,6 +215,8 @@ internal class ProcessDeathHarnessActivity : ComponentActivity() {
             "com.mojtaba.simcallrecorder.debug.TEST_BACKGROUND_FGS_DENIAL"
         const val EXTRA_TEST_DISABLE_CALL_END_WATCH =
             "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
+        const val EXTRA_AUTOMATIC_TRIGGER =
+            "com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER"
         const val EXTRA_TEST_CRASH_AFTER_PROMOTION =
             "com.mojtaba.simcallrecorder.extra.TEST_CRASH_AFTER_PROMOTION"
         const val STATUS_RECORDING = "RECORDING"
