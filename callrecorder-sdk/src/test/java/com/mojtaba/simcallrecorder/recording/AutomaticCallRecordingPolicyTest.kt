@@ -62,6 +62,10 @@ class AutomaticCallRecordingPolicyTest {
         assertEquals(AutomaticCallRecordingPolicy.Decision.STOP, policy.onCallState(event(0, CallState.IDLE)))
         // A stale duplicate IDLE cannot stop a later call.
         assertEquals(AutomaticCallRecordingPolicy.Decision.NONE, policy.onCallState(event(0, CallState.IDLE)))
+        // Once the first SIM has ended, a subsequent call on the other SIM is eligible.
+        assertEquals(AutomaticCallRecordingPolicy.Decision.START, policy.onCallState(event(1, CallState.OFFHOOK)))
+        assertEquals(1, policy.activeSimSlotIndex)
+        assertEquals(AutomaticCallRecordingPolicy.Decision.STOP, policy.onCallState(event(1, CallState.IDLE)))
     }
 
     @Test
