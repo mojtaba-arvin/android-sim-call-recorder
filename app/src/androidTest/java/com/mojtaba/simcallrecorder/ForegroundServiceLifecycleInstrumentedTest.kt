@@ -4,6 +4,7 @@ import android.Manifest
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
@@ -89,6 +90,46 @@ class ForegroundServiceLifecycleInstrumentedTest {
             )
         } finally {
             // Do not leak a foreground Service if an assertion fails midway through the test.
+            context.stopService(sdk.createStopRecordingIntent())
+            scenario.close()
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 33)
+    fun automaticMonitoringDisarmsWhenMicrophonePermissionIsRevoked() = runBlocking {
+        val sdk = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            SimCallRecorderSdkEntryPoint::class.java,
+        ).simCallRecorderSdk()
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        try {
+            instrumentation.uiAutomation.grantRuntimePermission(
+                context.packageName,
+                Manifest.permission.POST_NOTIFICATIONS,
+            )
+            scenario.onActivity { activity ->
+                ContextCompat.startForegroundService(
+                    activity,
+                    sdk.createArmAutomaticRecordingIntent(
+                        SdkRecordingMode.SPEAKERPHONE_MIC,
+                        participantConsentConfirmed = true,
+                    ),
+                )
+            }
+            withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
+
+            instrumentation.uiAutomation.revokeRuntimePermission(
+                context.packageName,
+                Manifest.permission.RECORD_AUDIO,
+            )
+
+            withTimeout(30_000) { sdk.automaticRecordingArmed.first { !it } }
+            val status = withTimeout(10_000) {
+                sdk.recordingStatus.first { it.contains("microphone permission was revoked") }
+            }
+            assertTrue(status, status.contains("microphone permission was revoked"))
+        } finally {
             context.stopService(sdk.createStopRecordingIntent())
             scenario.close()
         }
