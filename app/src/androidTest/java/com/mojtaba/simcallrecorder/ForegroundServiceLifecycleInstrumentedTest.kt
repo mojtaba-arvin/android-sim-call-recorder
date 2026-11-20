@@ -65,6 +65,19 @@ class ForegroundServiceLifecycleInstrumentedTest {
 
             val activeStatus = awaitStatus(sdk) { it.startsWith("Recording active") }
             assertTrue(activeStatus, activeStatus.startsWith("Recording active"))
+            assertTrue(
+                "The foreground notification must expose the actual selected backend.",
+                activeStatus.contains("Speakerphone + MIC acoustic capture"),
+            )
+            val activeRecord = sdk.observeRecordings(CallRecordFilter()).first { records ->
+                records.any { it.status == "RECORDING" }
+            }.single { it.status == "RECORDING" }
+            assertEquals("SPEAKERPHONE_MIC", activeRecord.recordingMode)
+            assertTrue(activeRecord.audioSource, activeRecord.audioSource.contains("MIC"))
+            assertTrue(
+                activeRecord.captureDiagnostics.orEmpty(),
+                activeRecord.captureDiagnostics.orEmpty().contains("strategy=SPEAKERPHONE_MIC"),
+            )
 
             // Recreating the UI must not stop or replace the independent foreground Service.
             scenario.recreate()
