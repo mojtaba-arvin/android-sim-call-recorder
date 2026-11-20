@@ -13,7 +13,9 @@ adb shell pm grant "$PACKAGE" android.permission.RECORD_AUDIO
 adb shell pm grant "$PACKAGE" android.permission.READ_PHONE_STATE
 if adb shell pm list permissions -d | grep -q android.permission.POST_NOTIFICATIONS; then
   adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS || true
+  adb shell appops set "$PACKAGE" POST_NOTIFICATION allow || true
 fi
+adb shell appops set "$PACKAGE" RECORD_AUDIO allow
 adb logcat -c || true
 
 wait_for_marker() {
@@ -49,6 +51,7 @@ wait_for_marker "WINDOW1_READY"
 adb shell pm revoke "$PACKAGE" android.permission.RECORD_AUDIO
 wait_for_process_exit
 adb shell pm grant "$PACKAGE" android.permission.RECORD_AUDIO
+adb shell appops set "$PACKAGE" RECORD_AUDIO allow
 
 adb shell am start -W -n "$COMPONENT" -a "$ACTION_TWO"
 wait_for_marker "WINDOW1_RECOVERED"
