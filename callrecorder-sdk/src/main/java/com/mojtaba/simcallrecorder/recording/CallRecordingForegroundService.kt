@@ -283,10 +283,16 @@ internal class CallRecordingForegroundService : Service() {
             return
         }
 
-        startForegroundCompat(
-            buildNotification("Preparing ${automaticModeLabel(request.mode)} capture"),
-            request.mode,
-        )
+        try {
+            startForegroundCompat(
+                buildNotification("Preparing ${automaticModeLabel(request.mode)} capture"),
+                request.mode,
+            )
+        } catch (exception: Exception) {
+            if (automaticArmed) disarmAutomaticMonitoring()
+            rejectStart("Foreground service start was denied: ${exception.message ?: exception::class.java.simpleName}")
+            return
+        }
 
         if (!stateMachine.beginStart(request)) {
             rejectStart("Recording requires an active SIM call and explicit participant-consent confirmation.")
