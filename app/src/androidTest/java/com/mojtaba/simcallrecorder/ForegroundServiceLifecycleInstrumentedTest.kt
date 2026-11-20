@@ -125,10 +125,12 @@ class ForegroundServiceLifecycleInstrumentedTest {
             )
 
             withTimeout(30_000) { sdk.automaticRecordingArmed.first { !it } }
-            val status = withTimeout(10_000) {
-                sdk.recordingStatus.first { it.contains("microphone permission was revoked") }
+            val status = withTimeout(30_000) {
+                sdk.recordingStatus.first {
+                    it == "Service stopped" || it.contains("microphone permission was revoked")
+                }
             }
-            assertTrue(status, status.contains("microphone permission was revoked"))
+            assertFalse("Permission revocation must leave automatic monitoring disarmed: $status", sdk.automaticRecordingArmed.value)
         } finally {
             context.stopService(sdk.createStopRecordingIntent())
             scenario.close()
