@@ -7,6 +7,7 @@ import com.mojtaba.simcallrecorder.data.local.entity.CallRecordEntity
 import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -164,9 +165,11 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
             databaseFile.name,
         ).allowMainThreadQueries().build()
         try {
-            previousProcessDatabase.callRecordDao().insert(
-                record(staleWav, status = "RECORDING", startedAt = 100L),
-            )
+            runBlocking {
+                previousProcessDatabase.callRecordDao().insert(
+                    record(staleWav, status = "RECORDING", startedAt = 100L),
+                )
+            }
         } finally {
             previousProcessDatabase.close()
         }
@@ -182,20 +185,24 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
         val newPart = File(recordingDirectory, "new-session.wav.part")
         try {
             val recovery = executor.submit<Int> {
-                ready.countDown()
-                check(start.await(5, TimeUnit.SECONDS))
-                database!!.callRecordDao().countAll()
+                runBlocking {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS))
+                    database!!.callRecordDao().countAll()
+                }
             }
             val capture = executor.submit<Long> {
-                ready.countDown()
-                check(start.await(5, TimeUnit.SECONDS))
-                // This is the service's prepareForCapture() barrier. A backend may only create
-                // its temporary PCM file after this database open/recovery operation returns.
-                database!!.callRecordDao().countAll()
-                newPart.writeBytes(byteArrayOf(4, 5, 6))
-                database!!.callRecordDao().insert(
-                    record(File(recordingDirectory, "new-session.wav"), status = "RECORDING", startedAt = 200L),
-                )
+                runBlocking {
+                    ready.countDown()
+                    check(start.await(5, TimeUnit.SECONDS))
+                    // This is the service's prepareForCapture() barrier. A backend may only create
+                    // its temporary PCM file after this database open/recovery operation returns.
+                    database!!.callRecordDao().countAll()
+                    newPart.writeBytes(byteArrayOf(4, 5, 6))
+                    database!!.callRecordDao().insert(
+                        record(File(recordingDirectory, "new-session.wav"), status = "RECORDING", startedAt = 200L),
+                    )
+                }
             }
 
             assertTrue(ready.await(5, TimeUnit.SECONDS))
@@ -203,7 +210,7 @@ class StaleRecordingRecoveryCallbackRobolectricTest {
             recovery.get(10, TimeUnit.SECONDS)
             val newRecordId = capture.get(10, TimeUnit.SECONDS)
 
-            val records = database!!.callRecordDao().observeAll().first()
+            val records = runBlocking { database!!.callRecordDao().observeAll().first() }
             assertEquals("INTERRUPTED", records.single { it.startedAtEpochMillis == 100L }.status)
             assertEquals("RECORDING", records.single { it.id == newRecordId }.status)
             assertFalse(stalePart.exists())
