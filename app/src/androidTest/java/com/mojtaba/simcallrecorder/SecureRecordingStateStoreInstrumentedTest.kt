@@ -26,7 +26,7 @@ class SecureRecordingStateStoreInstrumentedTest {
 
             val ciphertext = preferences.getString("ciphertext_v1", null)
             assertTrue(ciphertext.isNullOrBlank().not())
-            assertFalse("Stored state must not be readable plaintext.", ciphertext!!.contains("true"))
+            assertFalse("Stored state must not be readable plaintext.", ciphertext!!.contains("speakerphoneConsentConfirmed"))
 
             val restored = SecureRecordingStateStore(context).read()
             assertTrue(restored.speakerphoneConsentConfirmed)
