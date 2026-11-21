@@ -1,10 +1,10 @@
 # Repository Context Pack — Snapshot v1
 
-**Snapshot ID:** `android-sim-call-recorder-2026-11-20T18:19:00Z`  
-**Captured at:** 2026-11-20T18:19:00Z  
+**Snapshot ID:** `android-sim-call-recorder-2026-11-21T13:46:00Z`  
+**Captured at:** 2026-11-21T13:46:00Z  
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `bootstrap/native-android-foundation`  
-**Source HEAD:** `bbb32c52081595046a76d4a07e4fa961934e159d`  
+**Source HEAD:** `0e7f91702b561d2e2fb67e3232b53c4c7d279744`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-stacked` (base synchronized to Foundation; this snapshot refresh is on that branch)
 
@@ -43,10 +43,10 @@ Before writing, refresh exact branch SHAs, PR metadata, issue state and all requ
 | Work | Current state | Notes |
 |---|---|---|
 | [PR #1 Foundation](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) | Draft/open | Main remains unchanged; keep Draft until Foundation gates and owner review are satisfied |
-| [PR #22 A0 context/benchmark](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/22) | Draft/open | Branch synchronized with current Foundation; this snapshot and tasks.json pin source SHA above |
-| [PR #23 recovery barrier](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/23) | Open/Draft | Barrier, persistent recovery fixture and service-ordering work have been incorporated into Foundation; re-check live diff before deciding to close as superseded |
-| [PR #24 A1.1 capability inventory](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/24) | Draft/open | Inventory delivered; branch still needs base synchronization and exact-head validation |
-| [PR #25 teardown race](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/25) | Open/Draft | Concurrent stop-ownership race test has been incorporated into Foundation; re-check live diff before deciding to close as superseded |
+| [PR #22 A0 context/benchmark](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/22) | Draft/open | This snapshot and tasks.json pin the current Foundation SHA; the PR branch still needs base synchronization and exact-head validation |
+| [PR #23 recovery barrier](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/23) | Open/Draft | All five changed files are present in Foundation HEAD `0e7f917`; this PR is superseded and should be closed after preserving its evidence |
+| [PR #24 A1.1 capability inventory](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/24) | Draft/open | Live catalog refreshed 2026-11-21 with exact 89/89 name parity; agent-system validator is running on the latest PR head |
+| [PR #25 teardown race](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/25) | Open/Draft | The concurrent stop-ownership race test is present in Foundation `RecordingServiceStateMachineTest.kt`; this PR is superseded and should be closed after preserving its evidence |
 | [PR #26 Telecom/ADB research](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/26) | Merged | Preserve research decision; Telecom streaming is not a PSTN/SIM PCM tap; embedded ADB/Shizuku does not add protected audio entitlement |
 | PR #28 CI performance | Merged | KVM-enabled emulator setup retained |
 | PR #29 Android 16 permission gate | Merged | API 36 probe integrated in the current CI workflow |
@@ -107,3 +107,12 @@ Refresh each issue before changing it:
 ## 8. Snapshot provenance
 
 The source SHA above is the Foundation branch HEAD at capture. The benchmark `tasks.json` uses the same `source_head_sha`. PR #22's head is intentionally not pinned because this snapshot is stored on that branch; fetch it live. No call audio or personal call identifiers are included.
+
+
+### Latest exact-head diagnosis — 2026-11-21
+
+The previous Foundation run on SHA `bbb32c5` exposed two distinct issues:
+- API 26: connected instrumentation tests passed, but Android Gradle Plugin removed the target APK after the test task. The workflow then checked `pm path`, skipped the process-death harness, and treated the missing package as failure. The workflow now reinstalls the already-built debug APK and verifies it before invoking the harness.
+- API 35: `automaticMonitoringDisarmsWhenMicrophoneAppOpIsDenied` timed out while waiting for the automatic-armed state. The test now explicitly normalizes both `POST_NOTIFICATION` and `RECORD_AUDIO` AppOps before starting the service and restores them in `finally`.
+
+These corrections are on Foundation SHA `0e7f91702b561d2e2fb67e3232b53c4c7d279744`. The exact-head Android CI run is pending; neither emulator fix is considered verified until that run completes. The agent-system validator has already passed on this SHA.
