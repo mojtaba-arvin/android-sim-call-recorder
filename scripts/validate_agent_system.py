@@ -206,13 +206,16 @@ def validate_agent_instructions(root: Path) -> list[str]:
     if not path.exists():
         return []
     text = path.read_text(encoding="utf-8")
-    required = (
+    required = [
         ".github/AGENT_GITHUB_WORKFLOW.md",
         "docs/RD_AGENT_CHARTER.md",
         "docs/RD_AGENT_TASK_CONTRACT.md",
-        "agent-system/tooling/GITHUB_TOOL_CAPABILITY_INVENTORY.md",
-        "agent-system/tooling/github-capability-map.v1.json",
-    )
+    ]
+    if (root / "agent-system/tooling/github-capability-map.v1.json").exists():
+        required.extend((
+            "agent-system/tooling/GITHUB_TOOL_CAPABILITY_INVENTORY.md",
+            "agent-system/tooling/github-capability-map.v1.json",
+        ))
     return [f"AGENTS.md is missing canonical reference {item!r}" for item in required if item not in text]
 
 
