@@ -1,0 +1,77 @@
+name: Publish Android release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish APK + SDK AAR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: "9.6.0"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
+      - name: Test, lint, and assemble versioned assets
+        id: release_meta
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+          RELEASE_BUILD_NUMBER: ${{ github.run_number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${RELEASE_VERSION#v}"
+          gradle --no-daemon --console=plain \
+            -PappVersion="$VERSION" \
+            -PappVersionCode="$RELEASE_BUILD_NUMBER" \
+            :callrecorder-sdk:testDebugUnitTest \
+            :app:testDebugUnitTest \
+            :callrecorder-sdk:lintDebug \
+            :app:lintDebug \
+            :app:compileDebugAndroidTestKotlin \
+            :callrecorder-sdk:assembleRelease \
+            :app:assembleDebug
+
+          mkdir -p release-assets
+          cp app/build/outputs/apk/debug/app-debug.apk "release-assets/SIM-Call-Recorder-$VERSION.apk"
+          cp callrecorder-sdk/build/outputs/aar/callrecorder-sdk-release.aar "release-assets/callrecorder-sdk-$VERSION.aar"
+          (cd release-assets && sha256sum *.apk *.aar > SHA256SUMS.txt)
+
+          if [[ "$VERSION" =~ -(alpha|beta|rc) ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish APK, SDK AAR, and checksums to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SIM Call Recorder ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ steps.release_meta.outputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            release-assets/*.apk
+            release-assets/*.aar
+            release-assets/SHA256SUMS.txt

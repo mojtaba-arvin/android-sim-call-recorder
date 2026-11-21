@@ -1,0 +1,252 @@
+package com.mojtaba.simcallrecorder
+
+import androidx.activity.ComponentActivity
+import android.os.Bundle
+import android.util.Log
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.mojtaba.simcallrecorder.domain.model.CallRecord
+import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
+import com.mojtaba.simcallrecorder.domain.model.CallState
+import com.mojtaba.simcallrecorder.domain.model.RecordingMode
+import com.mojtaba.simcallrecorder.sdk.SdkRecordingMode
+import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdk
+import com.mojtaba.simcallrecorder.sdk.SimCallRecorderSdkEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import java.io.File
+
+/**
+ * Debug-only host-driven process-death harness. The host kills the entire app process between
+ * phases, so the recovery assertions run in a genuinely new Android process.
+ */
+internal class ProcessDeathHarnessActivity : ComponentActivity() {
+    private val sdk: SimCallRecorderSdk by lazy {
+        EntryPointAccessors.fromApplication(
+            applicationContext,
+            SimCallRecorderSdkEntryPoint::class.java,
+        ).simCallRecorderSdk()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        lifecycleScope.launch {
+            try {
+                when (intent?.action) {
+                    ACTION_PREPARE_WINDOW_ONE -> prepareWindowOne()
+                    ACTION_RECOVER_ONE_AND_PREPARE_WINDOW_TWO -> recoverWindowOneAndPrepareWindowTwo()
+                    ACTION_RECOVER_TWO_AND_TEST_NEW_CAPTURE -> recoverWindowTwoAndTestNewCapture()
+                    ACTION_TEST_BACKGROUND_FGS_DENIAL -> testBackgroundForegroundServiceDenial()
+                    ACTION_TEST_NOTIFICATION_PERMISSION_GATE -> testNotificationPermissionGate()
+                    else -> error("Unknown process-death harness action: ${intent?.action}")
+                }
+            } catch (failure: Throwable) {
+                Log.e(TAG, "HARNESS_FAILED", failure)
+                finish()
+            }
+        }
+    }
+
+    private suspend fun prepareWindowOne() {
+        startAutomaticCapture()
+        val active = awaitActiveRecord()
+        awaitPartialFile(active)
+        Log.i(TAG, "WINDOW1_READY id=${active.id} path=${active.filePath}")
+        finish()
+    }
+
+    private suspend fun recoverWindowOneAndPrepareWindowTwo() {
+        val recovered = awaitRecordsWithInterruptedCount(1)
+        val persistedState = SecureRecordingStateStore(this).read()
+        check(persistedState.speakerphoneConsentConfirmed) { "Encrypted acoustic consent did not survive process death." }
+        check(persistedState.armRequested) { "Encrypted arm marker was not retained across permission-revocation process death." }
+        check(!sdk.automaticRecordingArmed.value) { "Automatic monitoring must never auto-rearm in a fresh process." }
+        SecureRecordingStateStore(this).setArmRequested(false)
+        val windowOne = recovered.filter { it.status == STATUS_INTERRUPTED }.minBy { it.id }
+        check(!File(windowOne.filePath).exists()) { "Crash-window-1 must not leave a promoted WAV." }
+        check(!File(windowOne.filePath + ".part").exists()) { "Crash-window-1 orphan .part was not removed." }
+        Log.i(TAG, "WINDOW1_RECOVERED id=${windowOne.id}")
+
+        startAutomaticCapture()
+        val active = awaitActiveRecord(excludingIds = setOf(windowOne.id))
+        awaitPartialFile(active)
+        Log.i(TAG, "WINDOW2_CAPTURE_READY id=${active.id}")
+
+        SecureRecordingStateStore(this).setArmRequested(false)
+        val crashStop = sdk.createStopRecordingIntent().putExtra(
+            EXTRA_TEST_CRASH_AFTER_PROMOTION,
+            true,
+        )
+        startService(crashStop)
+        Log.i(TAG, "WINDOW2_STOP_REQUESTED id=${active.id}")
+        // The service kills this process after atomically promoting the WAV and before Room commit.
+    }
+
+    private suspend fun recoverWindowTwoAndTestNewCapture() {
+        // The foreground Service is deliberately the first database consumer in this fresh
+        // process. Its prepareForCapture() call must recover stale rows before backend startup.
+        startAutomaticCapture()
+        val active = awaitActiveRecord()
+        awaitPartialFile(active)
+        val recovered = awaitRecordsWithInterruptedCount(2)
+        val interrupted = recovered.filter { it.status == STATUS_INTERRUPTED }.sortedBy { it.id }
+        val windowOne = interrupted[0]
+        val windowTwo = interrupted[1]
+
+        check(!File(windowOne.filePath).exists()) { "Crash-window-1 unexpectedly has a finalized WAV." }
+        check(!File(windowOne.filePath + ".part").exists()) { "Crash-window-1 .part survived recovery." }
+        val promoted = File(windowTwo.filePath)
+        check(promoted.isFile) { "Crash-window-2 finalized WAV was not preserved." }
+        check(promoted.inputStream().use { input -> String(ByteArray(4).also { input.read(it) }, Charsets.US_ASCII) } == "RIFF") {
+            "Crash-window-2 preserved file does not have a RIFF header."
+        }
+        check(!File(windowTwo.filePath + ".part").exists()) { "Crash-window-2 left a stale .part file." }
+        Log.i(TAG, "WINDOW2_RECOVERED id=${windowTwo.id} preserved=${promoted.absolutePath}")
+
+        val afterStart = sdk.observeRecordings(CallRecordFilter()).first()
+        check(afterStart.single { it.id == windowOne.id }.status == STATUS_INTERRUPTED)
+        check(afterStart.single { it.id == windowTwo.id }.status == STATUS_INTERRUPTED)
+        check(afterStart.single { it.id == active.id }.status == STATUS_RECORDING)
+        Log.i(TAG, "RECOVERY_CAPTURE_RACE_PASSED activeId=${active.id}")
+
+        SecureRecordingStateStore(this).setArmRequested(false)
+        startService(sdk.createStopRecordingIntent())
+        withTimeout(45_000) {
+            sdk.observeRecordings(CallRecordFilter()).first { records ->
+                records.any { it.id == active.id && it.status == STATUS_COMPLETED && it.dataBytes > 0L }
+            }
+        }
+        Log.i(TAG, "PROCESS_DEATH_SUITE_PASSED")
+        finish()
+    }
+
+    private suspend fun testNotificationPermissionGate() {
+        check(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            "POST_NOTIFICATIONS runtime permission requires Android 13 or newer."
+        }
+        SecureRecordingStateStore(this).setArmRequested(true)
+        ContextCompat.startForegroundService(
+            this,
+            sdk.createArmAutomaticRecordingIntent(
+                SdkRecordingMode.SPEAKERPHONE_MIC,
+                participantConsentConfirmed = true,
+            ),
+        )
+        val status = withTimeout(15_000) {
+            sdk.recordingStatus.first { it.contains("notification permission is required") }
+        }
+        check(!sdk.automaticRecordingArmed.value) {
+            "Automatic monitoring unexpectedly armed without POST_NOTIFICATIONS: $status"
+        }
+        SecureRecordingStateStore(this).setArmRequested(false)
+        Log.i(TAG, "NOTIFICATION_PERMISSION_GATE_PASSED status=$status")
+        finish()
+    }
+
+    private suspend fun testBackgroundForegroundServiceDenial() {
+        check(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            "Background FGS denial requires Android 12 or newer."
+        }
+        moveTaskToBack(true)
+        delay(2_000)
+        val armIntent = sdk.createArmAutomaticRecordingIntent(
+            SdkRecordingMode.SPEAKERPHONE_MIC,
+            participantConsentConfirmed = true,
+        )
+        SecureRecordingStateStore(this).setArmRequested(true)
+        try {
+            ContextCompat.startForegroundService(this, armIntent)
+            val status = withTimeout(15_000) {
+                sdk.recordingStatus.first {
+                    it.contains("could not start") || it.contains("not armed") ||
+                        it.contains("not allowed") || it.contains("permission is required")
+                }
+            }
+            check(!sdk.automaticRecordingArmed.value) {
+                "Background microphone FGS unexpectedly remained armed: $status"
+            }
+            SecureRecordingStateStore(this).setArmRequested(false)
+            Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM handled_by_service status=$status")
+        } catch (denied: IllegalStateException) {
+            SecureRecordingStateStore(this).setArmRequested(false)
+            Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
+        } catch (denied: SecurityException) {
+            SecureRecordingStateStore(this).setArmRequested(false)
+            Log.i(TAG, "FGS_START_DENIED_BY_PLATFORM ${denied.message}")
+        }
+        finish()
+    }
+
+    private suspend fun startAutomaticCapture() {
+        SecureRecordingStateStore(this).apply {
+            setConsent(RecordingMode.SPEAKERPHONE_MIC, true)
+            setArmRequested(true)
+        }
+        ContextCompat.startForegroundService(
+            this,
+            sdk.createArmAutomaticRecordingIntent(
+                SdkRecordingMode.SPEAKERPHONE_MIC,
+                participantConsentConfirmed = true,
+            ),
+        )
+        withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
+        val start = sdk.createStartRecordingIntent(
+            mode = SdkRecordingMode.SPEAKERPHONE_MIC,
+            simSlotIndex = 0,
+            callState = CallState.OFFHOOK,
+            participantConsentConfirmed = true,
+        )
+            .putExtra(EXTRA_AUTOMATIC_TRIGGER, true)
+            .putExtra(EXTRA_TEST_DISABLE_CALL_END_WATCH, true)
+        startService(start)
+        val active = awaitActiveRecord()
+        awaitPartialFile(active)
+    }
+
+    private suspend fun awaitActiveRecord(excludingIds: Set<Long> = emptySet()): CallRecord =
+        withTimeout(45_000) {
+            sdk.observeRecordings(CallRecordFilter()).first { records ->
+                records.any { it.status == STATUS_RECORDING && it.id !in excludingIds }
+            }.single { it.status == STATUS_RECORDING && it.id !in excludingIds }
+        }
+
+    private suspend fun awaitPartialFile(record: CallRecord) {
+        withTimeout(15_000) {
+            val partial = File(record.filePath + ".part")
+            // Do not kill after file creation alone: require PCM payload beyond the 44-byte WAV header.
+            while (!partial.isFile || partial.length() <= 44L) delay(100)
+        }
+    }
+
+    private suspend fun awaitRecordsWithInterruptedCount(count: Int): List<CallRecord> =
+        withTimeout(30_000) {
+            sdk.observeRecordings(CallRecordFilter()).first { records ->
+                records.count { it.status == STATUS_INTERRUPTED } >= count
+            }
+        }
+
+    private companion object {
+        const val TAG = "CallRecorderProcessDeath"
+        const val ACTION_PREPARE_WINDOW_ONE = "com.mojtaba.simcallrecorder.debug.PREPARE_WINDOW_ONE"
+        const val ACTION_RECOVER_ONE_AND_PREPARE_WINDOW_TWO =
+            "com.mojtaba.simcallrecorder.debug.RECOVER_ONE_AND_PREPARE_WINDOW_TWO"
+        const val ACTION_RECOVER_TWO_AND_TEST_NEW_CAPTURE =
+            "com.mojtaba.simcallrecorder.debug.RECOVER_TWO_AND_TEST_NEW_CAPTURE"
+        const val ACTION_TEST_BACKGROUND_FGS_DENIAL =
+            "com.mojtaba.simcallrecorder.debug.TEST_BACKGROUND_FGS_DENIAL"
+        const val ACTION_TEST_NOTIFICATION_PERMISSION_GATE =
+            "com.mojtaba.simcallrecorder.debug.TEST_NOTIFICATION_PERMISSION_GATE"
+        const val EXTRA_TEST_DISABLE_CALL_END_WATCH =
+            "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
+        const val EXTRA_AUTOMATIC_TRIGGER =
+            "com.mojtaba.simcallrecorder.extra.AUTOMATIC_TRIGGER"
+        const val EXTRA_TEST_CRASH_AFTER_PROMOTION =
+            "com.mojtaba.simcallrecorder.extra.TEST_CRASH_AFTER_PROMOTION"
+        const val STATUS_RECORDING = "RECORDING"
+        const val STATUS_INTERRUPTED = "INTERRUPTED"
+        const val STATUS_COMPLETED = "COMPLETED"
+    }
+}
