@@ -145,6 +145,10 @@ class ForegroundServiceLifecycleInstrumentedTest {
                 context.packageName,
                 Manifest.permission.POST_NOTIFICATIONS,
             )
+            // Runtime permission state and AppOps state are distinct platform gates.
+            // Normalize both before proving that RECORD_AUDIO revocation disarms capture.
+            executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION allow")
+            executeShellCommand("appops set ${context.packageName} RECORD_AUDIO allow")
             scenario.onActivity { activity ->
                 ContextCompat.startForegroundService(
                     activity,
@@ -185,6 +189,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
             assertTrue("Permission revocation must stop the active recording.", stoppedRecord.status != "RECORDING")
         } finally {
             executeShellCommand("appops set ${context.packageName} RECORD_AUDIO allow")
+            executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION allow")
             context.stopService(sdk.createStopRecordingIntent())
             scenario.close()
         }
