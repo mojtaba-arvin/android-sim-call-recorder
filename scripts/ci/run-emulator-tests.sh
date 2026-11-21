@@ -27,7 +27,7 @@ fi
 
 boot_completed=""
 for attempt in $(seq 1 60); do
-  boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+  boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
   if [[ "$boot_completed" == "1" ]]; then
     break
   fi
@@ -39,8 +39,12 @@ if [[ "$boot_completed" != "1" ]]; then
   exit 1
 fi
 
-echo "==> Emulator ready: API $(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
-adb logcat -c
+echo "==> Emulator ready: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+if ! adb logcat -c; then
+  echo "Emulator logcat is unavailable after boot; refusing to run instrumentation." >&2
+  adb_diagnostics
+  exit 1
+fi
 
 # The connected instrumentation task may uninstall the target APK on completion.
 # Run the optional Maven Central retry before deciding whether to enter process-death tests.
