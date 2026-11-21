@@ -86,7 +86,7 @@ def validate_tool_inventory(root: Path) -> list[str]:
     if not isinstance(roles, dict) or not roles:
         errors.append("tool inventory must define role grants")
     else:
-        known = set(names) | ACCESS
+        known = set(valid_names) | ACCESS
         for role, grants in roles.items():
             if not isinstance(grants, dict):
                 errors.append(f"role {role!r} must define allow and deny")
@@ -153,8 +153,9 @@ def validate_benchmark(root: Path) -> list[str]:
         elif sum(weights) != 100:
             errors.append(f"rubric weights must sum to 100, got {sum(weights)}")
 
-    if not data.get("global_hard_fail_conditions"):
-        errors.append("benchmark must define global hard-fail conditions")
+    hard_fails = data.get("global_hard_fail_conditions")
+    if not isinstance(hard_fails, list) or not hard_fails:
+        errors.append("benchmark must define a non-empty global hard-fail conditions array")
     policy = data.get("evaluation_policy", {})
     if not isinstance(policy, dict):
         errors.append("evaluation_policy must be an object")
@@ -169,9 +170,10 @@ def validate_benchmark(root: Path) -> list[str]:
         errors.append("benchmark tasks must be non-empty")
         return errors
     ids = [task.get("id") for task in tasks if isinstance(task, dict)]
-    if len(ids) != len(tasks) or any(not isinstance(task_id, str) or not task_id for task_id in ids):
-        errors.append("every benchmark task must have a non-empty id")
-    if len(ids) != len(set(ids)):
+    valid_ids = [task_id for task_id in ids if isinstance(task_id, str) and task_id]
+    if len(ids) != len(tasks) or len(valid_ids) != len(ids):
+        errors.append("every benchmark task must have a non-empty string id")
+    if len(valid_ids) != len(set(valid_ids)):
         errors.append("benchmark contains duplicate task ids")
     for task in tasks:
         if not isinstance(task, dict):
