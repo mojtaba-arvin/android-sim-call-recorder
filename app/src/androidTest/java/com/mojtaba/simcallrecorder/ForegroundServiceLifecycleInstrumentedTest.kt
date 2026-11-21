@@ -20,6 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -66,7 +67,14 @@ class ForegroundServiceLifecycleInstrumentedTest {
                     ),
                 )
             }
-            withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
+            val armed = withTimeoutOrNull(20_000) {
+                sdk.automaticRecordingArmed.first { it }
+            }
+            assertTrue(
+                "Automatic monitoring did not arm; status=${sdk.recordingStatus.value}, " +
+                    "appOp=$microphoneAppOp",
+                armed == true,
+            )
             scenario.onActivity { activity ->
                 activity.startService(
                     sdk.createStartRecordingIntent(
@@ -184,14 +192,27 @@ class ForegroundServiceLifecycleInstrumentedTest {
                     ),
                 )
             }
-            withTimeout(30_000) { sdk.recordingStatus.first { it.startsWith("Recording active") } }
+            val activeStatus = withTimeoutOrNull(20_000) {
+                sdk.recordingStatus.first { it.startsWith("Recording active") }
+            }
+            assertTrue(
+                "Automatic trigger did not start capture; status=${sdk.recordingStatus.value}",
+                activeStatus?.startsWith("Recording active") == true,
+            )
             val activeRecord = sdk.observeRecordings(CallRecordFilter()).first { records ->
                 records.any { it.status == "RECORDING" }
             }.single { it.status == "RECORDING" }
 
             executeShellCommand("appops set ${context.packageName} RECORD_AUDIO ignore")
 
-            withTimeout(30_000) { sdk.automaticRecordingArmed.first { !it } }
+            val disarmed = withTimeoutOrNull(20_000) {
+                sdk.automaticRecordingArmed.first { !it }
+            }
+            assertTrue(
+                "Microphone AppOps revocation did not disarm automatic monitoring; " +
+                    "status=${sdk.recordingStatus.value}",
+                disarmed == false,
+            )
             val stoppedRecord = withTimeout(30_000) {
                 sdk.observeRecordings(CallRecordFilter()).first { records ->
                     records.any { it.id == activeRecord.id && it.status != "RECORDING" }
