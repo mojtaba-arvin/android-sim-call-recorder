@@ -1,10 +1,10 @@
 # Repository Context Pack — Snapshot v1
 
-**Snapshot ID:** `android-sim-call-recorder-2026-11-21T13:46:00Z`  
-**Captured at:** 2026-11-21T13:46:00Z  
+**Snapshot ID:** `android-sim-call-recorder-2026-11-21T13:49:22Z`  
+**Captured at:** 2026-11-21T13:49:22Z  
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `bootstrap/native-android-foundation`  
-**Source HEAD:** `0e7f91702b561d2e2fb67e3232b53c4c7d279744`  
+**Source HEAD:** `c18c7c6ced9e413abc8c800a3a08642b979bb069`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-stacked` (base synchronized to Foundation; this snapshot refresh is on that branch)
 
@@ -45,8 +45,8 @@ Before writing, refresh exact branch SHAs, PR metadata, issue state and all requ
 | [PR #1 Foundation](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) | Draft/open | Main remains unchanged; keep Draft until Foundation gates and owner review are satisfied |
 | [PR #22 A0 context/benchmark](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/22) | Draft/open | This snapshot and tasks.json pin the current Foundation SHA; the PR branch still needs base synchronization and exact-head validation |
 | [PR #23 recovery barrier](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/23) | Open/Draft | All five changed files are present in Foundation HEAD `0e7f917`; this PR is superseded and should be closed after preserving its evidence |
-| [PR #24 A1.1 capability inventory](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/24) | Draft/open | Live catalog refreshed 2026-11-21 with exact 89/89 name parity; agent-system validator is running on the latest PR head |
-| [PR #25 teardown race](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/25) | Open/Draft | The concurrent stop-ownership race test is present in Foundation `RecordingServiceStateMachineTest.kt`; this PR is superseded and should be closed after preserving its evidence |
+| [PR #24 A1.1 capability inventory](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/24) | Merged into Foundation | Exact-head Agent system contracts and Android CI both passed; squash commit `c18c7c6` is in Foundation PR #1, not main |
+| [PR #25 teardown race](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/25) | Closed | Its race test is already in Foundation; duplicate PR closed after verifying the exact test exists in the parent branch |
 | [PR #26 Telecom/ADB research](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/26) | Merged | Preserve research decision; Telecom streaming is not a PSTN/SIM PCM tap; embedded ADB/Shizuku does not add protected audio entitlement |
 | PR #28 CI performance | Merged | KVM-enabled emulator setup retained |
 | PR #29 Android 16 permission gate | Merged | API 36 probe integrated in the current CI workflow |
@@ -116,3 +116,8 @@ The previous Foundation run on SHA `bbb32c5` exposed two distinct issues:
 - API 35: `automaticMonitoringDisarmsWhenMicrophoneAppOpIsDenied` timed out while waiting for the automatic-armed state. The test now explicitly normalizes both `POST_NOTIFICATION` and `RECORD_AUDIO` AppOps before starting the service and restores them in `finally`.
 
 These corrections are on Foundation SHA `0e7f91702b561d2e2fb67e3232b53c4c7d279744`. The exact-head Android CI run is pending; neither emulator fix is considered verified until that run completes. The agent-system validator has already passed on this SHA.
+
+
+### Foundation integration — 2026-11-21 13:49 UTC
+
+A1.1 capability inventory PR #24 was squash-merged into the Foundation branch at `c18c7c6ced9e413abc8c800a3a08642b979bb069` after its exact-head Agent system contracts and Android CI checks both passed. This is an integration into the stacked Foundation branch only; `main` is unchanged. The A0 context/benchmark PR #22 must now validate against this new Foundation head, including the newly merged tool inventory and its AGENTS references.
