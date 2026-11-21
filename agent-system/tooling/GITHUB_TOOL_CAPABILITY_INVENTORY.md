@@ -3,6 +3,7 @@
 **Version:** 1.0.0  
 **Captured:** 2026-11-21 (refreshed 13:43 UTC)  
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
+**Foundation HEAD at capture:** `77ab12588e6d0cd7720b63754671362477557752`  
 **Machine-readable inventory:** [`github-capability-map.v1.json`](github-capability-map.v1.json)
 
 ## Purpose and freshness
