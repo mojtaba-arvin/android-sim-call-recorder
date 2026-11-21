@@ -67,14 +67,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
                     ),
                 )
             }
-            val armed = withTimeoutOrNull(20_000) {
-                sdk.automaticRecordingArmed.first { it }
-            }
-            assertTrue(
-                "Automatic monitoring did not arm; status=${sdk.recordingStatus.value}, " +
-                    "appOp=$microphoneAppOp",
-                armed == true,
-            )
+            withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
             scenario.onActivity { activity ->
                 activity.startService(
                     sdk.createStartRecordingIntent(
@@ -178,7 +171,14 @@ class ForegroundServiceLifecycleInstrumentedTest {
                     ),
                 )
             }
-            withTimeout(30_000) { sdk.automaticRecordingArmed.first { it } }
+            val armed = withTimeoutOrNull(20_000) {
+                sdk.automaticRecordingArmed.first { it }
+            }
+            assertTrue(
+                "Automatic monitoring did not arm; status=${sdk.recordingStatus.value}, " +
+                    "appOp=$microphoneAppOp",
+                armed == true,
+            )
             scenario.onActivity { activity ->
                 activity.startService(
                     sdk.createStartRecordingIntent(
