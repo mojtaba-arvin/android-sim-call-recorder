@@ -39,9 +39,10 @@ def validate_tool_inventory(root: Path) -> list[str]:
         errors.append("tool inventory must contain a non-empty tools array")
         return errors
     names = [item.get("name") for item in tools if isinstance(item, dict)]
-    if len(names) != len(tools) or any(not isinstance(name, str) or not name.strip() for name in names):
-        errors.append("every tool entry must have a non-empty name")
-    if len(names) != len(set(names)):
+    valid_names = [name for name in names if isinstance(name, str) and name.strip()]
+    if len(names) != len(tools) or len(valid_names) != len(names):
+        errors.append("every tool entry must have a non-empty string name")
+    if len(valid_names) != len(set(valid_names)):
         errors.append("tool inventory contains duplicate names")
     if data.get("github_tool_count") != len(tools):
         errors.append("github_tool_count differs from tools array length")
@@ -78,7 +79,7 @@ def validate_tool_inventory(root: Path) -> list[str]:
         errors.append("source_foundation_head_sha must be a full commit SHA")
 
     high_risk = data.get("high_risk_tools", [])
-    if not isinstance(high_risk, list) or not set(high_risk).issubset(set(names)):
+    if not isinstance(high_risk, list) or any(not isinstance(name, str) for name in high_risk) or not set(high_risk).issubset(set(valid_names)):
         errors.append("high_risk_tools must reference inventoried tools only")
 
     roles = data.get("roles")
@@ -94,16 +95,22 @@ def validate_tool_inventory(root: Path) -> list[str]:
             if not isinstance(allow, list) or not isinstance(deny, list):
                 errors.append(f"role {role!r} allow/deny values must be arrays")
                 continue
+            if any(not isinstance(value, str) for value in allow + deny):
+                errors.append(f"role {role!r} capabilities must be strings")
+                continue
             if set(allow) & set(deny):
                 errors.append(f"role {role!r} both allows and denies the same capability")
             unknown = (set(allow) | set(deny)) - known
             if unknown:
                 errors.append(f"role {role!r} references unknown capabilities: {sorted(unknown)}")
-        if "merge_pull_request" not in roles.get("implementer", {}).get("deny", []):
+        implementer = roles.get("implementer", {})
+        reviewer = roles.get("reviewer", {})
+        release_manager = roles.get("release_manager", {})
+        if not isinstance(implementer, dict) or "merge_pull_request" not in implementer.get("deny", []):
             errors.append("implementer must explicitly deny PR merges")
-        if "approve_own_pull_request" not in roles.get("reviewer", {}).get("deny", []):
+        if not isinstance(reviewer, dict) or "approve_own_pull_request" not in reviewer.get("deny", []):
             errors.append("reviewer must explicitly deny self-approval")
-        if roles.get("release_manager", {}).get("allow") != []:
+        if not isinstance(release_manager, dict) or release_manager.get("allow") != []:
             errors.append("release_manager must have no default grants")
 
     constraints = data.get("argument_constraints")
@@ -149,6 +156,9 @@ def validate_benchmark(root: Path) -> list[str]:
     if not data.get("global_hard_fail_conditions"):
         errors.append("benchmark must define global hard-fail conditions")
     policy = data.get("evaluation_policy", {})
+    if not isinstance(policy, dict):
+        errors.append("evaluation_policy must be an object")
+        policy = {}
     for key in ("hard_fail_overrides_score", "must_refresh_live_state_before_mutation",
                 "evidence_must_be_sha_bound", "partial_or_unknown_evidence_must_not_be_promoted_to_success"):
         if policy.get(key) is not True:
