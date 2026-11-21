@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -196,6 +197,31 @@ def validate_benchmark(root: Path) -> list[str]:
         errors.append("context snapshot must declare a full Source HEAD SHA")
     elif isinstance(source_sha, str) and match.group(1) != source_sha:
         errors.append("benchmark source_head_sha differs from context snapshot Source HEAD")
+    if isinstance(source_sha, str) and SHA40.fullmatch(source_sha):
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", source_sha, "HEAD"],
+            cwd=root, capture_output=True, check=False,
+        )
+        if ancestor.returncode != 0:
+            errors.append("benchmark source_head_sha is not an ancestor of the checked-out commit")
+        else:
+            changed = subprocess.run(
+                ["git", "diff", "--name-only", "-z", source_sha, "HEAD"],
+                cwd=root, capture_output=True, check=False,
+            )
+            if changed.returncode != 0:
+                errors.append("could not compare the checked-out tree with benchmark source_head_sha")
+            else:
+                paths = [item.decode("utf-8", errors="replace") for item in changed.stdout.split(b"\\x00") if item]
+                unexpected = [
+                    item for item in paths
+                    if not item.startswith(("agent-system/context/", "agent-system/benchmarks/"))
+                ]
+                if unexpected:
+                    errors.append(
+                        "Foundation changed outside the context/benchmark snapshot paths since source_head_sha; "
+                        f"refresh the context snapshot before accepting it: {unexpected}"
+                    )
     if "More than 30 minutes have elapsed since capture" not in text:
         errors.append("context snapshot must define its freshness invalidation window")
     return errors
