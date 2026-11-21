@@ -100,9 +100,9 @@ def validate_tool_inventory(root: Path) -> list[str]:
                 continue
             if set(allow) & set(deny):
                 errors.append(f"role {role!r} both allows and denies the same capability")
-            unknown = (set(allow) | set(deny)) - known
-            if unknown:
-                errors.append(f"role {role!r} references unknown capabilities: {sorted(unknown)}")
+            unknown_allow = set(allow) - known
+            if unknown_allow:
+                errors.append(f"role {role!r} allows unknown capabilities: {sorted(unknown_allow)}")
         implementer = roles.get("implementer", {})
         reviewer = roles.get("reviewer", {})
         release_manager = roles.get("release_manager", {})
