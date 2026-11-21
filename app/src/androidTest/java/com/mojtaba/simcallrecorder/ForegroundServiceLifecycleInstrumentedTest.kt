@@ -204,6 +204,13 @@ class ForegroundServiceLifecycleInstrumentedTest {
             }.single { it.status == "RECORDING" }
 
             executeShellCommand("appops set ${context.packageName} RECORD_AUDIO ignore")
+            val revokedAppOp = executeShellCommand(
+                "appops get ${context.packageName} RECORD_AUDIO",
+            )
+            assertTrue(
+                "RECORD_AUDIO AppOps revocation did not take effect; got: $revokedAppOp",
+                revokedAppOp.contains("ignore", ignoreCase = true),
+            )
 
             val disarmed = withTimeoutOrNull(20_000) {
                 sdk.automaticRecordingArmed.first { !it }
