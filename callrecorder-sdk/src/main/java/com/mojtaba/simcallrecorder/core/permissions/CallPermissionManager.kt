@@ -1,6 +1,7 @@
 package com.mojtaba.simcallrecorder.core.permissions
 
 import android.Manifest
+import android.app.AppOpsManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -45,8 +46,22 @@ internal class CallPermissionManager @Inject constructor(
     fun hasCallStatePermission(): Boolean =
         isGranted(Manifest.permission.READ_PHONE_STATE)
 
-    fun hasMicrophonePermission(): Boolean =
-        isGranted(Manifest.permission.RECORD_AUDIO)
+    fun hasMicrophonePermission(): Boolean {
+        if (!isGranted(Manifest.permission.RECORD_AUDIO)) return false
+        val appOps = context.getSystemService(AppOpsManager::class.java) ?: return false
+        return when (
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_RECORD_AUDIO,
+                context.applicationInfo.uid,
+                context.packageName,
+            )
+        ) {
+            AppOpsManager.MODE_ALLOWED,
+            AppOpsManager.MODE_DEFAULT,
+            AppOpsManager.MODE_FOREGROUND -> true
+            else -> false
+        }
+    }
 
     fun hasNotificationPermission(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
