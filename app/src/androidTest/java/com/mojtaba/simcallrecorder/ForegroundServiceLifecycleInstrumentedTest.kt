@@ -1,6 +1,7 @@
 package com.mojtaba.simcallrecorder
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.core.content.ContextCompat
@@ -141,14 +142,25 @@ class ForegroundServiceLifecycleInstrumentedTest {
         ).simCallRecorderSdk()
         val scenario = ActivityScenario.launch(MainActivity::class.java)
         try {
-            instrumentation.uiAutomation.grantRuntimePermission(
-                context.packageName,
-                Manifest.permission.POST_NOTIFICATIONS,
+            // Use the same package-manager grant path as the lifecycle test above. Runtime
+            // permission state and AppOps state are distinct gates, so assert both before
+            // testing the later revocation transition.
+            executeShellCommand(
+                "pm grant ${context.packageName} ${Manifest.permission.POST_NOTIFICATIONS}",
             )
-            // Runtime permission state and AppOps state are distinct platform gates.
-            // Normalize both before proving that RECORD_AUDIO revocation disarms capture.
             executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION allow")
             executeShellCommand("appops set ${context.packageName} RECORD_AUDIO allow")
+            assertEquals(
+                PackageManager.PERMISSION_GRANTED,
+                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO),
+            )
+            val microphoneAppOp = executeShellCommand(
+                "appops get ${context.packageName} RECORD_AUDIO",
+            )
+            assertTrue(
+                "RECORD_AUDIO AppOps must be allowed before arming; got: $microphoneAppOp",
+                microphoneAppOp.contains("allow", ignoreCase = true),
+            )
             scenario.onActivity { activity ->
                 ContextCompat.startForegroundService(
                     activity,
