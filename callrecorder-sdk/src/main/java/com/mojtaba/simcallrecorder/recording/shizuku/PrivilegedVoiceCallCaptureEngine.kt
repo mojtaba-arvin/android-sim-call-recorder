@@ -16,6 +16,20 @@ import kotlin.math.max
 internal fun privilegedFullDuplexAudioSources(): List<Int> =
     listOf(MediaRecorder.AudioSource.VOICE_CALL)
 
+/** Preserve actionable platform failure classes instead of collapsing every HAL error to a code. */
+internal fun describeAudioRecordReadFailure(errorCode: Int): String = when (errorCode) {
+    AudioRecord.ERROR_DEAD_OBJECT ->
+        "AudioRecord lost its audio server session (ERROR_DEAD_OBJECT)."
+    AudioRecord.ERROR_INVALID_OPERATION ->
+        "AudioRecord rejected the read operation (ERROR_INVALID_OPERATION)."
+    AudioRecord.ERROR_BAD_VALUE ->
+        "AudioRecord rejected the read buffer or format (ERROR_BAD_VALUE)."
+    AudioRecord.ERROR ->
+        "AudioRecord reported a generic read failure (ERROR)."
+    else ->
+        "AudioRecord read failed with unknown error code $errorCode."
+}
+
 internal interface VoiceCallCaptureEngine {
     fun start(
         output: ParcelFileDescriptor,
@@ -277,7 +291,7 @@ internal class AndroidVoiceCallCaptureEngine(
                         count == 0 -> Thread.yield()
                         count < 0 -> {
                             if (!stopRequested.get()) {
-                                lastError = "AudioRecord read failed with code $count."
+                                lastError = describeAudioRecordReadFailure(count)
                             }
                             break
                         }
