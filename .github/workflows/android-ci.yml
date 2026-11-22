@@ -62,26 +62,9 @@ jobs:
             exit 0
           fi
 
-          code_changed=false
-          audio_changed=false
-          while IFS= read -r file; do
-            [[ -z "$file" ]] && continue
-            case "$file" in
-              # These paths are validated by focused lightweight workflows or do not affect
-              # Android compilation/runtime. Keep emulator lanes for Android source, Gradle/build
-              # configuration, manifests, and the Android CI harness itself.
-              *.md|docs/*|agent-system/*|schemas/*|AGENTS.md|DECISIONS.md|.editorconfig|.gitignore|LICENSE|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.github/dependabot.yml|.github/workflows/agent-system-validation.yml|.github/workflows/physical-device-evidence.yml|.github/workflows/release.yml|scripts/validate_agent_system.py|scripts/validate_physical_device_report.py|scripts/tests/*) ;;
-              *) code_changed=true ;;
-            esac
-            case "$file" in
-              callrecorder-sdk/src/main/java/com/mojtaba/simcallrecorder/recording/shizuku/*|callrecorder-sdk/src/test/java/com/mojtaba/simcallrecorder/recording/shizuku/*)
-                audio_changed=true
-                ;;
-            esac
-          done <<< "$changed_files"
-
-          echo "code=$code_changed" >> "$GITHUB_OUTPUT"
-          echo "audio=$audio_changed" >> "$GITHUB_OUTPUT"
+          printf '%s\\n' "$changed_files" | python scripts/classify_android_ci_changes.py >> "$GITHUB_OUTPUT"
+          code_changed="$(grep '^code=' "$GITHUB_OUTPUT" | tail -n 1 | cut -d= -f2)"
+          audio_changed="$(grep '^audio=' "$GITHUB_OUTPUT" | tail -n 1 | cut -d= -f2)"
           echo "Code/build changes: $code_changed"
           echo "Shizuku call-audio changes: $audio_changed"
 
