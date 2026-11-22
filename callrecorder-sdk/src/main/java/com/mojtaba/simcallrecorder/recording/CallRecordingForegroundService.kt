@@ -487,28 +487,36 @@ internal class CallRecordingForegroundService : Service() {
                 // backend finalization and Room commit untouched.
                 val ownsCleanup = stateMachine.beginFailureCleanup()
                 if (ownsCleanup) {
-                    if (startedMode != null) {
-                        val finalized = runCatching { recordingCoordinator.stop(startedMode) }.getOrNull()
-                        if (insertedRecordId != null) {
-                            if (finalized != null) {
-                                runCatching {
-                                    completeRecordOrFail(insertedRecordId, finalized)
+                    // onDestroy() cancels serviceScope. Keep backend stop and the matching Room
+                    // commit atomic with respect to that cancellation, including failures while
+                    // the state machine is still STARTING and has no activeMode visible to onDestroy.
+                    withContext(NonCancellable) {
+                        if (startedMode != null) {
+                            val finalized = runCatching { recordingCoordinator.stop(startedMode) }.getOrNull()
+                            if (insertedRecordId != null) {
+                                if (finalized != null) {
+                                    runCatching {
+                                        completeRecordOrFail(insertedRecordId, finalized)
+                                    }
+                                } else {
+                                    runCatching {
+                                        callRecordRepository.markRecordingFailed(
+                                            insertedRecordId,
+                                            exception.message ?: "Capture setup failed.",
+                                        )
+                                    }
                                 }
                             } else {
-                                runCatching {
-                                    callRecordRepository.markRecordingFailed(insertedRecordId, exception.message ?: "Capture setup failed.")
-                                }
+                                finalized?.file?.delete()
                             }
-                        } else {
-                            finalized?.file?.delete()
                         }
-                    }
-                    activeMode = null
-                    activeRecordId = null
-                    when (stateMachine.state) {
-                        RecordingServiceStateMachine.State.STARTING -> stateMachine.startFailed()
-                        RecordingServiceStateMachine.State.STOPPING -> stateMachine.stopCompleted()
-                        else -> Unit
+                        activeMode = null
+                        activeRecordId = null
+                        when (stateMachine.state) {
+                            RecordingServiceStateMachine.State.STARTING -> stateMachine.startFailed()
+                            RecordingServiceStateMachine.State.STOPPING -> stateMachine.stopCompleted()
+                            else -> Unit
+                        }
                     }
                     updateNotification(
                         if (automaticArmed) {
