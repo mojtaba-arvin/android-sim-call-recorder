@@ -16,7 +16,7 @@ import javax.inject.Singleton
  * One authoritative runtime snapshot shared by the UI and foreground service.
  *
  * Shizuku is considered ready only when the live UserService reports an accepted host UID,
- * confirms shell audio attribution, and verifies the protected CAPTURE_AUDIO_OUTPUT permission.
+ * confirms shell audio attribution, and verifies CALL_AUDIO_INTERCEPTION or the legacy CAPTURE_AUDIO_OUTPUT grant.
  */
 @Singleton
 internal class CaptureDeviceProfileProvider @Inject constructor(
