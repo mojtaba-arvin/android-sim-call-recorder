@@ -106,6 +106,15 @@ class AndroidVoiceCallCaptureEngineTest {
         pipe[0].close()
     }
 
+    @Test
+    fun audioRecordReadFailuresKeepDistinctHalErrorClasses() {
+        assertTrue(describeAudioRecordReadFailure(AudioRecord.ERROR_DEAD_OBJECT).contains("ERROR_DEAD_OBJECT"))
+        assertTrue(describeAudioRecordReadFailure(AudioRecord.ERROR_INVALID_OPERATION).contains("ERROR_INVALID_OPERATION"))
+        assertTrue(describeAudioRecordReadFailure(AudioRecord.ERROR_BAD_VALUE).contains("ERROR_BAD_VALUE"))
+        assertTrue(describeAudioRecordReadFailure(AudioRecord.ERROR).contains("generic read failure"))
+        assertTrue(describeAudioRecordReadFailure(-99).contains("unknown error code -99"))
+    }
+
     private class FakeFactory(
         private val minBuffer: (Int, Int, Int) -> Int,
         private val sessions: List<BlockingSession> = emptyList(),
