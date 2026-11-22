@@ -19,7 +19,7 @@ No physical-device recording results have been claimed. Use the in-app Device di
 
 ## Procedure per physical device
 
-1. Install the debug APK. Grant call-state permission; grant RECORD_AUDIO only when the best-eligible selector must use microphone/acoustic capture. Confirm participant authorization/consent. Connect/authorize Shizuku when available. Confirm the live UserService has both shell audio attribution and the protected CAPTURE_AUDIO_OUTPUT permission; UID 2000 alone is not sufficient. Then arm best-eligible automatic recording from the visible app before a call.
+1. Install the debug APK. Grant call-state permission; grant RECORD_AUDIO only when the best-eligible selector must use microphone/acoustic capture. Confirm participant authorization/consent. Connect/authorize Shizuku when available. Confirm the live UserService has shell audio attribution and at least one accepted protected permission: `CALL_AUDIO_INTERCEPTION` on current Android or legacy `CAPTURE_AUDIO_OUTPUT`; UID 2000 alone is not sufficient. Then arm best-eligible automatic recording from the visible app before a call.
 2. Open Device diagnostics and record manufacturer, model, Android release, API level, build display, and security patch.
 3. Confirm the visible SIM slot count and labels. Do not record phone numbers, ICCIDs, or subscriber identifiers.
 4. Start call-state monitoring while the app is visible.
