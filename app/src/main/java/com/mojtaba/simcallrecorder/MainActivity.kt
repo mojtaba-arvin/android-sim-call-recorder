@@ -716,8 +716,9 @@ private fun DiagnosticsScreen(
                 }
             }
             Text(
-                "This optional path requires Android 11+, a running Shizuku/Sui server, and explicit " +
-                    "authorization. It opens AudioSource.VOICE_CALL only inside the shell/root UserService. " +
+                "This path requires Android 8.0+ and a running, explicitly authorized Shizuku/Sui server. " +
+                    "Starting Shizuku through on-device Wireless Debugging requires Android 11+; Android 8–10 " +
+                    "need root or computer-based ADB setup. It opens AudioSource.VOICE_CALL only inside the shell/root UserService. " +
                     "It does not switch on speakerphone or fall back to the microphone.",
                 style = MaterialTheme.typography.bodySmall,
             )
