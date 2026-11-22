@@ -28,6 +28,20 @@ This document is an executable test protocol and evidence register. Empty or `UN
 5. Score near-end and far-end independently. Any missing, unintelligible, or materially intermittent direction is a failure for two-way support, even if the other direction is clear.
 6. Repeat the full case at least three times. Keep each trial as a separate evidence row and attach redacted logs plus checksums for the WAVs.
 
+## Required trial coverage per device configuration
+
+A device configuration is the exact tuple of handset model, build fingerprint/security patch, modem/baseband, Android/API level, carrier/SIM slot, audio route, and capture backend. Do not combine results across different tuples.
+
+For **each** configuration and each route/backend pair in scope:
+
+- Run at least **3 separate incoming cellular calls** and **3 separate outgoing cellular calls** (minimum 6 calls total).
+- Score near-end and far-end independently for every call. A missing direction in any required trial prevents a two-way pass for that configuration.
+- Keep six distinct evidence rows, one per call, with direction, trial number (IN-1..IN-3 / OUT-1..OUT-3), WAV checksum, integrity result, and both intelligibility scores.
+- Repeat the six-call set for every additional route/backend pair. For example, speakerphone + built-in MIC and Shizuku/VOICE_CALL are separate configurations; success on one does not transfer to the other.
+- Mark incomplete coverage as `INCOMPLETE`, never as a pass. If a route/backend cannot be exercised on the handset, record the reason and leave its verdict `UNKNOWN`.
+
+The stability checks (screen-off and Activity recreation) must be exercised within the same exact configuration and recorded against the affected trial. They do not replace any of the six required calls.
+
 ## Acceptance thresholds
 
 | Signal | Minimum evidence | Pass rule |
