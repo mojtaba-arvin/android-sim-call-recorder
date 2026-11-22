@@ -35,7 +35,9 @@
 - Automatic recording requires an explicit visible Arm action and participant-consent confirmation; it does not silently re-arm after reboot.
 - The foreground service keeps an ongoing notification with a Stop/Disable action.
 - Notification and call-state permission revocation disarms automatic monitoring; an active recording is stopped.
-- The app service is not exported.
+- `CallRecordingForegroundService` is declared `android:exported="false"`.
+- The AccessibilityService and notification-listener components are exported only with Android's `BIND_ACCESSIBILITY_SERVICE` and `BIND_NOTIFICATION_LISTENER_SERVICE` binding permissions; they remain separate, user-enabled compatibility surfaces and require their own distribution/security review.
+- `ShizukuProvider` is exported with `INTERACT_ACROSS_USERS_FULL`; its provider boundary should remain covered by the Shizuku integration review.
 
 ### Release boundary
 
