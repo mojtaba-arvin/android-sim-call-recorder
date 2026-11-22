@@ -67,11 +67,10 @@ internal class AudioRecordingCallbackRegistration(
     @Synchronized
     fun unregister(): Boolean {
         if (!registered) return false
-        try {
-            unregisterCallback()
-        } finally {
-            registered = false
-        }
+        // Keep ownership when the platform rejects unregister so the caller can retry.
+        // Clearing this flag on failure would silently orphan a still-registered callback.
+        unregisterCallback()
+        registered = false
         return true
     }
 
