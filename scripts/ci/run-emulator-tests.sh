@@ -55,8 +55,9 @@ else
   test_exit_code=$?
 fi
 
-if [[ "$test_exit_code" -ne 0 ]] && grep -Eq 'Could not find org\.junit\.platform:junit-platform-(engine|launcher):1\.13\.3' "$test_log"; then
-  echo "Retrying once with --refresh-dependencies after the identified transient Maven Central UTP resolution failure." >> "$test_log"
+if [[ "$test_exit_code" -ne 0 ]] && grep -Eq "Could not (find org\\.junit\\.platform:junit-platform-(engine|launcher):1\\.13\\.3|GET .*repo\\.maven\\.apache\\.org.*(429|Too Many Requests)|get resource .*repo\\.maven\\.apache\\.org.*429)|Received status code 429 from server" "$test_log"; then
+  echo "Detected transient Maven Central rate limiting / UTP resolution failure; waiting 15 seconds before one dependency-refresh retry." >> "$test_log"
+  sleep 15
   if gradle --refresh-dependencies --console=plain :app:connectedDebugAndroidTest >> "$test_log" 2>&1; then
     test_exit_code=0
   else
