@@ -82,8 +82,7 @@ jobs:
             :callrecorder-sdk:lintRelease \
             :app:lintRelease \
             :app:compileDebugAndroidTestKotlin \
-            :callrecorder-sdk:assembleRelease \
-            :app:assembleRelease
+            :callrecorder-sdk:assembleRelease
 
           mkdir -p release-assets
           cp callrecorder-sdk/build/outputs/aar/callrecorder-sdk-release.aar "release-assets/callrecorder-sdk-$VERSION.aar"
