@@ -58,7 +58,7 @@
           "local_phrase_intelligible": { "type": "boolean" },
           "remote_phrase_intelligible": { "type": "boolean" },
           "wav_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "wav_bytes": { "type": "integer", "minimum": 45 },
+          "wav_bytes": { "type": "integer", "minimum": 45, "description": "Total canonical WAV file size in bytes, including its 44-byte PCM header." },
           "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 96000 },
           "channels": { "type": "integer", "enum": [1, 2] }
         }
