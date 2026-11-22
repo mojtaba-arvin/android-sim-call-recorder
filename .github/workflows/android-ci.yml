@@ -39,6 +39,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Test Android CI path classifier
+        run: python -m unittest discover -s scripts/tests -p 'test_classify_android_ci_changes.py' -v
+
       - name: Classify changed files
         id: filter
         env:
