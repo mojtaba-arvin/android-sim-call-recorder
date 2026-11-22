@@ -115,6 +115,24 @@ class AndroidVoiceCallCaptureEngineTest {
         assertTrue(describeAudioRecordReadFailure(-99).contains("unknown error code -99"))
     }
 
+    @Test
+    fun unexpectedDeadObjectReadFailureClosesThePipeAndMarksCaptureStopped() {
+        val session = FailingReadSession(AudioRecord.ERROR_DEAD_OBJECT)
+        val factory = FakeFactory(
+            minBuffer = { _, _, _ -> 4_096 },
+            sessions = listOf(session),
+        )
+        val engine = AndroidVoiceCallCaptureEngine(factory)
+        val pipe = ParcelFileDescriptor.createPipe()
+
+        assertEquals(1, engine.start(pipe[1], 48_000, 1))
+        assertTrue(session.readFinished.await(2, TimeUnit.SECONDS))
+        val eof = ByteArray(1)
+        assertEquals(-1, ParcelFileDescriptor.AutoCloseInputStream(pipe[0]).read(eof))
+        assertFalse(engine.isCapturing)
+        assertTrue(engine.lastError.contains("ERROR_DEAD_OBJECT"))
+    }
+
     private class FakeFactory(
         private val minBuffer: (Int, Int, Int) -> Int,
         private val sessions: List<BlockingSession> = emptyList(),
@@ -137,6 +155,33 @@ class AndroidVoiceCallCaptureEngineTest {
         ): AudioRecordSession {
             requestedSources += audioSource
             return sessions[nextSession++]
+        }
+    }
+
+    private class FailingReadSession(
+        private val errorCode: Int,
+    ) : AudioRecordSession {
+        val readFinished = CountDownLatch(1)
+        @Volatile private var recording = false
+        override val state: Int get() = AudioRecord.STATE_INITIALIZED
+        override val recordingState: Int
+            get() = if (recording) AudioRecord.RECORDSTATE_RECORDING else AudioRecord.RECORDSTATE_STOPPED
+
+        override fun startRecording() {
+            recording = true
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, size: Int, readMode: Int): Int {
+            readFinished.countDown()
+            return errorCode
+        }
+
+        override fun stop() {
+            recording = false
+        }
+
+        override fun release() {
+            recording = false
         }
     }
 
