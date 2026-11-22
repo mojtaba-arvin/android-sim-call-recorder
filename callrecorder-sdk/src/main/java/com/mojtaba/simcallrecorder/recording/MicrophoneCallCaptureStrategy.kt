@@ -135,7 +135,7 @@ private class MicrophoneCaptureSession(
     @Volatile private var startedAtEpochMillis: Long = 0L
     @Volatile private var activeAudioSource: Int = audioSource
     @Volatile private var sourceFallbackReason: String? = null
-    @Volatile private var audioRecordingCallback: AudioManager.AudioRecordingCallback? = null
+    @Volatile private var audioRecordingCallbackRegistration: AudioRecordingCallbackRegistration? = null
 
     val audioSourceLabel: String
         get() {
@@ -363,21 +363,25 @@ private class MicrophoneCaptureSession(
             }
         }
         AudioRecordingDiagnostics.update("Waiting for framework recording configuration · session ${record.audioSessionId}")
-        audioRecordingCallback = callback
-        runCatching {
-            audioManager.registerAudioRecordingCallback(callback, Handler(Looper.getMainLooper()))
-        }.onFailure {
-            audioRecordingCallback = null
+        val registration = AudioRecordingCallbackRegistration(
+            registerCallback = {
+                audioManager.registerAudioRecordingCallback(callback, Handler(Looper.getMainLooper()))
+            },
+            unregisterCallback = {
+                audioManager.unregisterAudioRecordingCallback(callback)
+            },
+        )
+        audioRecordingCallbackRegistration = registration
+        runCatching { registration.register() }.onFailure {
+            audioRecordingCallbackRegistration = null
             AudioRecordingDiagnostics.update("Could not register AudioRecordingCallback: ${it.message}")
         }
     }
 
     private fun unregisterAudioRecordingDiagnostics() {
-        val callback = audioRecordingCallback ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching { audioManager.unregisterAudioRecordingCallback(callback) }
-        }
-        audioRecordingCallback = null
+        val registration = audioRecordingCallbackRegistration ?: return
+        runCatching { registration.unregister() }
+        audioRecordingCallbackRegistration = null
         AudioRecordingDiagnostics.update("No microphone capture active")
     }
 
