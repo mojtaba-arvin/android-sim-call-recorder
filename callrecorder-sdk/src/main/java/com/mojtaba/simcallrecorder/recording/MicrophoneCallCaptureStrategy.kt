@@ -348,8 +348,9 @@ private class MicrophoneCaptureSession(
                     )
                     return
                 }
+                // Never persist AudioDeviceInfo.productName: OEM/Bluetooth names can identify a person.
                 val device = configuration.audioDevice?.let {
-                    "${it.productName} (type=${it.type})"
+                    "type=${it.type}"
                 } ?: "unknown input device"
                 AudioRecordingDiagnostics.update(
                     "session=${configuration.clientAudioSessionId}; " +
