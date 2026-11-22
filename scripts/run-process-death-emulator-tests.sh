@@ -11,9 +11,17 @@ ACTION_THREE="com.mojtaba.simcallrecorder.debug.RECOVER_TWO_AND_TEST_NEW_CAPTURE
 adb wait-for-device
 adb shell pm grant "$PACKAGE" android.permission.RECORD_AUDIO
 adb shell pm grant "$PACKAGE" android.permission.READ_PHONE_STATE
-if adb shell pm list permissions -d | grep -q android.permission.POST_NOTIFICATIONS; then
-  adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS || true
-  adb shell appops set "$PACKAGE" POST_NOTIFICATION allow || true
+API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+if [[ "$API_LEVEL" -ge 33 ]]; then
+  # The output of pm list permissions -d varies by platform build and can omit
+  # a declared runtime permission. Grant and verify the harness prerequisite.
+  adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS
+  adb shell appops set "$PACKAGE" POST_NOTIFICATION allow
+  notification_permission="$(adb shell pm check-permission "$PACKAGE" android.permission.POST_NOTIFICATIONS | tr -d '\\r')"
+  if [[ "$notification_permission" != "granted" ]]; then
+    echo "POST_NOTIFICATIONS was not granted before process-death tests: $notification_permission" >&2
+    exit 1
+  fi
 fi
 adb shell appops set "$PACKAGE" RECORD_AUDIO allow
 adb logcat -c || true
