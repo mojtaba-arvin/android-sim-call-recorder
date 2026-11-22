@@ -1,19 +1,24 @@
-# Installing the beta APK
+# Beta installation status
 
-Download `SIM-Call-Recorder-<version>.apk` from the [latest GitHub Release](https://github.com/mojtaba-arvin/android-sim-call-recorder/releases/latest). Each release also contains the SDK AAR and SHA-256 checksums.
+**No public beta APK is currently available.** The project has not published a GitHub Release. Physical-device call-audio acceptance, independent review, and production APK signing are still incomplete.
 
-The APK attached to beta releases is built from the tagged commit and signed with the GitHub Actions debug keystore. It is intended for sideloaded testing, not Play Store distribution. CI debug keystores are ephemeral; if Android refuses to update an older installation because its signing certificate differs, back up recordings, uninstall the old app, then install the new APK.
+For internal development only, build a debug APK locally:
+
+```bash
+gradle --no-daemon :app:assembleDebug
+```
+
+The output is `app/build/outputs/apk/debug/app-debug.apk`. Install it with:
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+This debug build is for development and controlled testing only. It is not a signed public beta, does not establish device compatibility, and must not be redistributed as a production release. CI APK artifacts are likewise test outputs, not published releases.
 
 The current minSdk 26 is an experimental compatibility floor. Shizuku `VOICE_CALL` remains device/OEM/carrier dependent and is not a universal two-way recording guarantee. Speakerphone + MIC is acoustic capture and requires speakerphone; remote-party audibility is not guaranteed.
 
-## Install
-
-1. Download the versioned APK from GitHub Releases.
-2. Allow installation from the browser or file manager you used.
-3. Open the APK and install it.
-4. Grant permissions only after reviewing their purpose.
-
-## Shizuku setup
+## Shizuku setup for internal testing
 
 1. Install and start Shizuku separately.
 2. On Android 11+, use Wireless debugging; on Android 10 and below, start it with a computer and USB ADB unless rooted.
@@ -23,6 +28,8 @@ The current minSdk 26 is an experimental compatibility floor. Shizuku `VOICE_CAL
 
 ## Validate a real call
 
-Make a short test call with the other participant informed. Speak distinct phrases from both sides, stop the recording, and play it back. Confirm both phrases are audible before treating that device/firmware/carrier combination as compatible. Emulator and Robolectric tests cannot validate cellular audio routing.
+Make a short test call with the other participant informed. Speak distinct phrases from both sides, stop the recording, and play it back. Confirm both phrases are audible before treating that exact device/firmware/carrier/route/backend combination as compatible. Emulator and Robolectric tests cannot validate cellular audio routing.
+
+Follow the [physical-device acceptance protocol](PHYSICAL_DEVICE_ACCEPTANCE.md) for the required incoming/outgoing call count and independent Near-end/Far-end scoring.
 
 For integration through the public `SimCallRecorderSdk` facade, see [SDK integration](SDK_INTEGRATION.md).
