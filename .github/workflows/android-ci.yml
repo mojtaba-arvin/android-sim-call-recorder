@@ -117,7 +117,7 @@ jobs:
         run: bash scripts/verify-sdk-boundary.sh
 
       - name: Run unit tests, lint, and assemble debug APK
-        run: gradle --continue --console=plain :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug
+        run: gradle --continue --console=plain :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug :sdk-consumer-smoke:assembleDebug
 
       - name: Upload unit test and lint reports
         if: always()
