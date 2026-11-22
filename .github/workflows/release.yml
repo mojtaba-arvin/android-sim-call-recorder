@@ -5,32 +5,46 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+# Deny all permissions by default. Only the final publish job receives write access.
+permissions: {}
 
 concurrency:
   group: android-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Build and publish APK + SDK AAR
+  build:
+    name: Test and assemble release assets
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
-      - name: Check out tagged source
-        uses: actions/checkout@v5
+      - name: Check out tagged source without persisting credentials
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify release tag points to main history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD || {
+            echo "Release tags must point to a commit reachable from main." >&2
+            exit 1
+          }
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "21"
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
         with:
           gradle-version: "9.6.0"
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
       - name: Test, lint, and assemble versioned assets
@@ -57,19 +71,35 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk "release-assets/SIM-Call-Recorder-$VERSION.apk"
           cp callrecorder-sdk/build/outputs/aar/callrecorder-sdk-release.aar "release-assets/callrecorder-sdk-$VERSION.aar"
           (cd release-assets && sha256sum *.apk *.aar > SHA256SUMS.txt)
+      - name: Upload immutable release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-release-assets
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 1
 
-          if [[ "$VERSION" =~ -(alpha|beta|rc) ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
+  publish:
+    name: Publish APK + SDK AAR
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified release assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: android-release-assets
+          path: release-assets
       - name: Publish APK, SDK AAR, and checksums to GitHub Releases
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: SIM Call Recorder ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           draft: false
-          prerelease: ${{ steps.release_meta.outputs.prerelease }}
+          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
           generate_release_notes: true
           files: |
             release-assets/*.apk
