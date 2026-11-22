@@ -22,14 +22,14 @@ wait_for_marker() {
   local marker="$1"
   local attempt
   for attempt in $(seq 1 120); do
-    if adb logcat -d -s "$TAG:I" | grep -Fq "$marker"; then
+    if adb logcat -d -s "$TAG:V" | grep -Fq "$marker"; then
       echo "Observed: $marker"
       return 0
     fi
     sleep 1
   done
   echo "Timed out waiting for marker: $marker" >&2
-  adb logcat -d -s "$TAG:I" >&2
+  adb logcat -d -s "$TAG:V" >&2
   return 1
 }
 
