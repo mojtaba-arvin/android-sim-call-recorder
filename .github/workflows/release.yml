@@ -1,36 +1,53 @@
-name: Publish Android release
+name: Publish Android SDK AAR release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag reachable from main (for example v0.1.0-beta.1)
+        required: true
+        type: string
+      confirm_publish:
+        description: Explicitly publish the SDK AAR as a GitHub Release after the build succeeds
+        required: true
+        default: false
+        type: boolean
 
-# Deny all permissions by default. Only the final publish job receives write access.
+# No permissions unless a job explicitly requires them.
 permissions: {}
 
 concurrency:
-  group: android-release-${{ github.ref }}
+  group: android-release-${{ inputs.release_tag }}
   cancel-in-progress: false
 
 jobs:
   build:
-    name: Test and assemble release assets
+    name: Test and assemble SDK AAR
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
     steps:
-      - name: Check out tagged source without persisting credentials
+      - name: Check out existing release tag without persisting credentials
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ inputs.release_tag }}
           fetch-depth: 0
           persist-credentials: false
       - name: Verify release tag points to main history
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         shell: bash
         run: |
           set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9][A-Za-z0-9.+-]*$ ]] || {
+            echo "release_tag must be an existing version tag beginning with v." >&2
+            exit 1
+          }
           git fetch --no-tags origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD || {
+          TAG_COMMIT="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          git merge-base --is-ancestor "$TAG_COMMIT" FETCH_HEAD || {
             echo "Release tags must point to a commit reachable from main." >&2
             exit 1
           }
@@ -47,15 +64,14 @@ jobs:
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
-      - name: Test, lint, and assemble versioned assets
-        id: release_meta
+      - name: Test, lint, and assemble release variants
         env:
-          RELEASE_VERSION: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
           RELEASE_BUILD_NUMBER: ${{ github.run_number }}
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="${RELEASE_VERSION#v}"
+          VERSION="${RELEASE_TAG#v}"
           gradle --no-daemon --console=plain \
             -PappVersion="$VERSION" \
             -PappVersionCode="$RELEASE_BUILD_NUMBER" \
@@ -63,45 +79,45 @@ jobs:
             :app:testDebugUnitTest \
             :callrecorder-sdk:lintDebug \
             :app:lintDebug \
+            :callrecorder-sdk:lintRelease \
+            :app:lintRelease \
             :app:compileDebugAndroidTestKotlin \
             :callrecorder-sdk:assembleRelease \
-            :app:assembleDebug
+            :app:assembleRelease
 
           mkdir -p release-assets
-          cp app/build/outputs/apk/debug/app-debug.apk "release-assets/SIM-Call-Recorder-$VERSION.apk"
           cp callrecorder-sdk/build/outputs/aar/callrecorder-sdk-release.aar "release-assets/callrecorder-sdk-$VERSION.aar"
-          (cd release-assets && sha256sum *.apk *.aar > SHA256SUMS.txt)
-      - name: Upload immutable release assets
+          (cd release-assets && sha256sum *.aar > SHA256SUMS.txt)
+      - name: Upload SDK AAR and checksums
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: android-release-assets
+          name: android-sdk-release-assets
           path: release-assets/
           if-no-files-found: error
           retention-days: 1
 
   publish:
-    name: Publish APK + SDK AAR
+    name: Publish SDK AAR
     needs: build
+    if: ${{ inputs.confirm_publish && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
-      - name: Download verified release assets
+      - name: Download verified SDK AAR
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: android-release-assets
+          name: android-sdk-release-assets
           path: release-assets
-      - name: Publish APK, SDK AAR, and checksums to GitHub Releases
+      - name: Publish SDK AAR and checksums to GitHub Releases
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          name: SIM Call Recorder ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
+          name: SIM Call Recorder SDK ${{ inputs.release_tag }}
+          tag_name: ${{ inputs.release_tag }}
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+          prerelease: ${{ contains(inputs.release_tag, '-alpha') || contains(inputs.release_tag, '-beta') || contains(inputs.release_tag, '-rc') }}
           generate_release_notes: true
           files: |
-            release-assets/*.apk
             release-assets/*.aar
             release-assets/SHA256SUMS.txt
