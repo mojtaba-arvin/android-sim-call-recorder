@@ -67,7 +67,10 @@ jobs:
           while IFS= read -r file; do
             [[ -z "$file" ]] && continue
             case "$file" in
-              *.md|docs/*|agent-system/*) ;;
+              # These paths are validated by focused lightweight workflows or do not affect
+              # Android compilation/runtime. Keep emulator lanes for Android source, Gradle/build
+              # configuration, manifests, and the Android CI harness itself.
+              *.md|docs/*|agent-system/*|schemas/*|AGENTS.md|DECISIONS.md|.editorconfig|.gitignore|LICENSE|.github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.github/dependabot.yml|.github/workflows/agent-system-validation.yml|.github/workflows/physical-device-evidence.yml|.github/workflows/release.yml|scripts/validate_agent_system.py|scripts/validate_physical_device_report.py|scripts/tests/*) ;;
               *) code_changed=true ;;
             esac
             case "$file" in
