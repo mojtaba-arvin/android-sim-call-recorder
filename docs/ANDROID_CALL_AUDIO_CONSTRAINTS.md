@@ -70,9 +70,9 @@ Capture is armed by a visible user action and then begins automatically on match
 
 ### Requirements and expected limitations
 
-- Android 11 (API 30) or newer.
+- Android 8.0 (API 26) or newer for the app and Shizuku `UserService` integration. The repository's `minSdk` is 26.
 - Shizuku/Sui running and the user must grant this app Shizuku authorization.
-- Without root, Shizuku must be started via ADB. On Android 11+ this can be done with Wireless Debugging on the device; Android clears the debugging authorization on reboot and Shizuku normally needs to be restarted/authorized again. Older Android versions need a computer for ADB setup.
+- Without root, Shizuku must be started via ADB. On Android 11+ this can be done with Wireless Debugging on the device; Android clears the debugging authorization on reboot and Shizuku normally needs to be restarted/authorized again. Android 8–10 requires computer-based ADB setup. Wireless Debugging availability is a setup constraint, not the app's minimum API level.
 - UID 2000 does not have identical privileges on every Android build. The helper's shell-attribution initialization must succeed before the UI advertises capture readiness. Some OEMs restrict protected audio capture, and carrier/OEM audio HALs can still return silence or one direction only even when `VOICE_CALL` initializes.
 - The foreground-service notification is part of the recording disclosure. The Shizuku backend does not use Accessibility APIs; the separate Accessibility-priority microphone experiment is opt-in, does not inspect UI content, and is excluded from Google Play call-recording distribution.
 
