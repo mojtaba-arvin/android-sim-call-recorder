@@ -66,6 +66,19 @@ if [[ "$test_exit_code" -ne 0 ]] && grep -Eq "Could not (find org\\.junit\\.plat
 fi
 
 if [[ "$test_exit_code" -eq 0 ]]; then
+  echo "==> Re-establishing ADB after connected instrumentation tests" >> "$test_log"
+  if ! adb start-server >> "$test_log" 2>&1; then
+    echo "ADB server could not be restarted after instrumentation tests." >> "$test_log"
+    adb_diagnostics >> "$test_log" 2>&1
+    test_exit_code=1
+  elif ! timeout 120 adb wait-for-device >> "$test_log" 2>&1; then
+    echo "Emulator did not reconnect through ADB after instrumentation tests." >> "$test_log"
+    adb_diagnostics >> "$test_log" 2>&1
+    test_exit_code=1
+  fi
+fi
+
+if [[ "$test_exit_code" -eq 0 ]]; then
   apk="app/build/outputs/apk/debug/app-debug.apk"
   if [[ ! -s "$apk" ]]; then
     echo "Debug APK is missing after connected instrumentation tests." >> "$test_log"
@@ -76,7 +89,7 @@ if [[ "$test_exit_code" -eq 0 ]]; then
   elif ! adb shell pm path com.mojtaba.simcallrecorder >/dev/null 2>&1; then
     echo "Debug APK installation did not produce the expected application package." >> "$test_log"
     test_exit_code=1
-  elif bash scripts/run-process-death-emulator-tests.sh >> "$test_log" 2>&1; then
+  elif bash -x scripts/run-process-death-emulator-tests.sh >> "$test_log" 2>&1; then
     test_exit_code=0
   else
     test_exit_code=$?
