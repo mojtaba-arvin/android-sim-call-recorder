@@ -815,6 +815,7 @@ internal class CallRecordingForegroundService : Service() {
         const val EXTRA_TEST_DISABLE_CALL_END_WATCH = "com.mojtaba.simcallrecorder.extra.TEST_DISABLE_CALL_END_WATCH"
         const val EXTRA_TEST_CRASH_AFTER_PROMOTION = "com.mojtaba.simcallrecorder.extra.TEST_CRASH_AFTER_PROMOTION"
 
+        private const val TAG = "CallRecordingForegroundService"
         private const val PERMISSION_RECHECK_INTERVAL_MILLIS = 1_000L
         private const val NOTIFICATION_CHANNEL = "call_recording"
         private const val NOTIFICATION_ID = 4_201
