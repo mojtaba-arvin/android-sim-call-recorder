@@ -311,7 +311,7 @@ internal class AndroidVoiceCallCaptureEngine(
     }
 
     override fun stop() {
-        val record: AudioRecord?
+        val record: AudioRecordSession?
         val thread: Thread?
         synchronized(lock) {
             if (!active) return
