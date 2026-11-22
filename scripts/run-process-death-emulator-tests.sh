@@ -78,4 +78,11 @@ if [[ "$API_LEVEL" -ge 31 ]]; then
   wait_for_marker "FGS_START_DENIED_BY_PLATFORM"
 fi
 
-echo "Real process-death recovery, both crash windows, recovery/new-capture ordering, and background FGS denial passed."
+summary="Real process-death recovery, both crash windows, and recovery/new-capture ordering passed."
+if [[ "$API_LEVEL" -ge 33 ]]; then
+  summary+=", notification permission gate passed"
+fi
+if [[ "$API_LEVEL" -ge 31 ]]; then
+  summary+=", background FGS denial passed"
+fi
+echo "$summary."
