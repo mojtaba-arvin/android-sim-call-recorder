@@ -86,18 +86,25 @@ class MicrophoneDiagnosticsPolicyTest {
     }
 
     @Test
-    fun callbackRegistrationClearsStateEvenWhenPlatformUnregisterThrows() {
+    fun callbackRegistrationCanRetryWhenPlatformUnregisterThrows() {
+        var unregisterCalls = 0
         val lifecycle = AudioRecordingCallbackRegistration(
             registerCallback = {},
-            unregisterCallback = { error("platform unregister failed") },
+            unregisterCallback = {
+                unregisterCalls++
+                if (unregisterCalls == 1) error("platform unregister failed")
+            },
         )
         assertTrue(lifecycle.register())
 
         val failure = runCatching { lifecycle.unregister() }.exceptionOrNull()
 
         assertEquals("platform unregister failed", failure?.message)
+        assertTrue("A failed platform unregister must retain registration ownership", lifecycle.isRegistered())
+        assertTrue(lifecycle.unregister())
         assertFalse(lifecycle.isRegistered())
         assertFalse(lifecycle.unregister())
+        assertEquals(2, unregisterCalls)
     }
 
     private fun snapshot(sessionId: Int, silenced: Boolean) = AudioRecordingDiagnosticConfiguration(
