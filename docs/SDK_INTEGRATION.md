@@ -69,3 +69,6 @@ A host application integrating this SDK must make an explicit backup decision. F
 Apply exclusions to both cloud backup and device-to-device transfer. Verify the merged host-app manifest and backup rules; a library cannot unilaterally set the host application's `allowBackup` policy. Do not treat app-private storage as automatically excluded from backup.
 
 The SDK stores no phone number or SIM subscription identifier in new recording rows. Host applications must not export WAV files, call metadata, consent state, or diagnostic logs to analytics/crash reporting without a separate privacy review and explicit user authorization.
+
+
+For public API compatibility and release-tag semantics, see [SDK API and versioning policy](SDK_API_VERSIONING.md).
