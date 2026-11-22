@@ -29,6 +29,56 @@ internal interface VoiceCallCaptureEngine {
     val lastError: String
 }
 
+internal interface AudioRecordSession {
+    val state: Int
+    val recordingState: Int
+    fun startRecording()
+    fun read(buffer: ByteArray, offset: Int, size: Int, readMode: Int): Int
+    fun stop()
+    fun release()
+}
+
+internal interface AudioRecordSessionFactory {
+    fun getMinBufferSize(sampleRate: Int, channelMask: Int, encoding: Int): Int
+    fun create(
+        audioSource: Int,
+        sampleRate: Int,
+        channelMask: Int,
+        encoding: Int,
+        bufferSizeBytes: Int,
+    ): AudioRecordSession
+}
+
+internal class AndroidAudioRecordSessionFactory : AudioRecordSessionFactory {
+    override fun getMinBufferSize(sampleRate: Int, channelMask: Int, encoding: Int): Int =
+        AudioRecord.getMinBufferSize(sampleRate, channelMask, encoding)
+
+    override fun create(
+        audioSource: Int,
+        sampleRate: Int,
+        channelMask: Int,
+        encoding: Int,
+        bufferSizeBytes: Int,
+    ): AudioRecordSession {
+        val record = AudioRecord(
+            audioSource,
+            sampleRate,
+            channelMask,
+            encoding,
+            bufferSizeBytes,
+        )
+        return object : AudioRecordSession {
+            override val state: Int get() = record.state
+            override val recordingState: Int get() = record.recordingState
+            override fun startRecording() = record.startRecording()
+            override fun read(buffer: ByteArray, offset: Int, size: Int, readMode: Int): Int =
+                record.read(buffer, offset, size, readMode)
+            override fun stop() = record.stop()
+            override fun release() = record.release()
+        }
+    }
+}
+
 /**
  * Only instantiated inside the Shizuku UserService process (normally UID 2000).
  *
@@ -36,14 +86,16 @@ internal interface VoiceCallCaptureEngine {
  * grant cellular call uplink/downlink access. If VOICE_CALL cannot be opened under the authorized
  * shell/root identity, the session fails closed instead of writing a misleading microphone file.
  */
-internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
+internal class AndroidVoiceCallCaptureEngine(
+    private val audioRecordFactory: AudioRecordSessionFactory = AndroidAudioRecordSessionFactory(),
+) : VoiceCallCaptureEngine {
     private val lock = Any()
 
     @Volatile
     private var active = false
 
     @Volatile
-    private var currentRecord: AudioRecord? = null
+    private var currentRecord: AudioRecordSession? = null
 
     @Volatile
     private var writerThread: Thread? = null
@@ -98,7 +150,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
             for (audioSource in sourceCandidates) {
                 for ((channelMask, channelCount) in candidates) {
                     val minBufferBytes = try {
-                        AudioRecord.getMinBufferSize(
+                        audioRecordFactory.getMinBufferSize(
                             sampleRate,
                             channelMask,
                             AudioFormat.ENCODING_PCM_16BIT,
@@ -114,7 +166,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                     }
 
                     val record = try {
-                        AudioRecord(
+                        audioRecordFactory.create(
                             audioSource,
                             sampleRate,
                             channelMask,
@@ -194,7 +246,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
      * Releases resources when the writer thread could not be created or started. In this path
      * there is no drain thread to own AudioRecord/sink cleanup.
      */
-    private fun releaseUnstartedCapture(record: AudioRecord, sink: ParcelFileDescriptor) {
+    private fun releaseUnstartedCapture(record: AudioRecordSession, sink: ParcelFileDescriptor) {
         stopRequested.set(true)
         runCatching {
             if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()
@@ -207,7 +259,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
     }
 
     private fun drainAudioRecord(
-        record: AudioRecord,
+        record: AudioRecordSession,
         sink: ParcelFileDescriptor,
     ) {
         val buffer = ByteArray(16 * 1024)
