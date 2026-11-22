@@ -333,6 +333,19 @@ private class MicrophoneCaptureSession(
     }
 
     private fun registerAudioRecordingDiagnostics(record: AudioRecord) {
+        // A prior platform unregister may have failed. Retry before creating another callback;
+        // if it still fails, keep the old registration reference and avoid accumulating callbacks.
+        val previousRegistration = audioRecordingCallbackRegistration
+        if (previousRegistration != null) {
+            val previousUnregistered = runCatching { previousRegistration.unregister() }.isSuccess
+            if (!previousUnregistered) {
+                AudioRecordingDiagnostics.update(
+                    "Previous AudioRecordingCallback is still registered; new callback registration skipped.",
+                )
+                return
+            }
+            audioRecordingCallbackRegistration = null
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             AudioRecordingDiagnostics.update("AudioRecordingCallback requires Android 10 or newer.")
             return
@@ -380,9 +393,20 @@ private class MicrophoneCaptureSession(
 
     private fun unregisterAudioRecordingDiagnostics() {
         val registration = audioRecordingCallbackRegistration ?: return
-        runCatching { registration.unregister() }
-        audioRecordingCallbackRegistration = null
-        AudioRecordingDiagnostics.update("No microphone capture active")
+        val result = runCatching { registration.unregister() }
+        if (result.isSuccess) {
+            if (audioRecordingCallbackRegistration === registration) {
+                audioRecordingCallbackRegistration = null
+            }
+            AudioRecordingDiagnostics.update("No microphone capture active")
+        } else {
+            // Retain the registration object. The next microphone session retries unregister
+            // before registering a replacement callback.
+            AudioRecordingDiagnostics.update(
+                "Could not unregister AudioRecordingCallback; cleanup will be retried before the next microphone session: " +
+                    (result.exceptionOrNull()?.message ?: "unknown platform error"),
+            )
+        }
     }
 
     private fun audioSourceName(source: Int): String = when (source) {
