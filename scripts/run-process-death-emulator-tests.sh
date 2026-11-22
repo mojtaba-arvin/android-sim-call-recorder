@@ -17,9 +17,12 @@ if [[ "$API_LEVEL" -ge 33 ]]; then
   # a declared runtime permission. Grant and verify the harness prerequisite.
   adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS
   adb shell appops set "$PACKAGE" POST_NOTIFICATION allow
-  notification_permission="$(adb shell pm check-permission android.permission.POST_NOTIFICATIONS "$PACKAGE" | tr -d '\\r')"
-  if [[ "$notification_permission" != "granted" ]]; then
-    echo "POST_NOTIFICATIONS was not granted before process-death tests: $notification_permission" >&2
+  # Android 15's pm shell parser does not consistently expose check-permission.
+  # Read the authoritative runtime-grant state from dumpsys package instead.
+  package_dump="$(adb shell dumpsys package "$PACKAGE" | tr -d '\\r')"
+  if ! grep -Eq 'android\\.permission\\.POST_NOTIFICATIONS: granted=true([,[:space:]]|$)' <<< "$package_dump"; then
+    echo "POST_NOTIFICATIONS was not granted before process-death tests." >&2
+    grep -F 'android.permission.POST_NOTIFICATIONS:' <<< "$package_dump" >&2 || true
     exit 1
   fi
 fi
