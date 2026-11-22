@@ -52,6 +52,12 @@ Use `createArmAutomaticRecordingIntent` only after the host UI has obtained the 
 
 Capture backends, Room entities/DAOs, repositories, services, platform adapters, and Hilt modules use Kotlin `internal` visibility. The public integration surface is the `SimCallRecorderSdk` facade and the public domain models/recording-mode enum. The SDK does not promise a specific cellular audio route: Shizuku `VOICE_CALL` depends on shell/root permission and OEM audio-HAL behavior, while Speakerphone + MIC is acoustic capture.
 
+## External consumer smoke test
+
+The `:sdk-consumer-smoke` application is a separate host-app module that consumes the generated Release AAR through a file dependency; it does not use `project(":callrecorder-sdk")` or import implementation packages. It compiles Hilt injection of `SimCallRecorderSdk`, public StateFlow/Flow streams, permission helpers, public recording modes, domain recording models, and service-intent factories. Android CI builds the AAR first and then assembles this consumer app.
+
+This is an in-repository clean-consumer compile gate. A third-party application in a separately maintained repository remains a useful additional compatibility check.
+
 ## Validation
 
 A green Robolectric/emulator run does not prove two-way cellular audio. Validate both participant voices in a real call on each target OEM, Android build, and carrier combination.
