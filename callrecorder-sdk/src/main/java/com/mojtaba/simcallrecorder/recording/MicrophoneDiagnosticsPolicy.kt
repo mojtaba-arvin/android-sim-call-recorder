@@ -43,3 +43,38 @@ internal fun AudioRecordingDiagnosticConfiguration.toDiagnosticStatus(): String 
         "deviceFormat=${deviceSampleRate}Hz/${deviceChannelCount}ch; " +
         "clientSilenced=$clientSilenced (not proof of two-way call audio)"
 }
+
+
+/**
+ * Owns the registration state for one AudioRecordingCallback instance.
+ * The platform adapter is supplied by the caller so registration ordering and cleanup can be
+ * verified without constructing Android AudioManager objects in local unit tests.
+ */
+internal class AudioRecordingCallbackRegistration(
+    private val registerCallback: () -> Unit,
+    private val unregisterCallback: () -> Unit,
+) {
+    private var registered = false
+
+    @Synchronized
+    fun register(): Boolean {
+        if (registered) return false
+        registerCallback()
+        registered = true
+        return true
+    }
+
+    @Synchronized
+    fun unregister(): Boolean {
+        if (!registered) return false
+        try {
+            unregisterCallback()
+        } finally {
+            registered = false
+        }
+        return true
+    }
+
+    @Synchronized
+    fun isRegistered(): Boolean = registered
+}
