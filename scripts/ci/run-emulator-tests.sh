@@ -53,9 +53,11 @@ fi
 
 echo "==> Emulator ready: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 if ! adb logcat -c; then
-  echo "Unable to clear logcat after emulator boot; refusing to run tests with an ambiguous diagnostic window." >&2
+  # Some hosted emulator/platform-tools combinations reject buffer clearing even
+  # when the emulator is online and boot-complete. Logcat is diagnostic-only:
+  # preserve the failure in the report, but do not block instrumentation on it.
+  echo "Warning: unable to clear logcat after emulator boot; continuing with pre-test log entries in the diagnostic capture." >&2
   adb_diagnostics
-  exit 1
 fi
 
 # The connected instrumentation task may uninstall the target APK on completion.
