@@ -21,10 +21,10 @@ internal class AndroidAudioRouteDataSource @Inject constructor(
                     else -> "Unknown direction"
                 },
                 deviceType = displayType,
-                displayName = device.productName.ifBlank { displayType },
+                displayName = displayType,
                 selectedForCommunication = device.id == inventory.selectedCommunicationDeviceId,
             )
-        }.sortedWith(compareBy<AudioRoute>({ it.direction }, { it.deviceType }, { it.displayName }))
+        }.sortedWith(compareBy<AudioRoute>({ it.direction }, { it.deviceType }))
     }
 }
 
