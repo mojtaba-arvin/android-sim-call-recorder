@@ -85,10 +85,13 @@ class AudioRecordingCallbackInstrumentedTest {
             runCatching {
                 if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) recorder.stop()
             }
-            if (registered) {
-                audioManager.unregisterAudioRecordingCallback(callback)
+            try {
+                if (registered) {
+                    audioManager.unregisterAudioRecordingCallback(callback)
+                }
+            } finally {
+                recorder.release()
             }
-            recorder.release()
         }
     }
 }
