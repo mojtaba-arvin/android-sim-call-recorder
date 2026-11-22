@@ -13,7 +13,6 @@ internal data class AudioDeviceSnapshot(
     val type: Int,
     val isSource: Boolean,
     val isSink: Boolean,
-    val productName: String,
 )
 
 internal data class AudioDeviceInventory(
