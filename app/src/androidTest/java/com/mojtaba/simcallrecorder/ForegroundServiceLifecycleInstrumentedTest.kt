@@ -149,8 +149,8 @@ class ForegroundServiceLifecycleInstrumentedTest {
             executeShellCommand(
                 "pm grant ${context.packageName} ${Manifest.permission.POST_NOTIFICATIONS}",
             )
-            executeShellCommand("appops set ${context.packageName} POST_NOTIFICATION allow")
-            executeShellCommand("appops set ${context.packageName} RECORD_AUDIO allow")
+            executeShellCommand("appops set --uid ${context.packageName} POST_NOTIFICATION allow")
+            executeShellCommand("appops set --uid ${context.packageName} RECORD_AUDIO allow")
             assertEquals(
                 PackageManager.PERMISSION_GRANTED,
                 ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO),
@@ -203,7 +203,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
                 records.any { it.status == "RECORDING" }
             }.single { it.status == "RECORDING" }
 
-            executeShellCommand("appops set ${context.packageName} RECORD_AUDIO ignore")
+            executeShellCommand("appops set --uid ${context.packageName} RECORD_AUDIO ignore")
             val revokedAppOp = executeShellCommand(
                 "appops get ${context.packageName} RECORD_AUDIO",
             )
