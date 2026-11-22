@@ -1,4 +1,8 @@
+import hashlib
+import tempfile
 import unittest
+import wave
+from pathlib import Path
 
 from validate_physical_device_report import ReportError, validate_report
 
@@ -17,8 +21,8 @@ def make_report():
                 "recording_finalized": True,
                 "local_phrase_intelligible": True,
                 "remote_phrase_intelligible": True,
-                "wav_sha256": "a" * 64,
-                "wav_bytes": 4096,
+                "wav_sha256": "0" * 64,
+                "wav_bytes": 60,
                 "sample_rate": 48000,
                 "channels": 2,
             })
@@ -49,18 +53,58 @@ def make_report():
     }
 
 
+def write_wavs(report, directory):
+    for call in report["calls"]:
+        path = Path(directory) / f"{call['call_id']}.wav"
+        with wave.open(str(path), "wb") as output:
+            output.setnchannels(call["channels"])
+            output.setsampwidth(2)
+            output.setframerate(call["sample_rate"])
+            output.writeframes(b"\x01\x00\x02\x00" * 4)
+        call["wav_bytes"] = path.stat().st_size
+        call["wav_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 class PhysicalDeviceReportTest(unittest.TestCase):
-    def test_six_successful_calls_produce_two_way_pass(self):
-        outcome, failures = validate_report(make_report())
+    def test_six_verified_calls_produce_two_way_pass(self):
+        report = make_report()
+        with tempfile.TemporaryDirectory() as directory:
+            write_wavs(report, directory)
+            outcome, failures = validate_report(report, Path(directory))
         self.assertEqual("PASS_TWO_WAY", outcome)
         self.assertEqual([], failures)
 
     def test_one_sided_audio_fails_closed(self):
         report = make_report()
         report["calls"][0]["remote_phrase_intelligible"] = False
-        outcome, failures = validate_report(report)
+        with tempfile.TemporaryDirectory() as directory:
+            write_wavs(report, directory)
+            outcome, failures = validate_report(report, Path(directory))
         self.assertEqual("FAIL", outcome)
         self.assertTrue(any("remote phrase" in item for item in failures))
+
+    def test_missing_wav_directory_never_produces_two_way_pass(self):
+        outcome, failures = validate_report(make_report())
+        self.assertEqual("REPORT_VALIDATION_ONLY", outcome)
+        self.assertTrue(any("WAV directory" in item for item in failures))
+
+    def test_wav_hash_mismatch_fails(self):
+        report = make_report()
+        with tempfile.TemporaryDirectory() as directory:
+            write_wavs(report, directory)
+            report["calls"][0]["wav_sha256"] = "a" * 64
+            outcome, failures = validate_report(report, Path(directory))
+        self.assertEqual("FAIL", outcome)
+        self.assertTrue(any("SHA-256" in item for item in failures))
+
+    def test_wav_channel_mismatch_fails(self):
+        report = make_report()
+        with tempfile.TemporaryDirectory() as directory:
+            write_wavs(report, directory)
+            report["calls"][0]["channels"] = 1
+            outcome, failures = validate_report(report, Path(directory))
+        self.assertEqual("FAIL", outcome)
+        self.assertTrue(any("channel count" in item for item in failures))
 
     def test_fewer_than_three_calls_per_direction_is_rejected(self):
         report = make_report()
@@ -88,6 +132,12 @@ class PhysicalDeviceReportTest(unittest.TestCase):
         report = make_report()
         report["calls"][1]["call_id"] = report["calls"][0]["call_id"]
         with self.assertRaisesRegex(ReportError, "duplicate"):
+            validate_report(report)
+
+    def test_unexpected_schema_fields_are_rejected(self):
+        report = make_report()
+        report["capture"]["fallback_reason"] = "should be schema-versioned first"
+        with self.assertRaisesRegex(ReportError, "unexpected fields"):
             validate_report(report)
 
 
