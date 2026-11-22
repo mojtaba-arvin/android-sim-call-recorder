@@ -55,3 +55,17 @@ Capture backends, Room entities/DAOs, repositories, services, platform adapters,
 ## Validation
 
 A green Robolectric/emulator run does not prove two-way cellular audio. Validate both participant voices in a real call on each target OEM, Android build, and carrier combination.
+
+## Recording data protection and backup
+
+The SDK writes WAV files under the host app's private `files/recordings/` directory and stores recording metadata in `databases/recordings.db`. The sample app disables Android backup and excludes app files, databases, and shared preferences from cloud backup and device transfer.
+
+A host application integrating this SDK must make an explicit backup decision. For call recordings, the recommended default is to disable backup (`android:allowBackup="false"`) unless the product has a separately reviewed, consented export/backup design. If the host app enables backup for other data, its full-backup and Android 12+ data-extraction rules must explicitly exclude at least:
+
+- `domain="file" path="recordings/"`
+- `domain="database" path="recordings.db"` (and any associated Room/WAL/SHM files, preferably by excluding the database domain or the complete recordings database directory)
+- `domain="sharedpref" path="secure_recording_state.xml"`
+
+Apply exclusions to both cloud backup and device-to-device transfer. Verify the merged host-app manifest and backup rules; a library cannot unilaterally set the host application's `allowBackup` policy. Do not treat app-private storage as automatically excluded from backup.
+
+The SDK stores no phone number or SIM subscription identifier in new recording rows. Host applications must not export WAV files, call metadata, consent state, or diagnostic logs to analytics/crash reporting without a separate privacy review and explicit user authorization.
