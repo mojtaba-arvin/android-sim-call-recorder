@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import com.mojtaba.simcallrecorder.domain.model.RecordingMode
 import java.nio.ByteBuffer
 import java.security.KeyStore
@@ -70,11 +71,9 @@ internal class SecureRecordingStateStore(context: Context) {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, loadOrCreateKey())
         val payload = cipher.iv + cipher.doFinal(plaintext)
-        check(
-            preferences.edit()
-                .putString(ENCRYPTED_STATE_KEY, Base64.encodeToString(payload, Base64.NO_WRAP))
-                .commit(),
-        ) { "Could not persist encrypted recording consent state." }
+        preferences.edit(commit = true) {
+            putString(ENCRYPTED_STATE_KEY, Base64.encodeToString(payload, Base64.NO_WRAP))
+        }
     }
 
     private fun loadOrCreateKey(): SecretKey {
