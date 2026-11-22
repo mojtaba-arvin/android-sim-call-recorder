@@ -1,8 +1,11 @@
 import hashlib
+import sys
 import tempfile
 import unittest
 import wave
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from validate_physical_device_report import ReportError, validate_report
 
