@@ -9,7 +9,7 @@ A native Android (Kotlin) project investigating reliable SIM-call recording on r
 ## Project goals
 
 - Native Kotlin implementation; no cross-platform runtime. Accessibility-priority microphone capture is an isolated, optional experiment and is not a general digital call-audio API.
-- Android 9 (API 28) diagnostics baseline, with privileged capture prototype requiring Android 11+.
+- Android app and Shizuku UserService compatibility floor: API 26 (Android 8.0). Starting Shizuku through on-device Wireless Debugging requires Android 11+; Android 8–10 requires root or computer-based ADB setup.
 - Explicit separation between call-state detection, audio-capture capability, recording lifecycle, persistence, and UI.
 - App-private WAV storage and local metadata; no broad storage permission.
 - Transparent user controls and explicit recording disclosure.
