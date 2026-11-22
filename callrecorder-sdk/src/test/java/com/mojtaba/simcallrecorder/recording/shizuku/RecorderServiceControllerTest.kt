@@ -198,9 +198,12 @@ class RecorderServiceControllerTest {
 
         engine.finishCapture()
         assertFalse(engine.isCapturing)
-        assertEquals(2, controller.start(pipe[1], 48_000, 2))
+        val retryPipe = ParcelFileDescriptor.createPipe()
+        assertEquals(2, controller.start(retryPipe[1], 48_000, 2))
+        engine.finishCapture()
         controller.stop()
         pipe[0].close()
+        retryPipe[0].close()
     }
 
     private class FakeCaptureEngine(
