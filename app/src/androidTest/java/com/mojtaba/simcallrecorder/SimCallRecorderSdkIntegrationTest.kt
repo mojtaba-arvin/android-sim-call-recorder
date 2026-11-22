@@ -45,4 +45,20 @@ class SimCallRecorderSdkIntegrationTest {
         assertNotNull(sdk.recordedItems.value)
         assertNotNull(sdk.callStates.value)
     }
+    @Test
+    fun debugProcessDeathHarnessRequiresShellDumpPermission() {
+        val context = androidx.test.platform.app.InstrumentationRegistry
+            .getInstrumentation().targetContext
+        val activity = context.packageManager.getActivityInfo(
+            android.content.ComponentName(
+                context.packageName,
+                "${context.packageName}.ProcessDeathHarnessActivity",
+            ),
+            0,
+        )
+
+        assertTrue(activity.exported)
+        org.junit.Assert.assertEquals(Manifest.permission.DUMP, activity.permission)
+    }
+
 }
