@@ -1,0 +1,46 @@
+name: Physical device evidence contract
+
+on:
+  push:
+    branches: [main, bootstrap/native-android-foundation]
+    paths:
+      - "schemas/physical-device-evidence.schema.json"
+      - "scripts/validate_physical_device_report.py"
+      - "scripts/tests/test_validate_physical_device_report.py"
+      - ".github/workflows/physical-device-evidence.yml"
+      - "docs/PHYSICAL_DEVICE_EVIDENCE_REPORT.md"
+  pull_request:
+    branches: [main, bootstrap/native-android-foundation]
+    paths:
+      - "schemas/physical-device-evidence.schema.json"
+      - "scripts/validate_physical_device_report.py"
+      - "scripts/tests/test_validate_physical_device_report.py"
+      - ".github/workflows/physical-device-evidence.yml"
+      - "docs/PHYSICAL_DEVICE_EVIDENCE_REPORT.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: physical-device-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate physical evidence contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Validate JSON schema and Python tests
+        run: |
+          python -m json.tool schemas/physical-device-evidence.schema.json > /dev/null
+          python -m unittest discover -s scripts/tests -p 'test_validate_physical_device_report.py' -v

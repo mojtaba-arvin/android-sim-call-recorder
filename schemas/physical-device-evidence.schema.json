@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/mojtaba-arvin/android-sim-call-recorder/blob/main/schemas/physical-device-evidence.schema.json",
+  "title": "Physical SIM call recording evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_id", "tested_at", "device", "app", "capture", "calls"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "report_id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$" },
+    "tested_at": { "type": "string", "format": "date-time" },
+    "device": {
+      "type": "object", "additionalProperties": false,
+      "required": ["manufacturer", "model", "android_release", "api_level", "build_id", "security_patch"],
+      "properties": {
+        "manufacturer": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "android_release": { "type": "string", "minLength": 1, "maxLength": 30 },
+        "api_level": { "type": "integer", "minimum": 26 },
+        "build_id": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "security_patch": { "type": "string", "format": "date" }
+      }
+    },
+    "app": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "commit"],
+      "properties": {
+        "version": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "capture": {
+      "type": "object", "additionalProperties": false,
+      "required": ["strategy", "actual_audio_source", "sim_slot_index", "route", "network_mode"],
+      "properties": {
+        "strategy": { "enum": ["SHIZUKU_VOICE_CALL", "SPEAKERPHONE_MIC", "ACCESSIBILITY_MIC", "PLATFORM_VOICE_RECOGNITION"] },
+        "actual_audio_source": { "enum": ["VOICE_CALL", "MIC", "VOICE_COMMUNICATION", "VOICE_RECOGNITION", "UNKNOWN"] },
+        "sim_slot_index": { "type": "integer", "minimum": 0 },
+        "route": { "enum": ["EARPIECE", "SPEAKER", "WIRED_HEADSET", "BLUETOOTH"] },
+        "network_mode": { "enum": ["LTE", "5G", "VOLTE", "WIFI_CALLING", "OTHER", "UNKNOWN"] },
+        "helper_uid": { "type": ["integer", "null"], "enum": [0, 2000, null] },
+        "shell_audio_attribution_ready": { "type": "boolean" },
+        "protected_call_audio_permission_ready": { "type": "boolean" }
+      }
+    },
+    "calls": {
+      "type": "array", "minItems": 6,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["call_id", "direction", "attempt", "call_state_events", "recording_started", "recording_finalized", "local_phrase_intelligible", "remote_phrase_intelligible", "wav_sha256", "wav_bytes", "sample_rate", "channels"],
+        "properties": {
+          "call_id": { "type": "string", "pattern": "^[a-zA-Z0-9._-]{1,32}$" },
+          "direction": { "enum": ["INCOMING", "OUTGOING"] },
+          "attempt": { "type": "integer", "minimum": 1 },
+          "call_state_events": { "type": "array", "items": { "enum": ["RINGING", "OFFHOOK", "IDLE"] }, "minItems": 2 },
+          "recording_started": { "type": "boolean" },
+          "recording_finalized": { "type": "boolean" },
+          "local_phrase_intelligible": { "type": "boolean" },
+          "remote_phrase_intelligible": { "type": "boolean" },
+          "wav_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "wav_bytes": { "type": "integer", "minimum": 45 },
+          "sample_rate": { "type": "integer", "minimum": 8000, "maximum": 96000 },
+          "channels": { "type": "integer", "enum": [1, 2] }
+        }
+      }
+    }
+  }
+}
