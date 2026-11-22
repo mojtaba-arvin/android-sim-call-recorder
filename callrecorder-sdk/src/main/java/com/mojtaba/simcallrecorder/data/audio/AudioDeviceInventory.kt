@@ -46,7 +46,6 @@ internal class AndroidAudioDeviceInventorySource @Inject constructor(
                         type = device.type,
                         isSource = device.isSource,
                         isSink = device.isSink,
-                        productName = device.productName.toString(),
                     )
                 }
         }.getOrDefault(emptyList())
