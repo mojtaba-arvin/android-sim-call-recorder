@@ -1,6 +1,6 @@
 # SIM Call Recorder
 
-[Download the latest APK from GitHub Releases](https://github.com/mojtaba-arvin/android-sim-call-recorder/releases/latest). Each versioned release includes the sample APK, reusable SDK AAR, and SHA-256 checksums.
+**Release status:** no public APK or SDK release has been published. Real-device Near-end/Far-end acceptance and independent review are still pending.
 
 A native Android (Kotlin) project investigating reliable SIM-call recording on real devices.
 
@@ -40,7 +40,7 @@ The recording engine is extracted into `:callrecorder-sdk`; `:app` consumes it w
 
 ### Downloadable releases
 
-Push a version tag such as `v0.2.0-beta.1` to build and publish a GitHub Release automatically. The workflow runs module tests and lint, compiles app instrumentation tests, assembles the release AAR and debug-signed sample APK, then attaches both files and SHA-256 checksums to the Release page. The APK is suitable for beta sideloading; production signing requires a protected release-keystore secret and is not committed to the repository.
+No automatic tag-triggered release is enabled. The SDK AAR workflow is available only through manual dispatch from `main`, requires an existing version tag reachable from `main`, and publishes only when `confirm_publish=true`. It publishes the SDK AAR and SHA-256 checksum; it does not publish an app APK. The app module has no production signing configuration yet, and a debug APK must not be treated as a public release. APK publication remains blocked on production signing and physical-device acceptance (see [Issue #38](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/38)).
 
 ## Build
 
