@@ -42,6 +42,64 @@ class MicrophoneDiagnosticsPolicyTest {
         assertTrue(unsilenced.contains("not proof of two-way call audio"))
     }
 
+    @Test
+    fun callbackRegistrationIsIdempotentAndUnregistersOnlyOnce() {
+        var registerCalls = 0
+        var unregisterCalls = 0
+        val lifecycle = AudioRecordingCallbackRegistration(
+            registerCallback = { registerCalls++ },
+            unregisterCallback = { unregisterCalls++ },
+        )
+
+        assertTrue(lifecycle.register())
+        assertFalse(lifecycle.register())
+        assertTrue(lifecycle.isRegistered())
+        assertEquals(1, registerCalls)
+
+        assertTrue(lifecycle.unregister())
+        assertFalse(lifecycle.unregister())
+        assertFalse(lifecycle.isRegistered())
+        assertEquals(1, unregisterCalls)
+    }
+
+    @Test
+    fun callbackRegistrationCanRetryAfterPlatformRegistrationThrows() {
+        var registerCalls = 0
+        var unregisterCalls = 0
+        val lifecycle = AudioRecordingCallbackRegistration(
+            registerCallback = {
+                registerCalls++
+                if (registerCalls == 1) error("platform registration failed")
+            },
+            unregisterCallback = { unregisterCalls++ },
+        )
+
+        val failure = runCatching { lifecycle.register() }.exceptionOrNull()
+        assertEquals("platform registration failed", failure?.message)
+        assertFalse(lifecycle.isRegistered())
+        assertTrue(lifecycle.register())
+        assertTrue(lifecycle.isRegistered())
+        assertEquals(2, registerCalls)
+
+        assertTrue(lifecycle.unregister())
+        assertEquals(1, unregisterCalls)
+    }
+
+    @Test
+    fun callbackRegistrationClearsStateEvenWhenPlatformUnregisterThrows() {
+        val lifecycle = AudioRecordingCallbackRegistration(
+            registerCallback = {},
+            unregisterCallback = { error("platform unregister failed") },
+        )
+        assertTrue(lifecycle.register())
+
+        val failure = runCatching { lifecycle.unregister() }.exceptionOrNull()
+
+        assertEquals("platform unregister failed", failure?.message)
+        assertFalse(lifecycle.isRegistered())
+        assertFalse(lifecycle.unregister())
+    }
+
     private fun snapshot(sessionId: Int, silenced: Boolean) = AudioRecordingDiagnosticConfiguration(
         sessionId = sessionId,
         clientSource = "MIC",
