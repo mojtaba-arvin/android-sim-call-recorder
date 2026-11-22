@@ -17,7 +17,7 @@ if [[ "$API_LEVEL" -ge 33 ]]; then
   # a declared runtime permission. Grant and verify the harness prerequisite.
   adb shell pm grant "$PACKAGE" android.permission.POST_NOTIFICATIONS
   adb shell appops set "$PACKAGE" POST_NOTIFICATION allow
-  notification_permission="$(adb shell pm check-permission "$PACKAGE" android.permission.POST_NOTIFICATIONS | tr -d '\\r')"
+  notification_permission="$(adb shell pm check-permission android.permission.POST_NOTIFICATIONS "$PACKAGE" | tr -d '\\r')"
   if [[ "$notification_permission" != "granted" ]]; then
     echo "POST_NOTIFICATIONS was not granted before process-death tests: $notification_permission" >&2
     exit 1
