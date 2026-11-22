@@ -490,7 +490,7 @@ internal class CallRecordingForegroundService : Service() {
                     // onDestroy() cancels serviceScope. Keep backend stop and the matching Room
                     // commit atomic with respect to that cancellation, including failures while
                     // the state machine is still STARTING and has no activeMode visible to onDestroy.
-                    withContext(NonCancellable) {
+                    NonCancellableCleanup.run {
                         if (startedMode != null) {
                             val finalized = runCatching { recordingCoordinator.stop(startedMode) }.getOrNull()
                             if (insertedRecordId != null) {
