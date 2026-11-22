@@ -339,30 +339,27 @@ private class MicrophoneCaptureSession(
         }
         val callback = object : AudioManager.AudioRecordingCallback() {
             override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>) {
-                val configuration = configs.firstOrNull {
-                    it.clientAudioSessionId == record.audioSessionId
-                }
+                val configuration = configs.map { config ->
+                    AudioRecordingDiagnosticConfiguration(
+                        sessionId = config.clientAudioSessionId,
+                        clientSource = audioSourceName(config.clientAudioSource),
+                        activeSource = audioSourceName(config.audioSource),
+                        // Never persist AudioDeviceInfo.productName: OEM/Bluetooth names can identify a person.
+                        inputDeviceType = config.audioDevice?.type,
+                        clientSampleRate = config.clientFormat.sampleRate,
+                        clientChannelCount = config.clientFormat.channelCount,
+                        deviceSampleRate = config.format.sampleRate,
+                        deviceChannelCount = config.format.channelCount,
+                        clientSilenced = config.isClientSilenced,
+                    )
+                }.forAudioSession(record.audioSessionId)
                 if (configuration == null) {
                     AudioRecordingDiagnostics.update(
                         "No active framework recording configuration for session ${record.audioSessionId}.",
                     )
                     return
                 }
-                // Never persist AudioDeviceInfo.productName: OEM/Bluetooth names can identify a person.
-                val device = configuration.audioDevice?.let {
-                    "type=${it.type}"
-                } ?: "unknown input device"
-                AudioRecordingDiagnostics.update(
-                    "session=${configuration.clientAudioSessionId}; " +
-                        "clientSource=${audioSourceName(configuration.clientAudioSource)}; " +
-                        "activeSource=${audioSourceName(configuration.audioSource)}; " +
-                        "device=$device; " +
-                        "clientFormat=${configuration.clientFormat.sampleRate}Hz/" +
-                        "${configuration.clientFormat.channelCount}ch; " +
-                        "deviceFormat=${configuration.format.sampleRate}Hz/" +
-                        "${configuration.format.channelCount}ch; " +
-                        "clientSilenced=${configuration.isClientSilenced}",
-                )
+                AudioRecordingDiagnostics.update(configuration.toDiagnosticStatus())
             }
         }
         AudioRecordingDiagnostics.update("Waiting for framework recording configuration · session ${record.audioSessionId}")
