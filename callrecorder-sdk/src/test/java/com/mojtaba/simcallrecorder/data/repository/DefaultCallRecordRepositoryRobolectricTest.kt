@@ -462,4 +462,49 @@ class DefaultCallRecordRepositoryRobolectricTest {
             databaseFile.delete()
         }
     }
+
+    @Test
+    fun prepareForCaptureRemovesOnlyUnreferencedFinalWavs() = runBlocking {
+        val folder = File(context.filesDir, "recordings").apply { mkdirs() }
+        val referencedWav = File(folder, "active-session.wav").apply {
+            writeBytes(byteArrayOf(1, 2, 3))
+        }
+        val orphanWav = File(folder, "orphan-after-room-insert-race.WAV").apply {
+            writeBytes(byteArrayOf(4, 5, 6))
+        }
+        val unrelatedFile = File(folder, "operator-notes.txt").apply {
+            writeText("must not be removed by recording recovery")
+        }
+        val nestedDirectory = File(folder, "exports").apply { mkdirs() }
+        val nestedWav = File(nestedDirectory, "nested.wav").apply {
+            writeBytes(byteArrayOf(7, 8, 9))
+        }
+
+        repository.createActiveRecording(
+            CallRecord(
+                startedAtEpochMillis = 100_000L,
+                durationMillis = null,
+                phoneNumber = null,
+                simSlotIndex = 0,
+                filePath = referencedWav.absolutePath,
+                recordingMode = "SHIZUKU_VOICE_CALL",
+                audioSource = "VOICE_CALL",
+                sampleRate = 48_000,
+                channelCount = 2,
+                dataBytes = 0L,
+                peakSample = 0,
+                rmsSample = 0,
+                isSilent = null,
+                status = "RECORDING",
+                failureReason = null,
+            ),
+        )
+
+        repository.prepareForCapture()
+
+        assertTrue("Every Room-referenced WAV must be preserved, including active rows.", referencedWav.exists())
+        assertFalse("A promoted WAV with no Room row is an orphan and must be removed.", orphanWav.exists())
+        assertTrue("Recovery must not delete unrelated files.", unrelatedFile.exists())
+        assertTrue("Recovery must not recurse into unrelated subdirectories.", nestedWav.exists())
+    }
 }
