@@ -11,6 +11,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
@@ -74,6 +75,26 @@ internal class CallRecordingForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         latestStartId = startId
+
+        // Promote immediately, before profile discovery or backend selection. Android 14+
+        // enforces the foreground-service startup deadline for microphone capture.
+        if (intent?.action == ACTION_START || intent?.action == ACTION_ARM_AUTOMATIC) {
+            val requestedMode = intent.getStringExtra(EXTRA_RECORDING_MODE)
+                ?.let { runCatching { RecordingMode.valueOf(it) }.getOrNull() }
+                ?: RecordingMode.SHIZUKU_VOICE_CALL
+            try {
+                startForegroundCompat(
+                    buildNotification("Starting ${automaticModeLabel(requestedMode)} service"),
+                    requestedMode,
+                )
+            } catch (exception: Exception) {
+                Log.e(TAG, "FOREGROUND_PROMOTION_FAILED action=${intent.action} mode=$requestedMode", exception)
+                updateNotification("Recording service could not start · ${exception.message}")
+                stopSelf(startId)
+                return START_NOT_STICKY
+            }
+        }
+
         when (intent?.action) {
             ACTION_START -> startCapture(intent)
             ACTION_ARM_AUTOMATIC -> armAutomaticMonitoring(intent)
@@ -122,6 +143,12 @@ internal class CallRecordingForegroundService : Service() {
         }
         val notificationsGranted = hasNotificationPermission()
         val strategyAvailable = selectedMode?.let { recordingCoordinator.isAvailable(it, profile) } == true
+        Log.i(
+            TAG,
+            "ARM_DIAGNOSTICS requestedMode=$requestedMode selectedMode=$selectedMode " +
+                "consent=$consent recordAudioGranted=${profile.recordAudioGranted} " +
+                "notificationsGranted=$notificationsGranted strategyAvailable=$strategyAvailable",
+        )
 
         if (selectedMode == null || !automaticPolicy.arm(
                 enabled = true,
