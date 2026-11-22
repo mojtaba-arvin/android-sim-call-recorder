@@ -54,7 +54,7 @@ GitHub Actions runs JUnit/Robolectric tests in both modules, lint, SDK release-A
 
 ## Call-audio capture
 
-The standard third-party app process does not have public-SDK access to cellular uplink/downlink. `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK` require `CAPTURE_AUDIO_OUTPUT`, which is reserved for privileged/system components. During an active voice call, Android's input-sharing rules prioritize the call; a normal app cannot assume `MIC` or `VOICE_COMMUNICATION` receives call audio.
+The standard third-party app process does not have public-SDK access to cellular uplink/downlink. `VOICE_CALL`, `VOICE_UPLINK`, and `VOICE_DOWNLINK` require protected call-audio permissions: `CALL_AUDIO_INTERCEPTION` on current Android or the legacy `CAPTURE_AUDIO_OUTPUT` fallback, reserved for privileged/system components. During an active voice call, Android's input-sharing rules prioritize the call; a normal app cannot assume `MIC` or `VOICE_COMMUNICATION` receives call audio.
 
 The application exposes multiple strategies through a common `CallCaptureStrategy` contract:
 
