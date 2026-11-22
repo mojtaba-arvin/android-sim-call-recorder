@@ -23,21 +23,18 @@ class AndroidAudioRouteDataSourceRobolectricTest {
                         type = AudioDeviceInfo.TYPE_BUILTIN_MIC,
                         isSource = true,
                         isSink = false,
-                        productName = "Built-in microphone",
                     ),
                     AudioDeviceSnapshot(
                         id = 2,
                         type = AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
                         isSource = false,
                         isSink = true,
-                        productName = "Built-in speaker",
                     ),
                     AudioDeviceSnapshot(
                         id = 3,
                         type = AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
                         isSource = false,
                         isSink = true,
-                        productName = "Bluetooth headset",
                     ),
                 ),
                 selectedCommunicationDeviceId = 2,
@@ -49,7 +46,7 @@ class AndroidAudioRouteDataSourceRobolectricTest {
         assertEquals(
             listOf(
                 AudioRoute("Input", "Built-in microphone", "Built-in microphone", false),
-                AudioRoute("Output", "Bluetooth SCO", "Bluetooth headset", false),
+                AudioRoute("Output", "Bluetooth SCO", "Bluetooth SCO", false),
                 AudioRoute("Output", "Built-in speaker", "Built-in speaker", true),
             ),
             routes,
@@ -76,7 +73,6 @@ class AndroidAudioRouteDataSourceRobolectricTest {
                             type = AudioDeviceInfo.TYPE_WIRED_HEADSET,
                             isSource = true,
                             isSink = true,
-                            productName = "",
                         ),
                     ),
                     selectedCommunicationDeviceId = null,
