@@ -166,7 +166,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                     } catch (exception: Exception) {
                         releaseUnstartedCapture(record, sink)
                         lastError = "Could not create the AudioRecord writer thread: ${exception.javaClass.simpleName}: ${exception.message}"
-                        continue
+                        return 0
                     }
 
                     writerThread = thread
@@ -175,7 +175,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                     } catch (exception: Exception) {
                         releaseUnstartedCapture(record, sink)
                         lastError = "Could not start the AudioRecord writer thread: ${exception.javaClass.simpleName}: ${exception.message}"
-                        continue
+                        return 0
                     }
 
                     return channelCount
