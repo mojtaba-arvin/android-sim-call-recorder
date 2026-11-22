@@ -25,6 +25,18 @@ if ! timeout 120 adb wait-for-device; then
   exit 1
 fi
 
+echo "==> Verifying exactly one connected emulator"
+if ! adb devices -l | awk 'NR > 1 && $1 ~ /^emulator-/ && $2 == "device" { count++ } END { exit (count == 1 ? 0 : 1) }'; then
+  echo "Expected exactly one online emulator in ADB; refusing to run instrumentation." >&2
+  adb_diagnostics
+  exit 1
+fi
+if ! adb get-state >/dev/null 2>&1; then
+  echo "ADB default target is not in the device state." >&2
+  adb_diagnostics
+  exit 1
+fi
+
 boot_completed=""
 for attempt in $(seq 1 60); do
   boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
@@ -41,10 +53,9 @@ fi
 
 echo "==> Emulator ready: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 if ! adb logcat -c; then
-  # Clearing logcat is diagnostic-only. Some emulator/platform-tools
-  # combinations reject buffer clearing even after the device is booted;
-  # do not turn that into a false product-test failure.
-  echo "Warning: could not clear logcat; continuing with boot messages in the diagnostic capture." >&2
+  echo "Unable to clear logcat after emulator boot; refusing to run tests with an ambiguous diagnostic window." >&2
+  adb_diagnostics
+  exit 1
 fi
 
 # The connected instrumentation task may uninstall the target APK on completion.
