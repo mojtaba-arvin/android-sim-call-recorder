@@ -11,7 +11,7 @@ ACTION_THREE="com.mojtaba.simcallrecorder.debug.RECOVER_TWO_AND_TEST_NEW_CAPTURE
 adb wait-for-device
 adb shell pm grant "$PACKAGE" android.permission.RECORD_AUDIO
 adb shell pm grant "$PACKAGE" android.permission.READ_PHONE_STATE
-API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 if [[ "$API_LEVEL" -ge 33 ]]; then
   # The output of pm list permissions -d varies by platform build and can omit
   # a declared runtime permission. Grant and verify the harness prerequisite.
@@ -19,8 +19,8 @@ if [[ "$API_LEVEL" -ge 33 ]]; then
   adb shell appops set "$PACKAGE" POST_NOTIFICATION allow
   # Android 15's pm shell parser does not consistently expose check-permission.
   # Read the authoritative runtime-grant state from dumpsys package instead.
-  package_dump="$(adb shell dumpsys package "$PACKAGE" | tr -d '\\r')"
-  if ! grep -Eq 'android\\.permission\\.POST_NOTIFICATIONS: granted=true([,[:space:]]|$)' <<< "$package_dump"; then
+  package_dump="$(adb shell dumpsys package "$PACKAGE" | tr -d '\r')"
+  if ! grep -Eq 'android\.permission\.POST_NOTIFICATIONS: granted=true([,[:space:]]|$)' <<< "$package_dump"; then
     echo "POST_NOTIFICATIONS was not granted before process-death tests." >&2
     grep -F 'android.permission.POST_NOTIFICATIONS:' <<< "$package_dump" >&2 || true
     exit 1
@@ -74,7 +74,7 @@ adb shell am start -W -n "$COMPONENT" -a "$ACTION_THREE"
 wait_for_marker "RECOVERY_CAPTURE_RACE_PASSED"
 wait_for_marker "PROCESS_DEATH_SUITE_PASSED"
 
-API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 if [[ "$API_LEVEL" -ge 33 ]]; then
   # Revoke notification permission while no Service is active, then prove automatic arm fails closed.
   adb shell pm revoke "$PACKAGE" android.permission.POST_NOTIFICATIONS
