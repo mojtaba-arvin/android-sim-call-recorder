@@ -27,7 +27,12 @@ if [[ "$API_LEVEL" -ge 33 ]]; then
   fi
 fi
 adb shell appops set "$PACKAGE" RECORD_AUDIO allow
-adb logcat -c || true
+if ! adb logcat -c; then
+  echo "Unable to clear logcat before process-death instrumentation; refusing to run with ambiguous phase markers." >&2
+  adb version || true
+  adb devices -l || true
+  exit 1
+fi
 
 wait_for_marker() {
   local marker="$1"
