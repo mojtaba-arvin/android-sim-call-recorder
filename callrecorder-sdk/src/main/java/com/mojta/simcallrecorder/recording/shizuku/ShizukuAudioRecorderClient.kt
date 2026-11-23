@@ -276,6 +276,17 @@ internal class ShizukuAudioRecorderClient @Inject constructor(
             runCatching { writeEnd.close() }
         }
 
+        // The Binder may die after the start transaction returns but before the listener runs.
+        // Never publish an active session unless the same remote endpoint is still alive.
+        if (remote !== api || !runCatching { api.asBinder().isBinderAlive }.getOrDefault(false)) {
+            runCatching { readEnd.close() }
+            runCatching { destination.delete() }
+            activeCaptureStartedAtEpochMillis = null
+            activeCaptureStartedElapsedRealtime = null
+            _captureStatus.value = "Capture aborted: Shizuku Binder disconnected during startup."
+            error("The Shizuku recorder disconnected before capture startup was confirmed.")
+        }
+
         if (channels !in 1..2) {
             runCatching { readEnd.close() }
             val reason = runCatching { api.lastError }.getOrNull().orEmpty()
