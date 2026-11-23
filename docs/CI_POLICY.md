@@ -65,3 +65,10 @@ The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow
 ## API 36 Shell permission probe
 
 The change classifier emits an `audio` flag for Shizuku UserService and its tests. Only those changes trigger an API 36 emulator probe, which verifies the shell UID is 2000, records both protected permission results, and requires both `CALL_AUDIO_INTERCEPTION` and `CAPTURE_AUDIO_OUTPUT` to be granted on the stock AOSP API 36 emulator. The UserService itself remains compatible with either grant on OEM/product builds. The stable Required checks aggregator requires this probe when `audio=true`; it is skipped for unrelated code and documentation-only changes. This tests the AOSP permission assumption without adding an emulator lane to every PR.
+
+
+## Emulator ADB/logcat preflight
+
+Each emulator lane starts and verifies the ADB server, waits for exactly one online emulator and Android boot completion, and only then clears logcat. If logcat clearing fails after readiness checks, the harness stops before Gradle instrumentation; it does not continue with ambiguous pre-test logs. A stubbed shell regression test proves that the instrumentation command is not invoked after this preflight failure.
+
+Definition of Done: ADB server/device/boot checks are explicit and bounded; a logcat-clear failure emits ADB diagnostics and exits non-zero; instrumentation is never run after a failed preflight; the existing API 26/API 35 test lanes remain unchanged after successful preflight.
