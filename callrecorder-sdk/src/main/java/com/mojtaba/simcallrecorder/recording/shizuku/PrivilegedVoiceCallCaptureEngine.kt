@@ -67,6 +67,7 @@ internal class AndroidAudioRecordSessionFactory : AudioRecordSessionFactory {
     override fun getMinBufferSize(sampleRate: Int, channelMask: Int, encoding: Int): Int =
         AudioRecord.getMinBufferSize(sampleRate, channelMask, encoding)
 
+    @SuppressLint("MissingPermission")
     override fun create(
         audioSource: Int,
         sampleRate: Int,
