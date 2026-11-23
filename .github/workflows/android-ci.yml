@@ -116,6 +116,9 @@ jobs:
       - name: Verify sample app consumes only the SDK public boundary
         run: bash scripts/verify-sdk-boundary.sh
 
+      - name: Test emulator logcat preflight fail-closed behavior
+        run: bash scripts/tests/run-emulator-logcat-preflight-test.sh
+
       - name: Run unit tests, lint, and assemble debug APK
         run: gradle --continue --console=plain :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug
 
