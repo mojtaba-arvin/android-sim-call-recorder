@@ -69,6 +69,6 @@ The change classifier emits an `audio` flag for Shizuku UserService and its test
 
 ## Emulator ADB/logcat preflight
 
-Each emulator lane starts and verifies the ADB server, waits for exactly one online emulator and Android boot completion, and only then clears logcat. If logcat clearing fails after readiness checks, the harness stops before Gradle instrumentation; it does not continue with ambiguous pre-test logs. A stubbed shell regression test proves that the instrumentation command is not invoked after this preflight failure.
+Each emulator lane starts and verifies the ADB server, waits for exactly one online emulator and Android boot completion, and only then clears logcat. If logcat clearing fails after readiness checks, the harness stops before Gradle instrumentation; it does not continue with ambiguous pre-test logs. The process-death phase repeats the same fail-closed rule after its own ADB wait, so it cannot launch phase markers after a failed log reset. Stubbed shell regression tests prove neither harness starts instrumentation after this failure.
 
 Definition of Done: ADB server/device/boot checks are explicit and bounded; a logcat-clear failure emits ADB diagnostics and exits non-zero; instrumentation is never run after a failed preflight; the existing API 26/API 35 test lanes remain unchanged after successful preflight.
