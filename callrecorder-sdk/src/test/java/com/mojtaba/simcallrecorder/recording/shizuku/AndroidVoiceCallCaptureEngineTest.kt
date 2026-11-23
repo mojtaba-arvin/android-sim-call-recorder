@@ -135,7 +135,7 @@ class AndroidVoiceCallCaptureEngineTest {
 
     private class FakeFactory(
         private val minBuffer: (Int, Int, Int) -> Int,
-        private val sessions: List<BlockingSession> = emptyList(),
+        private val sessions: List<AudioRecordSession> = emptyList(),
     ) : AudioRecordSessionFactory {
         val requestedChannelMasks = mutableListOf<Int>()
         val requestedSources = mutableListOf<Int>()
