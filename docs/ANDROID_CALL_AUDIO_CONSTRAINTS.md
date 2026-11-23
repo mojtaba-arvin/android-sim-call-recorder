@@ -142,3 +142,15 @@ The Shizuku permission-gate change is covered by a targeted API 36 emulator job 
 
 
 The API 36 CI probe invokes its multi-line script through `bash -c` explicitly. `android-emulator-runner` executes the supplied script with `/usr/bin/sh`; using Bash-only `set -o pipefail` directly would fail before any permission query. The probe's result is therefore tied to the actual `pm check-permission` outputs, not shell startup behavior.
+
+
+## Shizuku Binder-death finalization boundary
+
+A Shizuku UserService Binder death is an unconfirmed capture stop, even if the PCM pipe subsequently reaches EOF. The client invalidates the active capture generation, closes the read pipe, cancels the writer, and discards any active or prematurely promoted WAV. Cleanup failure remains visible as an interruption; it must never be represented as a successfully finalized recording.
+
+Definition of Done:
+- A Binder-death event cannot publish an in-flight writer result as the current capture.
+- Temporary and promoted-but-unconfirmed files are discarded when cleanup succeeds.
+- Cleanup failure is surfaced explicitly rather than reported as a successful abort.
+- Unit/Robolectric coverage validates pipe closure, writer cancellation, and file deletion.
+- This software gate does not prove physical two-way call audio; PASS_TWO_WAY still requires independently reviewable near-end and far-end WAV evidence.
