@@ -65,3 +65,10 @@ The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow
 ## API 36 Shell permission probe
 
 The change classifier emits an `audio` flag for Shizuku UserService and its tests. Only those changes trigger an API 36 emulator probe, which verifies the shell UID is 2000, records both protected permission results, and requires both `CALL_AUDIO_INTERCEPTION` and `CAPTURE_AUDIO_OUTPUT` to be granted on the stock AOSP API 36 emulator. The UserService itself remains compatible with either grant on OEM/product builds. The stable Required checks aggregator requires this probe when `audio=true`; it is skipped for unrelated code and documentation-only changes. This tests the AOSP permission assumption without adding an emulator lane to every PR.
+
+
+## SDK release asset integrity
+
+The manual SDK release workflow creates a SHA-256 manifest for the single Release AAR and verifies the manifest before uploading the build artifact. The isolated publish job verifies the downloaded AAR and manifest again before invoking the GitHub Release action. The verifier rejects missing or multiple AARs, mismatched or malformed checksum entries, and unexpected top-level files. Its shell regression suite runs in Android CI; it validates packaging integrity only and does not sign an APK or publish a release.
+
+Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects tampering, duplicate AARs, extra files, missing manifests, and malformed manifest paths. The publish job cannot reach the release action unless post-download verification succeeds.
