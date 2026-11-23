@@ -75,3 +75,8 @@ A host application integrating this SDK must make an explicit backup decision. F
 Apply exclusions to both cloud backup and device-to-device transfer. Verify the merged host-app manifest and backup rules; a library cannot unilaterally set the host application's `allowBackup` policy. Do not treat app-private storage as automatically excluded from backup.
 
 The SDK stores no phone number or SIM subscription identifier in new recording rows. Host applications must not export WAV files, call metadata, consent state, or diagnostic logs to analytics/crash reporting without a separate privacy review and explicit user authorization.
+
+
+## Consumer smoke acceptance boundary
+
+Definition of Done: the independent host module must compile against the generated Release AAR, use only public SDK/domain packages, and pass Hilt annotation processing. This is a compile-time compatibility gate only; it must not start capture or be cited as evidence of physical SIM audio, two-way near-end/far-end intelligibility, or `PASS_TWO_WAY`.
