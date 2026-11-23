@@ -1,7 +1,7 @@
 package com.mojtaba.simcallrecorder.consumer
 
 import android.app.Application
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.os.Bundle
 import android.widget.TextView
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 class ConsumerSmokeApplication : Application()
 
 @AndroidEntryPoint
-class ConsumerSmokeActivity : Activity() {
+class ConsumerSmokeActivity : ComponentActivity() {
     @Inject lateinit var sdk: SimCallRecorderSdk
 
     override fun onCreate(savedInstanceState: Bundle?) {
