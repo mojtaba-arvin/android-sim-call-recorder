@@ -16,6 +16,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -62,8 +64,8 @@ internal class ShizukuAudioRecorderClient @Inject constructor(
 
     @Volatile private var remote: IPrivilegedCallRecorder? = null
     private var serviceConnection: ServiceConnection? = null
-    private var copyJob: Job? = null
-    private var activeReadPipe: ParcelFileDescriptor? = null
+    @Volatile private var copyJob: Job? = null
+    @Volatile private var activeReadPipe: ParcelFileDescriptor? = null
     @Volatile private var activeFile: File? = null
     @Volatile private var lastCaptureResult: WavCaptureResult? = null
     @Volatile private var captureGeneration: Long = 0L
@@ -96,6 +98,33 @@ internal class ShizukuAudioRecorderClient @Inject constructor(
         serviceConnection = null
         if (staleConnection != null) {
             runCatching { Shizuku.unbindUserService(userServiceArgs, staleConnection, true) }
+        }
+
+        // A pipe reaching EOF after Binder death is not proof of a clean backend stop. Invalidate
+        // the generation before closing the reader so an in-flight writer cannot publish a WAV.
+        val captureWasActive = activeReadPipe != null ||
+            copyJob?.isActive == true ||
+            activeCaptureStartedAtEpochMillis != null
+        if (captureWasActive) {
+            val interruptedGeneration = ++captureGeneration
+            val reader = activeReadPipe.also { activeReadPipe = null }
+            val writer = copyJob.also { copyJob = null }
+            val files = listOfNotNull(activeFile, lastCaptureResult?.file).distinct()
+            activeFile = null
+            lastCaptureResult = null
+            lastCaptureChannels = 0
+            activeCaptureStartedAtEpochMillis = null
+            activeCaptureStartedElapsedRealtime = null
+            scope.launch {
+                val discarded = discardUnconfirmedShizukuCapture(reader, writer, files)
+                if (captureGeneration == interruptedGeneration) {
+                    _captureStatus.value = if (discarded) {
+                        "Capture aborted: Shizuku Binder disconnected; incomplete audio discarded."
+                    } else {
+                        "Capture interrupted: Shizuku Binder disconnected; cleanup could not be fully confirmed."
+                    }
+                }
+            }
         }
         _connectionStatus.value = "Shizuku stopped. Restart Shizuku and reconnect."
     }
@@ -245,6 +274,17 @@ internal class ShizukuAudioRecorderClient @Inject constructor(
             throw exception
         } finally {
             runCatching { writeEnd.close() }
+        }
+
+        // The Binder may die after the start transaction returns but before the listener runs.
+        // Never publish an active session unless the same remote endpoint is still alive.
+        if (remote !== api || !runCatching { api.asBinder().isBinderAlive }.getOrDefault(false)) {
+            runCatching { readEnd.close() }
+            runCatching { destination.delete() }
+            activeCaptureStartedAtEpochMillis = null
+            activeCaptureStartedElapsedRealtime = null
+            _captureStatus.value = "Capture aborted: Shizuku Binder disconnected during startup."
+            error("The Shizuku recorder disconnected before capture startup was confirmed.")
         }
 
         if (channels !in 1..2) {
@@ -410,3 +450,32 @@ internal fun privilegedCaptureFailure(remoteStopSucceeded: Boolean, backendError
         !backendError.isNullOrBlank() -> backendError.trim()
         else -> null
     }
+
+
+/**
+ * A dead privileged Binder cannot acknowledge a clean AudioRecord stop. Close the PCM reader,
+ * cancel its writer, and discard both the temporary/current file and any prematurely promoted WAV.
+ * Returns false when descriptor closure, writer termination, or file deletion cannot be confirmed.
+ */
+internal suspend fun discardUnconfirmedShizukuCapture(
+    reader: ParcelFileDescriptor?,
+    writer: Job?,
+    files: List<File>,
+): Boolean {
+    var clean = true
+    if (reader != null && runCatching { reader.close() }.isFailure) clean = false
+    if (writer != null) {
+        writer.cancel()
+        val stopped = withTimeoutOrNull(2_000L) {
+            writer.join()
+            true
+        } ?: false
+        if (!stopped) clean = false
+    }
+    files.distinct().forEach { file ->
+        if (file.exists() && !runCatching { file.delete() }.getOrDefault(false)) {
+            clean = false
+        }
+    }
+    return clean
+}
