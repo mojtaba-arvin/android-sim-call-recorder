@@ -6,7 +6,7 @@
 **Source branch:** `bootstrap/native-android-foundation`  
 **Source HEAD:** `307ba2dabf2038bb5bd3befe132eab1facdbc2f4`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
-**A0 branch:** `rd/a0-context-benchmark-stacked` (base synchronized to Foundation; this snapshot refresh is on that branch)
+**A0 branch:** `rd/a0-context-benchmark-stacked` (PR #22's recorded base SHA is still `bbb32c52081595046a76d4a07e4fa961934e159d`, behind Foundation HEAD; synchronize before acceptance)
 
 > Point-in-time context only. Refresh GitHub branches, PRs, issues, workflow jobs and exact SHAs before every implementation or mutation. This file cannot authorize merges, releases, branch-policy changes, or product compatibility claims.
 
@@ -19,7 +19,7 @@ This section supersedes earlier point-in-time status tables and historical notes
 - `main`: `71fe1f386fffe67547c1848ff12bc844247677de` (unchanged; contains only the original baseline).
 - `bootstrap/native-android-foundation`: `307ba2dabf2038bb5bd3befe132eab1facdbc2f4`.
 - Foundation PR #1 is open/Draft against `main`. Its exact-head Android CI run [#45048738748](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45048738748) and Agent System Contracts run [#45048738697](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45048738697) both passed. This does not satisfy independent review or physical-device acceptance.
-- A0 PR #22 is open/Draft against Foundation; current head is `7c83922e3082e3f683163c62c4bfea837185fc29`. Android CI [#44910815795](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44910815795) and Agent System Contracts [#44910815798](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44910815798) succeeded; the Android jobs were correctly skipped for this docs-only diff. This refresh creates a new PR head and therefore requires a new exact-head run.
+- A0 PR #22 is open/Draft against Foundation; current head is `ab244e134e31ab67ebb16493586bde56f0db170f`. Its recorded base SHA is `bbb32c52081595046a76d4a07e4fa961934e159d`, behind current Foundation HEAD `307ba2dabf2038bb5bd3befe132eab1facdbc2f4`; do not call the branch synchronized. Earlier head `7c83922e3082e3f683163c62c4bfea837185fc29` passed docs-only Android CI [#44910815795](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44910815795) and Agent System Contracts [#44910815798](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44910815798). No exact-head run is visible yet for this refresh; synchronize the base and validate the resulting head.
 - PR #24 (A1.1 capability inventory) is merged into Foundation, not main. PR #23 and #25 are closed unmerged; preserve their tests/evidence only where they are present in the Foundation tree.
 
 ### Current product PR and CI ledger
