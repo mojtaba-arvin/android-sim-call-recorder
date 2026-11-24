@@ -64,13 +64,26 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
         val refreshSignals = Channel<Unit>(Channel.CONFLATED)
         val observerJobs = mutableMapOf<Int, Job>()
         val observedSlotBySubscriptionId = mutableMapOf<Int, Int>()
-        val listener = object : SubscriptionManager.OnSubscriptionsChangedListener() {
-            override fun onSubscriptionsChanged() {
-                refreshSignals.trySend(Unit)
+        // The legacy listener constructor captures Looper.myLooper(). This flow is collected
+        // from Dispatchers.IO by the foreground service, so construct/register it on Main.
+        // API 30+ has the Executor overload; API 26–29 must use the Looper-backed overload.
+        val listener = withContext(Dispatchers.Main.immediate) {
+            object : SubscriptionManager.OnSubscriptionsChangedListener() {
+                override fun onSubscriptionsChanged() {
+                    refreshSignals.trySend(Unit)
+                }
             }
         }
-
-        subscriptionManager.addOnSubscriptionsChangedListener(listener)
+        withContext(Dispatchers.Main.immediate) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                subscriptionManager.addOnSubscriptionsChangedListener(
+                    ContextCompat.getMainExecutor(appContext),
+                    listener,
+                )
+            } else {
+                subscriptionManager.addOnSubscriptionsChangedListener(listener)
+            }
+        }
         val reconciliationJob = launch {
             for (ignored in refreshSignals) {
                 val subscriptions = activeSubscriptions(subscriptionManager)
@@ -98,7 +111,10 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
         refreshSignals.trySend(Unit)
 
         awaitClose {
-            subscriptionManager.removeOnSubscriptionsChangedListener(listener)
+            // Removal is dispatched on Main for the legacy Looper-backed registration too.
+            ContextCompat.getMainExecutor(appContext).execute {
+                subscriptionManager.removeOnSubscriptionsChangedListener(listener)
+            }
             refreshSignals.close()
             reconciliationJob.cancel()
             observerJobs.values.forEach { it.cancel() }
