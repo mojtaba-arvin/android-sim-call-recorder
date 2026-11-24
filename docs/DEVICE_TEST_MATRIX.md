@@ -1,5 +1,7 @@
 # Device validation matrix
 
+A `PASS_TWO_WAY` cell is valid only when the exact configuration has a completed manifest accepted by `scripts/validate_physical_device_evidence.py`. Emulator, Robolectric, non-empty WAV, RMS, and CI results must never be entered as two-way device evidence.
+
 No physical-device recording results have been claimed. Use the in-app Device diagnostics screen to capture the device profile, visible SIM slots, per-subscription call-state events, and available audio endpoints. Transfer the observed results into this matrix after each handset test.
 
 | API level | Android | Device / build | SIM setup | SIM 1 states | SIM 2 states | Input/output route | Local speech | Remote speech | Background behavior | Result |
