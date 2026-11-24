@@ -5,6 +5,33 @@ plugins {
     alias(libs.plugins.hilt.android)
 }
 
+private val releaseSigningEnvironment = listOf(
+    "ANDROID_KEYSTORE_PATH",
+    "ANDROID_KEYSTORE_PASSWORD",
+    "ANDROID_KEY_ALIAS",
+    "ANDROID_KEY_PASSWORD",
+).associateWith { providers.environmentVariable(it).orNull?.takeIf(String::isNotBlank) }
+
+private val releaseSigningConfigured = releaseSigningEnvironment.values.all { !it.isNullOrBlank() }
+
+val verifyReleaseSigningInputs = tasks.register("verifyReleaseSigningInputs") {
+    group = "verification"
+    description = "Fails closed unless the production APK signing keystore and credentials are present."
+
+    doLast {
+        val missing = releaseSigningEnvironment.filterValues { it.isNullOrBlank() }.keys
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "APP_RELEASE_SIGNING_INPUTS_MISSING: configure all required environment variables: ${missing.joinToString()}",
+            )
+        }
+        val keystorePath = releaseSigningEnvironment.getValue("ANDROID_KEYSTORE_PATH")!!
+        if (!file(keystorePath).isFile) {
+            throw GradleException("APP_RELEASE_KEYSTORE_NOT_FOUND: configured keystore file is not present.")
+        }
+    }
+}
+
 android {
     namespace = "com.mojtaba.simcallrecorder"
     compileSdk = 37
@@ -18,6 +45,24 @@ android {
         versionName = providers.gradleProperty("appVersion").getOrElse("0.1.0-beta.1")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+    }
+
+    signingConfigs {
+        create("production") {
+            if (releaseSigningConfigured) {
+                storeFile = file(releaseSigningEnvironment.getValue("ANDROID_KEYSTORE_PATH")!!)
+                storePassword = releaseSigningEnvironment.getValue("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = releaseSigningEnvironment.getValue("ANDROID_KEY_ALIAS")
+                keyPassword = releaseSigningEnvironment.getValue("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            // Never fall back to the debug certificate or produce an unsigned production APK.
+            signingConfig = if (releaseSigningConfigured) signingConfigs.getByName("production") else null
+        }
     }
 
     buildFeatures { compose = true }
@@ -38,6 +83,13 @@ android {
             it.maxHeapSize = "2g"
             it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
         }
+    }
+}
+
+// APK packaging is blocked unless the production signing inputs and keystore file exist.
+tasks.configureEach {
+    if (name == "packageRelease" || name == "bundleRelease") {
+        dependsOn(verifyReleaseSigningInputs)
     }
 }
 
