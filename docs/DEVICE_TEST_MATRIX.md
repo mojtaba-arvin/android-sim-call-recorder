@@ -4,7 +4,8 @@ No physical-device recording results have been claimed. Use the in-app Device di
 
 | API level | Android | Device / build | SIM setup | SIM 1 states | SIM 2 states | Input/output route | Local speech | Remote speech | Background behavior | Result |
 |---:|---|---|---|---|---|---|---|---|---|---|---|
-| 26 | 8.0 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |
+| 24 | 7.0 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |
+| 25 | 7.1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |\n| 26 | 8.0 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |
 | 27 | 8.1 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |
 | 28 | 9 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |
 | 29 | 10 | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |

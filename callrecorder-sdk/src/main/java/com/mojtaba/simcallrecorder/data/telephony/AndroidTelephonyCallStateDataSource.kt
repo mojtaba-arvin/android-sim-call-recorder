@@ -16,7 +16,9 @@ import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.channelFlow
@@ -51,6 +53,7 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    @Suppress("DEPRECATION")
     fun observeCallStateEvents(): Flow<CallStateEvent> = channelFlow {
         requireCallStatePermission()
 
@@ -58,17 +61,65 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
             appContext.getSystemService(SubscriptionManager::class.java)
                 ?: throw IllegalStateException("Subscription service is unavailable.")
 
-        val subscriptions = activeSubscriptions(subscriptionManager)
-        if (subscriptions.isEmpty()) {
-            throw IllegalStateException("No active SIM subscriptions are visible to this app.")
-        }
-
-        subscriptions.forEach { info ->
-            launch {
-                observeSubscription(info).collect { event ->
-                    send(event)
+        val refreshSignals = Channel<Unit>(Channel.CONFLATED)
+        val observerJobs = mutableMapOf<Int, Job>()
+        val observedSlotBySubscriptionId = mutableMapOf<Int, Int>()
+        // The legacy listener constructor captures Looper.myLooper(). This flow is collected
+        // from Dispatchers.IO by the foreground service, so construct/register it on Main.
+        // API 30+ has the Executor overload; API 26–29 must use the Looper-backed overload.
+        val listener = withContext(Dispatchers.Main.immediate) {
+            object : SubscriptionManager.OnSubscriptionsChangedListener() {
+                override fun onSubscriptionsChanged() {
+                    refreshSignals.trySend(Unit)
                 }
             }
+        }
+        withContext(Dispatchers.Main.immediate) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                subscriptionManager.addOnSubscriptionsChangedListener(
+                    ContextCompat.getMainExecutor(appContext),
+                    listener,
+                )
+            } else {
+                subscriptionManager.addOnSubscriptionsChangedListener(listener)
+            }
+        }
+        val reconciliationJob = launch {
+            for (ignored in refreshSignals) {
+                val subscriptions = activeSubscriptions(subscriptionManager)
+                val plan = planSubscriptionObserverChanges(
+                    currentlyObserved = observedSlotBySubscriptionId,
+                    currentSubscriptions = subscriptions,
+                    subscriptionId = { it.subscriptionId },
+                    slotIndex = { it.simSlotIndex },
+                )
+
+                plan.toStop.forEach { subscriptionId ->
+                    observerJobs.remove(subscriptionId)?.cancel()
+                    observedSlotBySubscriptionId.remove(subscriptionId)
+                }
+                plan.toStart.forEach { info ->
+                    val subscriptionId = info.subscriptionId
+                    observedSlotBySubscriptionId[subscriptionId] = info.simSlotIndex
+                    observerJobs[subscriptionId] = launch {
+                        observeSubscription(info).collect { event -> send(event) }
+                    }
+                }
+            }
+        }
+        // A SIM can be inserted/removed before this flow starts; always reconcile once immediately.
+        refreshSignals.trySend(Unit)
+
+        awaitClose {
+            // Removal is dispatched on Main for the legacy Looper-backed registration too.
+            ContextCompat.getMainExecutor(appContext).execute {
+                subscriptionManager.removeOnSubscriptionsChangedListener(listener)
+            }
+            refreshSignals.close()
+            reconciliationJob.cancel()
+            observerJobs.values.forEach { it.cancel() }
+            observerJobs.clear()
+            observedSlotBySubscriptionId.clear()
         }
     }
 
@@ -118,6 +169,16 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
                     return@callbackFlow
                 }
 
+                // Registration does not guarantee an initial callback on every Android release.
+                // Snapshot after registration so a call already in progress is not missed.
+                trySend(
+                    CallStateEvent(
+                        simSlotIndex = slotIndex,
+                        state = mapTelephonyCallState(subscriptionManager.callState),
+                        observedAtEpochMillis = System.currentTimeMillis(),
+                    ),
+                )
+
                 awaitClose {
                     subscriptionManager.unregisterTelephonyCallback(callback)
                 }
@@ -149,6 +210,15 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
                     close(exception)
                     return@callbackFlow
                 }
+
+                // Keep the legacy path correct when monitoring starts during an active call.
+                trySend(
+                    CallStateEvent(
+                        simSlotIndex = slotIndex,
+                        state = mapTelephonyCallState(subscriptionManager.callState),
+                        observedAtEpochMillis = System.currentTimeMillis(),
+                    ),
+                )
 
                 awaitClose {
                     ContextCompat.getMainExecutor(appContext).execute {

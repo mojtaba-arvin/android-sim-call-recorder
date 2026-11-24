@@ -10,8 +10,17 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
+@Config(sdk = [24, 26, 35])
 class AndroidAudioRouteDataSourceRobolectricTest {
+
+    @Test
+    fun minimumApiDeviceTypesMapWithoutRequiringNewerFrameworkMethods() {
+        assertEquals("Built-in earpiece", AudioDeviceInfo.TYPE_BUILTIN_EARPIECE.toDisplayType())
+        assertEquals("Built-in speaker", AudioDeviceInfo.TYPE_BUILTIN_SPEAKER.toDisplayType())
+        assertEquals("Built-in microphone", AudioDeviceInfo.TYPE_BUILTIN_MIC.toDisplayType())
+        assertEquals("Wired headset", AudioDeviceInfo.TYPE_WIRED_HEADSET.toDisplayType())
+        assertEquals("Bluetooth SCO", AudioDeviceInfo.TYPE_BLUETOOTH_SCO.toDisplayType())
+    }
 
     @Test
     fun returnsInputAndOutputInventoryAndMarksSelectedCommunicationDevice() {

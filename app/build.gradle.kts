@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.mojtaba.simcallrecorder"
-        minSdk = 26
+        minSdk = 24
         // Keep targetSdk 36 until Android 17 foreground-service and call-audio behavior is validated.
         targetSdk = 36
         versionCode = providers.gradleProperty("appVersionCode").map(String::toInt).getOrElse(2)
@@ -23,6 +23,7 @@ android {
     buildFeatures { compose = true }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -42,6 +43,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation(project(":callrecorder-sdk"))
 
     implementation(libs.androidx.core.ktx)

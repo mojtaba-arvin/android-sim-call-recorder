@@ -9,7 +9,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        minSdk = 26
+        minSdk = 24
         consumerProguardFiles("consumer-rules.pro")
         val shizukuCaptureEnabled = providers.gradleProperty("enableShizukuCallCapture")
             .map { it.toBoolean() }

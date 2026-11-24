@@ -2,10 +2,8 @@ package com.mojtaba.simcallrecorder.recording
 
 import java.io.File
 import java.io.InputStream
+import java.io.IOException
 import java.io.RandomAccessFile
-import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import kotlin.math.sqrt
 
 internal data class WavCaptureResult(
@@ -112,21 +110,11 @@ internal object WavPcmFileWriter {
     }
 
     private fun moveIntoPlace(temporary: File, destination: File) {
-        try {
-            Files.move(
-                temporary.toPath(),
-                destination.toPath(),
-                StandardCopyOption.ATOMIC_MOVE,
-                StandardCopyOption.REPLACE_EXISTING,
-            )
-        } catch (unsupported: AtomicMoveNotSupportedException) {
-            // Both files share a directory, but some filesystems still reject atomic replacement.
-            // Keep the existing destination intact until the completed temporary file is ready.
-            Files.move(
-                temporary.toPath(),
-                destination.toPath(),
-                StandardCopyOption.REPLACE_EXISTING,
-            )
+        // The temporary file is created beside the destination. Android's File.renameTo delegates
+        // to the same-filesystem native rename operation, available on the API 24 floor, and
+        // atomically replaces an existing destination on Android/Linux.
+        if (!temporary.renameTo(destination)) {
+            throw IOException("Unable to atomically promote the finalized WAV file.")
         }
     }
 

@@ -6,7 +6,7 @@ import android.os.Looper
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import com.mojtaba.simcallrecorder.domain.model.CallState
-import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
@@ -37,8 +37,8 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         get() = RuntimeEnvironment.getApplication()
 
     @Test
-    @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
-    fun api31Plus_emitsRingingOffhookAndIdleForTheCorrectSubscription() = runBlocking {
+    @Config(sdk = [31, 32, 33, 34, 35])
+    fun api31To35_emitsRingingOffhookAndIdleForTheCorrectSubscription() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionId = 101
         val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
@@ -55,7 +55,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val dataSource = AndroidTelephonyCallStateDataSource(context)
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+        val collector = launch(Dispatchers.IO) {
             dataSource.observeCallStateEvents().take(4).toList(events)
         }
 
@@ -78,7 +78,36 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     }
 
     @Test
-    @Config(sdk = [26, 27, 28, 29, 30])
+    @Config(sdk = [36, 37])
+    fun api36Plus_emitsInitialSnapshotForCallAlreadyInProgress() = runBlocking {
+        grantPhoneStatePermission()
+        val subscriptionId = 111
+        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+        val subscription = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(subscriptionId)
+            .setSimSlotIndex(0)
+            .buildSubscriptionInfo()
+        shadowOf(subscriptionManager).setActiveSubscriptionInfoList(listOf(subscription))
+
+        val perSubscriptionManager = newTelephonyManager()
+        shadowOf(context.getSystemService(TelephonyManager::class.java))
+            .setTelephonyManagerForSubscriptionId(subscriptionId, perSubscriptionManager)
+        shadowOf(perSubscriptionManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
+
+        val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
+        val collector = launch(Dispatchers.IO) {
+            AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().take(1).toList(events)
+        }
+
+        awaitModernRegistration(perSubscriptionManager)
+        withTimeout(10_000) { collector.join() }
+
+        assertEquals(listOf(CallState.OFFHOOK), events.map { it.state })
+        assertEquals(listOf(0), events.map { it.simSlotIndex })
+    }
+
+    @Test
+    @Config(sdk = [24, 25, 26, 27, 28, 29, 30])
     fun api26To30_legacyPhoneStateListener_emitsAllCallTransitions() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionId = 202
@@ -96,7 +125,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val dataSource = AndroidTelephonyCallStateDataSource(context)
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+        val collector = launch(Dispatchers.IO) {
             dataSource.observeCallStateEvents().take(4).toList(events)
         }
 
@@ -141,7 +170,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(secondSubscriptionId, secondManager)
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+        val collector = launch(Dispatchers.IO) {
             AndroidTelephonyCallStateDataSource(context)
                 .observeCallStateEvents()
                 .filter { it.state != CallState.IDLE }
@@ -157,8 +186,11 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(Looper.getMainLooper()).idle()
         withTimeout(10_000) { collector.join() }
 
-        assertEquals(listOf(0, 1), events.map { it.simSlotIndex })
-        assertEquals(listOf(CallState.RINGING, CallState.OFFHOOK), events.map { it.state })
+        assertEquals(2, events.size)
+        assertEquals(
+            mapOf(CallState.RINGING to 0, CallState.OFFHOOK to 1),
+            events.associate { it.state to it.simSlotIndex },
+        )
     }
 
     @Test

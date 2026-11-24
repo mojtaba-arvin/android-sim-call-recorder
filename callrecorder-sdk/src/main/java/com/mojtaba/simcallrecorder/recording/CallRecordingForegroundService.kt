@@ -228,6 +228,8 @@ internal class CallRecordingForegroundService : Service() {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (exception: Exception) {
+                // onDestroy() replaces the public status, so preserve the root cause in logcat.
+                Log.e(TAG, "AUTOMATIC_CALL_MONITOR_FAILED", exception)
                 disarmAutomaticMonitoring()
                 updateNotification("Automatic call monitoring failed · ${exception.message}")
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -746,6 +748,10 @@ internal class CallRecordingForegroundService : Service() {
     }
 
     private fun createNotificationChannel() {
+        // Notification channels were introduced in API 26. Older supported devices
+        // still require the foreground notification, but do not have channel APIs.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 NOTIFICATION_CHANNEL,
