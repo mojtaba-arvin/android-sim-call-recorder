@@ -54,6 +54,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
                         "near_end": {
                             **evidence["near_end"],
                             "all_required_phrases_intelligible": True,
+                            "score": 5,
                         },
                         "far_end": {
                             **evidence["far_end"],
