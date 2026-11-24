@@ -8,19 +8,19 @@ A strategy being selectable or successfully opening an audio source does not mea
 
 ## Software API floor experiment — 2026-11-18
 
-The app's declared `minSdk` is currently **26 (Android 8.0)** as an active compatibility experiment, lowered from 28 to evaluate wider installation coverage. Do not treat API 26 as a confirmed release support floor until the latest CI run passes dependency/manifest checks, unit/Robolectric tests, lint, APK assembly, and emulator instrumentation.
+The app and SDK now declare **minSdk 24 (Android 7.0)** as a software compatibility experiment. API 24 is the lowest floor shared by the current Shizuku 13.1.5 dependency build and the app's guarded framework APIs. Accept this floor only after Gradle AAR metadata checks, API 24 emulator instrumentation, unit/Robolectric tests, lint, and APK assembly pass on the exact PR head.
 
 Telephony observer Robolectric coverage is being expanded across:
-- API 26–30: legacy `PhoneStateListener` path.
+- API 24–30: legacy `PhoneStateListener` path.
 - API 31–37: `TelephonyCallback` path (Robolectric 4.18.1 includes API 37; physical API 37 device validation remains pending), including subscription-to-slot association and permission failure behavior.
 
-The Shizuku UserService can now be attempted from API 26 when a live server is already available. Wireless-debugging startup itself is Android 11+; Android 8–10 users must start Shizuku through root or a computer running ADB, then connect and authorize the app. No claim of cellular two-way audio support follows from this software API-floor experiment.
+The Shizuku UserService can now be attempted from API 24 when a live server is already available. Wireless-debugging startup itself is Android 11+; Android 8–10 users must start Shizuku through root or a computer running ADB, then connect and authorize the app. No claim of cellular two-way audio support follows from this software API-floor experiment.
 
 ## Current strategy inventory
 
 | Strategy | Current implementation | Eligibility | Audio semantics | Current confidence |
 |---|---|---|---|---|
-| Shizuku privileged `VOICE_CALL` | Implemented through a narrow Shizuku UserService with shell-attribution setup and a fail-closed readiness check | API 26+ (current app floor); Shizuku/Sui already running and explicitly authorized; actual UserService binder must be connected, report shell UID (2000) or root UID (0), and report successful shell audio-attribution initialization, and an explicit runtime check that the UserService UID holds `CALL_AUDIO_INTERCEPTION` (current Android) or `CAPTURE_AUDIO_OUTPUT` (legacy AudioPolicy fallback); root is accepted separately. Wireless-debugging startup is Android 11+; Android 10 and below require root/Sui or starting Shizuku from a computer via USB ADB. | Requests only the full-duplex `VOICE_CALL` source; one-sided UPLINK/DOWNLINK sources are rejected | Highest-potential path; device/OEM/HAL dependent; no physical validation recorded |
+| Shizuku privileged `VOICE_CALL` | Implemented through a narrow Shizuku UserService with shell-attribution setup and a fail-closed readiness check | API 24+ (current app floor); Shizuku/Sui already running and explicitly authorized; actual UserService binder must be connected, report shell UID (2000) or root UID (0), and report successful shell audio-attribution initialization, and an explicit runtime check that the UserService UID holds `CALL_AUDIO_INTERCEPTION` (current Android) or `CAPTURE_AUDIO_OUTPUT` (legacy AudioPolicy fallback); root is accepted separately. Wireless-debugging startup is Android 11+; Android 10 and below require root/Sui or starting Shizuku from a computer via USB ADB. | Requests only the full-duplex `VOICE_CALL` source; one-sided UPLINK/DOWNLINK sources are rejected | Highest-potential path; device/OEM/HAL dependent; no physical validation recorded |
 | Accessibility-priority `VOICE_RECOGNITION` | Implemented as a separate opt-in strategy | Android 10+; RECORD_AUDIO; user enables the app's Accessibility service | Microphone capture with speaker-route request; may acoustically capture remote speech | Experimental; not digital downlink; Google Play policy makes this unsuitable for a Play-distributed call-recording feature |
 | Platform `VOICE_RECOGNITION` | Implemented as a separate microphone experiment | RECORD_AUDIO | Ordinary microphone input with communication-mode configuration | Generic microphone experiment, **not** a vendor-specific OEM API |
 | Speakerphone + MIC | Implemented as a separate explicit strategy | RECORD_AUDIO | Acoustic capture after requesting speaker route | Limited; susceptible to echo, noise, route changes, headset and Bluetooth behavior |
