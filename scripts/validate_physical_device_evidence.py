@@ -99,6 +99,8 @@ def _validate_wav(root: Path, evidence: Any, label: str, errors: list[str]) -> N
             errors.append(f"{label}.wav: sample rate and frame count must be positive")
         if len(pcm) != frames * channels * sample_width:
             errors.append(f"{label}.wav: PCM data is truncated")
+        if pcm and not any(pcm):
+            errors.append(f"{label}.wav: all-zero PCM is not valid speech evidence")
     except (OSError, EOFError, wave.Error) as exception:
         errors.append(f"{label}.wav: invalid or unreadable WAV ({type(exception).__name__})")
 
@@ -245,7 +247,14 @@ def validate_manifest(manifest_path: Path) -> list[str]:
         else:
             if capture.get("recording_mode") != backend:
                 errors.append(f"{label}.capture.recording_mode: must match the configured backend exactly")
-            _text(capture.get("audio_source"), f"{label}.capture.audio_source", errors)
+            audio_source = capture.get("audio_source")
+            _text(audio_source, f"{label}.capture.audio_source", errors)
+            if isinstance(audio_source, str) and isinstance(backend, str):
+                expected_source = "VOICE_CALL" if backend == "VOICE_CALL" else "MIC"
+                if expected_source not in audio_source.upper():
+                    errors.append(f"{label}.capture.audio_source: does not match the selected backend")
+            if capture.get("fallback_reason") not in (None, ""):
+                errors.append(f"{label}.capture.fallback_reason: fallback/substitution disqualifies PASS_TWO_WAY")
             if isinstance(capture.get("wav"), str):
                 if capture["wav"] in evidence_paths:
                     errors.append(f"{label}.capture.wav: app capture must be a distinct WAV file")
