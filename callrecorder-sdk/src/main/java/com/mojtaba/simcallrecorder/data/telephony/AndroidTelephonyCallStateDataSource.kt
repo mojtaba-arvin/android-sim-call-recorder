@@ -169,6 +169,16 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
                     return@callbackFlow
                 }
 
+                // Registration does not guarantee an initial callback on every Android release.
+                // Snapshot after registration so a call already in progress is not missed.
+                trySend(
+                    CallStateEvent(
+                        simSlotIndex = slotIndex,
+                        state = mapTelephonyCallState(subscriptionManager.callState),
+                        observedAtEpochMillis = System.currentTimeMillis(),
+                    ),
+                )
+
                 awaitClose {
                     subscriptionManager.unregisterTelephonyCallback(callback)
                 }
@@ -200,6 +210,15 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
                     close(exception)
                     return@callbackFlow
                 }
+
+                // Keep the legacy path correct when monitoring starts during an active call.
+                trySend(
+                    CallStateEvent(
+                        simSlotIndex = slotIndex,
+                        state = mapTelephonyCallState(subscriptionManager.callState),
+                        observedAtEpochMillis = System.currentTimeMillis(),
+                    ),
+                )
 
                 awaitClose {
                     ContextCompat.getMainExecutor(appContext).execute {
