@@ -63,6 +63,8 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
                         "capture": {
                             **evidence["capture"],
                             "db_status": "COMPLETED",
+                            "recording_mode": "SPEAKERPHONE_MIC",
+                            "audio_source": "Speakerphone + MIC",
                             "finalized": True,
                             "integrity_verified": True,
                         },
@@ -90,6 +92,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
                 "synthetic_call_state": False,
                 "route": "speakerphone",
                 "backend": "SPEAKERPHONE_MIC",
+                "requested_backend": "SPEAKERPHONE_MIC",
                 "app_commit": "a" * 40,
                 "permission_grants": {
                     "READ_PHONE_STATE": True,
@@ -166,11 +169,13 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
 
     def test_voice_call_requires_actual_shizuku_and_protected_permission_evidence(self) -> None:
         self.manifest["configuration"]["backend"] = "VOICE_CALL"
+        self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
         self.manifest["configuration"]["permission_grants"]["CAPTURE_AUDIO_OUTPUT"] = True
         self.manifest["configuration"]["permission_grants"]["CALL_AUDIO_INTERCEPTION"] = True
         self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 2000}
         for trial in self.manifest["trials"]:
             trial["recording_mode"] = "VOICE_CALL"
+            trial["capture"]["recording_mode"] = "VOICE_CALL"
         result = self._run()
         self.assertEqual(0, result.returncode, result.stderr)
 
