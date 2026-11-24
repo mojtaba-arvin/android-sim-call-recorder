@@ -75,7 +75,7 @@ See [Android call-audio constraints](ANDROID_CALL_AUDIO_CONSTRAINTS.md), [the co
 
 - Room stores recording metadata; diagnostics timelines are in-memory unless an explicit privacy-reviewed requirement changes that.
 - WAV data is written to app-private storage and finalized before the corresponding row is treated as completed/playable.
-- Recording details display the persisted sample rate, channel count, PCM payload length, peak/RMS levels, and explicit silent/unavailable state. These are waveform-quality diagnostics only and never establish intelligible speech or two-way cellular audio.
+- Recording details display the persisted sample rate, channel count, PCM payload length, peak/RMS levels, explicit silent/unavailable state, and any framework-reported `clientSilenced` status. A silenced client is never labelled as verified near-end speech; an unsilenced client is also not proof of remote-party audio. These are waveform-quality diagnostics only and never establish intelligible speech or two-way cellular audio.
 - Before starting a new capture backend, the service routes startup through `CaptureStartupBarrier`, which awaits `CallRecordRepository.prepareForCapture()` before evaluating the runtime profile or invoking the backend. A recovery failure therefore prevents backend startup. This forces first-open process recovery to finish before any new `.wav.part` file can be created.
 - First-open process recovery marks stale active rows interrupted, removes orphaned temporary `.wav.part` files, and preserves already promoted `.wav` files.
 - A crash after file promotion but before the Room completion update must not cause the file to be deleted or the row to be treated as successfully completed.
