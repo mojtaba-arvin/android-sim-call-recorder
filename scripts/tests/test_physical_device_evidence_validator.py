@@ -179,6 +179,11 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         result = self._run()
         self.assertEqual(0, result.returncode, result.stderr)
 
+        self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 10000}
+        result = self._run()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("process_uid", result.stderr)
+
         del self.manifest["configuration"]["shizuku"]
         result = self._run()
         self.assertEqual(2, result.returncode)
