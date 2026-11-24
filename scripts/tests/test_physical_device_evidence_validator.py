@@ -208,13 +208,25 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
     def test_voice_call_requires_actual_shizuku_and_protected_permission_evidence(self) -> None:
         self.manifest["configuration"]["backend"] = "VOICE_CALL"
         self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
-        self.manifest["configuration"]["permission_grants"]["CAPTURE_AUDIO_OUTPUT"] = True
-        self.manifest["configuration"]["permission_grants"]["CALL_AUDIO_INTERCEPTION"] = True
+        grants = self.manifest["configuration"]["permission_grants"]
+        grants["RECORD_AUDIO"] = False
+        grants["CAPTURE_AUDIO_OUTPUT"] = False
+        grants["CALL_AUDIO_INTERCEPTION"] = True
         self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 2000}
         for trial in self.manifest["trials"]:
             trial["recording_mode"] = "VOICE_CALL"
             trial["capture"]["recording_mode"] = "VOICE_CALL"
             trial["capture"]["audio_source"] = "Shizuku VOICE_CALL"
+        self.assertEqual([], self._errors())
+
+        grants["CALL_AUDIO_INTERCEPTION"] = False
+        grants["CAPTURE_AUDIO_OUTPUT"] = True
+        self.assertEqual([], self._errors())
+
+        grants["CAPTURE_AUDIO_OUTPUT"] = False
+        self.assertTrue(any("at least one accepted protected permission" in error for error in self._errors()))
+
+        self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 0}
         self.assertEqual([], self._errors())
 
         self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 10000}
