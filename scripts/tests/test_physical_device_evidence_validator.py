@@ -194,11 +194,21 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.manifest["trials"][0]["near_end"]["wav"] = "../outside.wav"
         self.assertTrue(any("resolves outside" in error for error in self._errors()))
 
+    def test_rejects_reused_reference_wav_through_path_alias(self) -> None:
+        first = self.manifest["trials"][0]["near_end"]
+        self.manifest["trials"][0]["far_end"]["wav"] = "wav/./IN-1-near_end.wav"
+        self.manifest["trials"][0]["far_end"]["sha256"] = first["sha256"]
+        self.assertTrue(any("distinct after path and symlink resolution" in error for error in self._errors()))
+
+    def test_rejects_boolean_schema_version(self) -> None:
+        self.manifest["schema_version"] = True
+        self.assertTrue(any("schema_version" in error for error in self._errors()))
+
     def test_rejects_reused_reference_wav(self) -> None:
         first = self.manifest["trials"][0]["near_end"]
         self.manifest["trials"][0]["far_end"]["wav"] = first["wav"]
         self.manifest["trials"][0]["far_end"]["sha256"] = first["sha256"]
-        self.assertTrue(any("distinct physical WAV" in error for error in self._errors()))
+        self.assertTrue(any("evidence files must be distinct" in error for error in self._errors()))
 
     def test_voice_call_does_not_require_microphone_permission(self) -> None:
         self.manifest["configuration"]["backend"] = "VOICE_CALL"
