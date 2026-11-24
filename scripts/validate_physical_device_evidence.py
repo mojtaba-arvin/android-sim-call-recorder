@@ -226,12 +226,17 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
         errors.append("configuration.permission_grants.READ_PHONE_STATE: actual grant must be true")
     if backend == "SPEAKERPHONE_MIC" and grants.get("RECORD_AUDIO") is not True:
         errors.append("configuration.permission_grants.RECORD_AUDIO: actual grant must be true for the microphone backend")
+    shizuku = configuration.get("shizuku")
+    if shizuku is not None:
+        if not isinstance(shizuku, dict):
+            errors.append("configuration.shizuku: when present, this must be an object")
+            shizuku = {}
+        _validate_allowed_keys(shizuku, "shizuku", "configuration.shizuku", errors)
+
     if backend == "VOICE_CALL":
-        shizuku = configuration.get("shizuku")
         if not isinstance(shizuku, dict):
             errors.append("configuration.shizuku: version and process UID are required for VOICE_CALL")
         else:
-            _validate_allowed_keys(shizuku, "shizuku", "configuration.shizuku", errors)
             _text(shizuku.get("version"), "configuration.shizuku.version", errors)
             process_uid = shizuku.get("process_uid")
             if type(process_uid) is not int or process_uid not in {0, 2000}:
