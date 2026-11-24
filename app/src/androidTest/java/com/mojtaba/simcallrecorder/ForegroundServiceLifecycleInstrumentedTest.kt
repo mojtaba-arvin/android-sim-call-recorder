@@ -104,6 +104,7 @@ class ForegroundServiceLifecycleInstrumentedTest {
                 activeRecord.captureDiagnostics.orEmpty(),
                 activeRecord.captureDiagnostics.orEmpty().contains("fallbackReason=Shizuku"),
             )
+            assertTrue(activeRecord.fallbackReason.orEmpty().contains("Shizuku"))
 
             // Recreating the UI must not stop or replace the independent foreground Service.
             scenario.recreate()
