@@ -94,7 +94,7 @@ Each of the six required cellular trials must include three distinct, reviewable
 - `far_end.wav`: a reference recording of the far-end participant's spoken phrase set
 - `capture.wav`: the WAV produced by this app for that exact call
 
-Record SHA-256 digests for all three files, the app database status/finalization result, requested and actual backend, actual audio-source label, an empty fallback reason, the reviewer and timezone-aware review timestamp, and independent intelligibility results for both directions. The manifest must keep requested backend, configured backend, per-trial recording mode, and persisted capture recording mode identical. Keep all speech WAVs and completed manifests in restricted test storage; never commit them or upload them to public CI artifacts.
+Record SHA-256 digests for all three files, the app database status/finalization result, requested and actual backend, actual audio-source label, an empty fallback reason, the reviewer and timezone-aware review timestamp, and independent 5/5 intelligibility results for both directions. The manifest must keep requested backend, configured backend, per-trial recording mode, and persisted capture recording mode identical. Keep all speech WAVs and completed manifests in restricted test storage; never commit them or upload them to public CI artifacts.
 
 Run the fail-closed validator against the completed manifest:
 
@@ -102,7 +102,7 @@ Run the fail-closed validator against the completed manifest:
 python3 scripts/validate_physical_device_evidence.py /restricted/evidence/<configuration>/manifest.json
 ```
 
-A zero exit code is the only software path that accepts `PASS_TWO_WAY`. It requires exactly three incoming and three outgoing real cellular trials; distinct near/far/app WAV files; valid PCM16 WAVs with non-zero data; matching SHA-256 checksums; complete device/build/modem/carrier/route/backend provenance; a finalized `COMPLETED` app record; independently intelligible near/far phrase sets; exact requested-to-actual backend equality; no fallback; and the required actual permission/Shizuku evidence. It rejects emulator or synthetic-call evidence, path traversal, missing files, duplicate WAVs, mismatched checksums, and sensitive identifier fields.
+A zero exit code is the only software path that accepts `PASS_TWO_WAY`. It requires exactly three incoming and three outgoing real cellular trials; distinct near/far/app WAV files; valid PCM16 WAVs with non-zero data; matching SHA-256 checksums; complete device/build/modem/carrier/route/backend provenance; a finalized `COMPLETED` app record; independently intelligible 5/5 near/far phrase sets; exact requested-to-actual backend equality; no fallback; and the required actual permission/Shizuku evidence. It rejects emulator or synthetic-call evidence, path traversal, missing files, duplicate WAVs, mismatched checksums, and sensitive identifier fields.
 
 CI tests this validator with generated synthetic WAV fixtures only to test the gate implementation. Those fixtures are never physical evidence and must never be entered in the device compatibility matrix.
 
