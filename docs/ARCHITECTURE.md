@@ -75,6 +75,7 @@ See [Android call-audio constraints](ANDROID_CALL_AUDIO_CONSTRAINTS.md), [the co
 
 - Room stores recording metadata; diagnostics timelines are in-memory unless an explicit privacy-reviewed requirement changes that.
 - WAV data is written to app-private storage and finalized before the corresponding row is treated as completed/playable.
+- Recording details display the persisted sample rate, channel count, PCM payload length, peak/RMS levels, explicit silent/unavailable state, and any framework-reported `clientSilenced` status. A silenced client is never labelled as verified near-end speech; an unsilenced client is also not proof of remote-party audio. These are waveform-quality diagnostics only and never establish intelligible speech or two-way cellular audio.
 - Before starting a new capture backend, the service routes startup through `CaptureStartupBarrier`, which awaits `CallRecordRepository.prepareForCapture()` before evaluating the runtime profile or invoking the backend. A recovery failure therefore prevents backend startup. This forces first-open process recovery to finish before any new `.wav.part` file can be created.
 - Concurrent `ACTION_START` contenders are serialized by the synchronized service state machine: only one request can own `STARTING` and enter the recovery barrier; competing requests are rejected until the active session completes. A JVM race test holds recovery pending while two start contenders compete, then verifies exactly one backend invocation after recovery. This is a same-process start-ownership test, not a multi-process Room-writer test.
 - First-open process recovery marks stale active rows interrupted, removes orphaned temporary `.wav.part` files, and preserves already promoted `.wav` files.
@@ -103,3 +104,11 @@ Package names may evolve; verify the actual source tree before changing them.
 - API 26 is an experimental software compatibility floor, not a promise of cellular audio support.
 
 See [the engineering roadmap](ROADMAP.md) for prioritized unfinished work and [SDK integration](SDK_INTEGRATION.md) for the supported consumer API.
+
+
+## Recording quality UI Definition of Done
+
+- Completed and unavailable recording detail views show persisted PCM format and signal metrics.
+- Silent and unavailable measurements remain distinct from non-zero signal.
+- The UI explicitly states that peak/RMS/non-zero samples do not prove near-end or far-end speech.
+- Unit tests cover signal states, metric rendering, and the evidence boundary.

@@ -324,6 +324,7 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+            RecordingQualityDetails(record)
             Button(onClick = onBack) { Text("Back") }
             OutlinedButton(
                 onClick = onDelete,
@@ -382,6 +383,7 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
         Text("${record.recordingMode} · ${record.audioSource} · ${record.channelCount} channel(s)")
         Text("Duration: ${formatDuration(record.durationMillis ?: 0L)}")
         if (record.isSilent == true) Text("Digital silence detected", color = MaterialTheme.colorScheme.error)
+        RecordingQualityDetails(record)
         if (record.captureProfile != null || record.captureDiagnostics != null) {
             HorizontalDivider()
             Text("Capture evidence", style = MaterialTheme.typography.titleLarge)
@@ -557,5 +559,15 @@ private fun formatDuration(durationMillis: Long): String {
         String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, remainder)
     } else {
         String.format(Locale.ROOT, "%02d:%02d", minutes, remainder)
+    }
+}
+
+
+@Composable
+private fun RecordingQualityDetails(record: CallRecord) {
+    HorizontalDivider()
+    Text("Audio quality", style = MaterialTheme.typography.titleLarge)
+    recordingQualitySummary(record).forEach { line ->
+        Text(line, style = MaterialTheme.typography.bodySmall)
     }
 }
