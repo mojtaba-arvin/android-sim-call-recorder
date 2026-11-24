@@ -242,6 +242,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 0}
         self.assertEqual([], self._errors())
 
+        self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 2000}
         self.manifest["configuration"]["permission_grants"].pop("CAPTURE_AUDIO_OUTPUT")
         self.manifest["configuration"]["permission_grants"].pop("CALL_AUDIO_INTERCEPTION")
         self.assertTrue(any("shell UID requires at least one accepted protected permission" in error for error in self._errors()))
