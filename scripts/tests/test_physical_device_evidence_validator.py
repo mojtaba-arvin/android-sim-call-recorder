@@ -178,6 +178,14 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.manifest["configuration"]["phoneNumber"] = "not-allowed"
         self.assertTrue(any("sensitive identifier" in error for error in self._errors()))
 
+    def test_rejects_unknown_shizuku_fields_even_for_microphone_backend(self) -> None:
+        self.manifest["configuration"]["shizuku"] = {
+            "version": "13.1.5",
+            "process_uid": 2000,
+            "unreviewed_metadata": "not allowed",
+        }
+        self.assertTrue(any("configuration.shizuku.unreviewed_metadata" in error for error in self._errors()))
+
     def test_rejects_fields_outside_allow_list(self) -> None:
         self.manifest["device"]["notes"] = "not part of the manifest contract"
         self.assertTrue(any("not part of the allow-listed evidence schema" in error for error in self._errors()))
