@@ -111,8 +111,24 @@ internal class DefaultCallRecordRepository @Inject constructor(
         dao.countAll()
     }
 
-    override suspend fun prepareForCapture() {
-        withContext(Dispatchers.IO) { dao.countAll() }
+    override suspend fun prepareForCapture() = withContext(Dispatchers.IO) {
+        // The Room open callback recovers stale rows and abandoned .part files. A process can
+        // still die after WAV promotion but before its Room insert commits; reconcile that gap.
+        val referencedPaths = dao.getAllFilePaths()
+            .mapNotNull(::resolvePrivateRecordingPath)
+            .map { it.absolutePath }
+            .toSet()
+        val directory = recordingDirectory().canonicalFile
+        directory.listFiles().orEmpty().forEach { candidate ->
+            // Do not follow symlinks: recovery may only remove direct, app-owned WAV entries.
+            if (candidate.absoluteFile != candidate.canonicalFile) return@forEach
+            val file = resolvePrivateRecordingPath(candidate.absolutePath) ?: return@forEach
+            if (!file.isFile || !file.extension.equals("wav", ignoreCase = true)) return@forEach
+            if (file.absolutePath !in referencedPaths) {
+                // Best effort. A failed unlink must not mutate Room state or block capture.
+                file.delete()
+            }
+        }
     }
 
     private fun requirePrivateRecordingPath(path: String) {
