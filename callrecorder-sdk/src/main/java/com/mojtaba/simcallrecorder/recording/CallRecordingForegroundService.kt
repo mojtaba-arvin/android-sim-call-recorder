@@ -228,6 +228,9 @@ internal class CallRecordingForegroundService : Service() {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (exception: Exception) {
+                // Preserve the root cause in logcat: onDestroy() replaces the public status with
+                // "Service stopped", which otherwise hides why monitoring terminated.
+                Log.e(TAG, "AUTOMATIC_CALL_MONITOR_FAILED", exception)
                 disarmAutomaticMonitoring()
                 updateNotification("Automatic call monitoring failed · ${exception.message}")
                 stopForeground(STOP_FOREGROUND_REMOVE)
