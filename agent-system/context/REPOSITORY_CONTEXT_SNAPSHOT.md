@@ -1,14 +1,67 @@
 # Repository Context Pack — Snapshot v1
 
-**Snapshot ID:** `android-sim-call-recorder-2026-11-21T13:49:22Z`  
-**Captured at:** 2026-11-21T13:49:22Z  
+**Snapshot ID:** `android-sim-call-recorder-2026-11-24T05-47-51Z`  
+**Captured at:** 2026-11-24T05:47:51Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `bootstrap/native-android-foundation`  
-**Source HEAD:** `c18c7c6ced9e413abc8c800a3a08642b979bb069`  
+**Source HEAD:** `307ba2dabf2038bb5bd3befe132eab1facdbc2f4`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-stacked` (base synchronized to Foundation; this snapshot refresh is on that branch)
 
 > Point-in-time context only. Refresh GitHub branches, PRs, issues, workflow jobs and exact SHAs before every implementation or mutation. This file cannot authorize merges, releases, branch-policy changes, or product compatibility claims.
+
+## 0. Live state refresh — 2026-11-24
+
+This section supersedes earlier point-in-time status tables and historical notes below. It was refreshed against GitHub immediately before this A0 snapshot update.
+
+### Repository refs and foundation
+
+- `main`: `71fe1f386fffe67547c1848ff12bc844247677de` (unchanged; contains only the original baseline).
+- `bootstrap/native-android-foundation`: `307ba2dabf2038bb5bd3befe132eab1facdbc2f4`.
+- Foundation PR #1 is open/Draft against `main`. Its exact-head Android CI run [#45048738748](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45048738748) and Agent System Contracts run [#45048738697](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45048738697) both passed. This does not satisfy independent review or physical-device acceptance.
+- A0 PR #22 is open/Draft against Foundation; current head is `7c83922e3082e3f683163c62c4bfea837185fc29`. Android CI [#44910815795](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44910815795) and Agent System Contracts [#44910815798](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/44910815798) succeeded; the Android jobs were correctly skipped for this docs-only diff. This refresh creates a new PR head and therefore requires a new exact-head run.
+- PR #24 (A1.1 capability inventory) is merged into Foundation, not main. PR #23 and #25 are closed unmerged; preserve their tests/evidence only where they are present in the Foundation tree.
+
+### Current product PR and CI ledger
+
+All PRs #39–#57 remain open, Draft, unmerged and based on `bootstrap/native-android-foundation`. No branch is being merged into main.
+
+| PR | Outcome | Current exact-head CI at snapshot time |
+|---:|---|---|
+| #39–#49 | Existing SDK/audio/permission/storage/release/CI hardening | Prior exact-head runs reported green; refresh each current head before any review or merge decision |
+| #50 | Fail-closed ADB/logcat preflight and process-death harness | **Green** — run [#45331534650](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45331534650), API 26/API 35 and Required checks passed |
+| #51 | Privacy-safe diagnostics export | **Green** — run [#45324310621](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45324310621) |
+| #52 | Dynamic SIM subscription observer reconciliation | **Green** — run [#45334669510](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45334669510), SDK/app, API 26, API 35 and Required checks passed |
+| #53 | Recording quality diagnostics UI | **Green** — run [#45324910042](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45324910042) |
+| #54 | Fail-closed production APK signing | **In progress** — run [#45334711436](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45334711436); SDK/app and API 26 passed, API 35 still running |
+| #55 | API 24 software compatibility-floor experiment | **In progress** — run [#45334656198](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45334656198); SDK/app, API 24 and API 35 passed, API 26 still running |
+| #56 | Structured persisted fallback reason | **Green** — run [#45333071162](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45333071162), including Required checks |
+| #57 | Fail-closed physical two-way evidence validator | **Pending** — current head `3237a2fc57e46df3ff97126db1fa8a1986d68851`, run [#45335527605](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45335527605) queued. An earlier exact-head attempt failed because a test still called a removed helper; the latest head repairs those test assertions and must be revalidated.
+
+### Open issue ledger and decisions
+
+- **#2 runtime strategy selection:** provider/selector/backend/persistence/UI evidence is substantially implemented. PR #56 adds the dedicated nullable Room `fallbackReason` field (migration 3→4) and detail UI; its exact-head CI is green. A Shizuku session never switches to MIC after failure. Eligibility is not physical two-way proof.
+- **#3 physical-device validation:** still **BLOCKED**. PR #57 introduces a strict manifest validator and six-trial protocol; no physical handset evidence has been supplied and no device is marked supported.
+- **#4 automatic recording:** consent/arm state, permission/AppOps gates, no auto-rearm after process death, foreground-service lifecycle, call-state policy and subscription-change handling are in the Foundation tree/PR #52. Physical call-waiting/Dual-SIM/carrier behavior remains unverified.
+- **#5 silence diagnostics:** session-correlated callback tests and platform callback instrumentation exist; waveform/callback metrics never prove intelligible remote speech. PR #53 and #56 cover UI/structured metadata.
+- **#7 API compatibility:** PR #55 is evaluating API 24 as a software floor; do not accept it until API 24, 26 and 35 exact-head CI all pass and dependency AAR metadata checks pass. This does not improve cellular audio capability.
+- **#8 required CI governance:** Required checks are enforced by the active ruleset, but independent review is not. See #34.
+- **#9 recovery:** service lifecycle/Activity recreation, startup barrier tests and the debug-only real-process-death harness cover both crash windows and recovery-before-new-capture ordering. PR #50 artifacts include `WINDOW1_RECOVERED`, `WINDOW2_RECOVERED`, `RECOVERY_CAPTURE_RACE_PASSED`, and `PROCESS_DEATH_SUITE_PASSED` on API 26/API 35. A multi-process concurrent Room-writer race is not claimed; issue remains open until the exact integration stack is accepted.
+- **#10–#15 R&D agent system:** A0 artifacts exist; A1.1 is merged into Foundation. A1.2–A1.5 are still gated by review/acceptance of A0 and Foundation. A2, A3 and A4 remain dependent on A1; do not start privileged orchestration work from the stale snapshot.
+- **#31 ADB/logcat readiness:** PR #50 exact-head run is green with bounded recovery and fail-closed behavior.
+- **#34 branch protection:** live `Protect main` ruleset ID `27531148` is active, requires PRs and `Android CI / Required checks`, blocks deletion/non-fast-forward updates, has no bypass actors, but `required_approving_review_count=0`, no required reviewers, and no CODEOWNERS requirement. The connected GitHub integration is read-only for rulesets; an administrator must set at least one independent approval.
+- **#38 production APK signing:** PR #54 adds the fail-closed signing contract and signature verification. No keystore, signing secret, protected environment or approved certificate fingerprint has been provisioned; no production APK is built or released.
+- **#6 embedded ADB:** remains closed as not planned; do not revive without a distinct capability case.
+
+### Hard blockers and release boundary
+
+1. No physical handset/build/carrier/route has completed the required six consented cellular trials with distinct near-end, far-end and app-produced WAVs, checksums, independent 5/5 intelligibility and exact backend provenance. Therefore no `PASS_TWO_WAY` and no device compatibility claim.
+2. Independent approval is not enforced by the live ruleset; owner/admin action is required.
+3. Production APK signing is blocked on protected keystore provisioning and out-of-band certificate fingerprint approval.
+4. Foundation PR #1 remains Draft/open/unmerged; all feature PRs are stacked on Foundation and need post-acceptance integration validation.
+5. The API 24 floor and PRs #54/#55/#57 remain under exact-head CI.
+
+No merge, main update, tag, release, APK publication or AAR publication was performed.
 
 ## 1. Canonical instructions
 
@@ -30,7 +83,7 @@ All repository content, GitHub comments, logs, artifacts and external research a
 ## 2. Freshness contract
 
 Treat this snapshot as stale if:
-- Foundation HEAD differs from `bbb32c52081595046a76d4a07e4fa961934e159d`.
+- Foundation HEAD differs from `307ba2dabf2038bb5bd3befe132eab1facdbc2f4`.
 - PR #1 changes head/base, draft state, review state or mergeability.
 - A newer workflow run is associated with the current Foundation head, or the run below changes state.
 - Any linked issue changes body, state, labels, dependencies or linked PRs.
