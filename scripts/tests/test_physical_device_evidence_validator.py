@@ -137,6 +137,38 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("checksum does not match", result.stderr)
 
+    def test_rejects_all_zero_pcm_capture(self) -> None:
+        capture = self.root / self.manifest["trials"][0]["capture"]["wav"]
+        with wave.open(str(capture), "wb") as output:
+            output.setnchannels(1)
+            output.setsampwidth(2)
+            output.setframerate(8_000)
+            output.writeframes(bytes(1_600))
+        self.manifest["trials"][0]["capture"]["sha256"] = hashlib.sha256(capture.read_bytes()).hexdigest()
+        result = self._run()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("all-zero PCM", result.stderr)
+
+    def test_rejects_non_five_of_five_intelligibility(self) -> None:
+        self.manifest["trials"][0]["far_end"]["score"] = 4
+        result = self._run()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("score 5/5 is required", result.stderr)
+
+    def test_rejects_requested_backend_mismatch(self) -> None:
+        self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
+        result = self._run()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("requested_backend", result.stderr)
+
+    def test_rejects_reused_reference_wav(self) -> None:
+        first = self.manifest["trials"][0]["near_end"]
+        self.manifest["trials"][0]["far_end"]["wav"] = first["wav"]
+        self.manifest["trials"][0]["far_end"]["sha256"] = first["sha256"]
+        result = self._run()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("distinct physical WAV", result.stderr)
+
     def test_rejects_one_sided_or_incomplete_trial_set(self) -> None:
         self.manifest["trials"] = self.manifest["trials"][:5]
         result = self._run()
