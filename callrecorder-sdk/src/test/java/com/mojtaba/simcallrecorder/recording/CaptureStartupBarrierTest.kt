@@ -50,6 +50,7 @@ class CaptureStartupBarrierTest {
         val machine = RecordingServiceStateMachine()
         val contendersReady = CountDownLatch(2)
         val releaseContenders = CountDownLatch(1)
+        val contendersAttempted = CountDownLatch(2)
         val recoveryStarted = CompletableDeferred<Unit>()
         val allowRecoveryToFinish = CompletableDeferred<Unit>()
         val accepted = Collections.synchronizedList(mutableListOf<Boolean>())
@@ -68,6 +69,7 @@ class CaptureStartupBarrierTest {
                     ),
                 )
                 accepted += ownsStart
+                contendersAttempted.countDown()
                 if (ownsStart) {
                     CaptureStartupBarrier.start(
                         prepareForCapture = {
@@ -86,6 +88,7 @@ class CaptureStartupBarrierTest {
         assertTrue("Both start contenders must be ready before releasing the race.", contendersReady.await(5, TimeUnit.SECONDS))
         releaseContenders.countDown()
         recoveryStarted.await()
+        assertTrue("Both contenders must finish their state-machine attempt.", contendersAttempted.await(5, TimeUnit.SECONDS))
 
         assertEquals("Only one simultaneous start request may own STARTING.", 1, accepted.count { it })
         assertEquals("No backend may start while process recovery is suspended.", 0, backendCalls.get())
@@ -94,6 +97,7 @@ class CaptureStartupBarrierTest {
         allowRecoveryToFinish.complete(Unit)
         contenders.awaitAll()
 
+        assertEquals("Exactly one contender must have been accepted.", 1, accepted.count { it })
         assertEquals("Exactly one backend may start after recovery.", 1, backendCalls.get())
         assertTrue(machine.recordingStarted())
         assertEquals(RecordingServiceStateMachine.State.RECORDING, machine.state)
