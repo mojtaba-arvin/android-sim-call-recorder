@@ -196,7 +196,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.manifest["configuration"]["backend"] = "VOICE_CALL"
         self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
         self.manifest["configuration"]["permission_grants"].pop("RECORD_AUDIO", None)
-        self.manifest["configuration"]["permission_grants"]["CAPTURE_AUDIO_OUTPUT"] = True
+        self.manifest["configuration"]["permission_grants"].pop("CAPTURE_AUDIO_OUTPUT", None)
         self.manifest["configuration"]["permission_grants"]["CALL_AUDIO_INTERCEPTION"] = True
         self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 2000}
         for trial in self.manifest["trials"]:
