@@ -37,8 +37,8 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         get() = RuntimeEnvironment.getApplication()
 
     @Test
-    @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
-    fun api31Plus_emitsRingingOffhookAndIdleForTheCorrectSubscription() = runBlocking {
+    @Config(sdk = [31, 32, 33, 34, 35])
+    fun api31To35_emitsRingingOffhookAndIdleForTheCorrectSubscription() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionId = 101
         val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
@@ -78,8 +78,8 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     }
 
     @Test
-    @Config(sdk = [36])
-    fun api31Plus_emitsInitialSnapshotForCallAlreadyInProgress() = runBlocking {
+    @Config(sdk = [36, 37])
+    fun api36Plus_emitsInitialSnapshotForCallAlreadyInProgress() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionId = 111
         val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
