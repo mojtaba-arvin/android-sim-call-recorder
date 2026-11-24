@@ -33,7 +33,7 @@ This is a software/API compatibility audit. It does not claim cellular call-audi
 ## Additional library compatibility APIs
 
 - `java.time.LocalDate` in the app date filter is supported below API 26 through core-library desugaring (`desugar_jdk_libs:2.1.5`).
-- `java.nio.file.Files.move` is not used for WAV promotion; `android.system.Os.rename()` (API 21+) performs atomic same-filesystem promotion without an API 26 dependency.
+- `java.nio.file.Files.move` is not used for WAV promotion; `File.renameTo()` performs same-directory native rename promotion on Android/Linux without an API 26 dependency.
 - Dynamic subscription-list reconciliation is included in this branch: the API 30 Executor overload is guarded, legacy listener construction/registration occurs on Main, and no-active-SIM is a waiting state.
 
 ## Compatibility test coverage
