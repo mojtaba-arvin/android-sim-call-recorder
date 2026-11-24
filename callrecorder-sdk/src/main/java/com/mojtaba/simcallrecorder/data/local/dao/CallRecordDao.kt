@@ -37,6 +37,9 @@ internal interface CallRecordDao {
     @Query("SELECT * FROM call_records ORDER BY startedAtEpochMillis DESC, id DESC")
     fun observeAll(): Flow<List<CallRecordEntity>>
 
+    @Query("SELECT filePath FROM call_records")
+    suspend fun getAllFilePaths(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(record: CallRecordEntity): Long
 
