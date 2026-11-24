@@ -9,15 +9,18 @@ import wave
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[1] / "validate_physical_device_evidence.py"
+sys.path.insert(0, str(SCRIPT.parent))
+from validate_physical_device_evidence import validate_manifest
 
 
-def write_wav(path: Path) -> str:
+def write_wav(path: Path, silence: bool = False) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
+    samples = [0] * 800 if silence else [1200] * 800
     with wave.open(str(path), "wb") as output:
         output.setnchannels(1)
         output.setsampwidth(2)
         output.setframerate(8_000)
-        output.writeframes(struct.pack("<800h", *([1200] * 800)))
+        output.writeframes(struct.pack("<800h", *samples))
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -26,13 +29,12 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.manifest_path = self.root / "manifest.json"
-        self.manifest = self._valid_manifest()
-        self._write_manifest()
+        self.manifest = self._valid_fixture()
 
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def _valid_manifest(self) -> dict:
+    def _valid_fixture(self) -> dict:
         trials = []
         for direction, prefix in (("INCOMING", "IN"), ("OUTGOING", "OUT")):
             for number in range(1, 4):
@@ -59,6 +61,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
                         "far_end": {
                             **evidence["far_end"],
                             "all_required_phrases_intelligible": True,
+                            "score": 5,
                         },
                         "capture": {
                             **evidence["capture"],
@@ -72,7 +75,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
                 )
         return {
             "schema_version": 1,
-            "verdict": "PASS_TWO_WAY",
+            "verdict": "TEST_FIXTURE",
             "device": {
                 "manufacturer": "Test manufacturer",
                 "model": "Test handset",
@@ -102,102 +105,78 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
             "trials": trials,
         }
 
-    def _write_manifest(self) -> None:
+    def _errors(self) -> list[str]:
         self.manifest_path.write_text(json.dumps(self.manifest, indent=2), encoding="utf-8")
+        return validate_manifest(self.manifest_path, allow_test_fixture=True)
 
-    def _run(self) -> subprocess.CompletedProcess:
-        self._write_manifest()
-        return subprocess.run(
+    def test_valid_fixture_only_passes_structural_test_mode(self) -> None:
+        self.assertEqual([], self._errors())
+        self.assertEqual("TEST_FIXTURE", self.manifest["verdict"])
+
+    def test_cli_never_accepts_test_fixture_as_physical_pass(self) -> None:
+        self.manifest_path.write_text(json.dumps(self.manifest, indent=2), encoding="utf-8")
+        result = subprocess.run(
             [sys.executable, str(SCRIPT), str(self.manifest_path)],
             capture_output=True,
             text=True,
             check=False,
         )
-
-    def test_accepts_six_physical_trials_with_separate_near_far_and_capture_wavs(self) -> None:
-        result = self._run()
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("PASS_TWO_WAY", result.stdout)
+        self.assertEqual(2, result.returncode)
+        self.assertIn("TEST_FIXTURE", result.stderr)
+        self.assertNotIn("PASS_TWO_WAY:", result.stdout)
 
     def test_rejects_emulator_or_synthetic_call_state(self) -> None:
         self.manifest["configuration"]["is_emulator"] = True
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("configuration.is_emulator", result.stderr)
+        self.assertTrue(any("configuration.is_emulator" in error for error in self._errors()))
 
     def test_rejects_missing_far_end_reference_wav(self) -> None:
         (self.root / self.manifest["trials"][0]["far_end"]["wav"]).unlink()
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("trials[0].far_end.wav", result.stderr)
+        self.assertTrue(any("trials[0].far_end.wav" in error for error in self._errors()))
 
     def test_rejects_checksum_mismatch(self) -> None:
         self.manifest["trials"][0]["capture"]["sha256"] = "0" * 64
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("checksum does not match", result.stderr)
+        self.assertTrue(any("checksum does not match" in error for error in self._errors()))
 
     def test_rejects_all_zero_pcm_capture(self) -> None:
         capture = self.root / self.manifest["trials"][0]["capture"]["wav"]
-        with wave.open(str(capture), "wb") as output:
-            output.setnchannels(1)
-            output.setsampwidth(2)
-            output.setframerate(8_000)
-            output.writeframes(bytes(1_600))
-        self.manifest["trials"][0]["capture"]["sha256"] = hashlib.sha256(capture.read_bytes()).hexdigest()
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("all-zero PCM", result.stderr)
+        digest = write_wav(capture, silence=True)
+        self.manifest["trials"][0]["capture"]["sha256"] = digest
+        self.assertTrue(any("all-zero PCM" in error for error in self._errors()))
 
     def test_rejects_non_five_of_five_intelligibility(self) -> None:
         self.manifest["trials"][0]["far_end"]["score"] = 4
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("score 5/5 is required", result.stderr)
+        self.assertTrue(any("score 5/5 is required" in error for error in self._errors()))
 
     def test_rejects_requested_backend_mismatch(self) -> None:
         self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("requested_backend", result.stderr)
+        self.assertTrue(any("requested_backend" in error for error in self._errors()))
+
+    def test_rejects_one_sided_or_incomplete_trial_set(self) -> None:
+        self.manifest["trials"] = self.manifest["trials"][:5]
+        self.assertTrue(any("exactly six trials" in error for error in self._errors()))
+
+    def test_rejects_actual_backend_substitution(self) -> None:
+        self.manifest["trials"][0]["recording_mode"] = "VOICE_CALL"
+        self.assertTrue(any("recording_mode" in error for error in self._errors()))
+
+    def test_rejects_mid_trial_fallback(self) -> None:
+        self.manifest["trials"][0]["fallback_reason"] = "VOICE_CALL unavailable"
+        self.assertTrue(any("fallback_reason" in error for error in self._errors()))
+
+    def test_rejects_sensitive_identifiers(self) -> None:
+        self.manifest["device"]["serial_number"] = "not-allowed"
+        self.manifest["configuration"]["phoneNumber"] = "not-allowed"
+        self.assertTrue(any("sensitive identifier" in error for error in self._errors()))
+
+    def test_rejects_path_traversal(self) -> None:
+        self.manifest["trials"][0]["near_end"]["wav"] = "../outside.wav"
+        self.assertTrue(any("resolves outside" in error for error in self._errors()))
 
     def test_rejects_reused_reference_wav(self) -> None:
         first = self.manifest["trials"][0]["near_end"]
         self.manifest["trials"][0]["far_end"]["wav"] = first["wav"]
         self.manifest["trials"][0]["far_end"]["sha256"] = first["sha256"]
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("distinct physical WAV", result.stderr)
-
-    def test_rejects_one_sided_or_incomplete_trial_set(self) -> None:
-        self.manifest["trials"] = self.manifest["trials"][:5]
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("exactly six trials", result.stderr)
-
-    def test_rejects_actual_backend_substitution(self) -> None:
-        self.manifest["trials"][0]["recording_mode"] = "VOICE_CALL"
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("recording_mode", result.stderr)
-
-    def test_rejects_mid_trial_fallback(self) -> None:
-        self.manifest["trials"][0]["fallback_reason"] = "VOICE_CALL unavailable"
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("fallback_reason", result.stderr)
-
-    def test_rejects_sensitive_identifiers(self) -> None:
-        self.manifest["device"]["serial_number"] = "not-allowed"
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("sensitive identifier", result.stderr)
-
-    def test_rejects_path_traversal(self) -> None:
-        self.manifest["trials"][0]["near_end"]["wav"] = "../outside.wav"
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("resolves outside", result.stderr)
+        self.assertTrue(any("distinct physical WAV" in error for error in self._errors()))
 
     def test_voice_call_requires_actual_shizuku_and_protected_permission_evidence(self) -> None:
         self.manifest["configuration"]["backend"] = "VOICE_CALL"
@@ -209,18 +188,13 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
             trial["recording_mode"] = "VOICE_CALL"
             trial["capture"]["recording_mode"] = "VOICE_CALL"
             trial["capture"]["audio_source"] = "Shizuku VOICE_CALL"
-        result = self._run()
-        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], self._errors())
 
         self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 10000}
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("process_uid", result.stderr)
+        self.assertTrue(any("process_uid" in error for error in self._errors()))
 
         del self.manifest["configuration"]["shizuku"]
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("configuration.shizuku", result.stderr)
+        self.assertTrue(any("configuration.shizuku" in error for error in self._errors()))
 
 
 if __name__ == "__main__":
