@@ -94,7 +94,7 @@ Each of the six required cellular trials must include three distinct, reviewable
 - `far_end.wav`: a reference recording of the far-end participant's spoken phrase set
 - `capture.wav`: the WAV produced by this app for that exact call
 
-Record SHA-256 digests for all three files, the app database status/finalization result, the exact selected/actual backend, the reviewer and timezone-aware review timestamp, and independent intelligibility results for both directions. Keep all speech WAVs and completed manifests in restricted test storage; never commit them or upload them to public CI artifacts.
+Record SHA-256 digests for all three files, the app database status/finalization result, requested and actual backend, actual audio-source label, an empty fallback reason, the reviewer and timezone-aware review timestamp, and independent intelligibility results for both directions. The manifest must keep requested backend, configured backend, per-trial recording mode, and persisted capture recording mode identical. Keep all speech WAVs and completed manifests in restricted test storage; never commit them or upload them to public CI artifacts.
 
 Run the fail-closed validator against the completed manifest:
 
