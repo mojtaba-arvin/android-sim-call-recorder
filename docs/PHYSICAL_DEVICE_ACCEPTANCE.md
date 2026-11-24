@@ -84,6 +84,20 @@ Optional quantitative measurements (RMS, peak, clipping percentage, speech-band 
 | Reviewer / witness | NONE |
 | Notes / failure stage | NOT TESTED |
 
+## Automated PASS_TWO_WAY evidence gate
+
+Use [the empty manifest template](physical-device-evidence-template.json) for one exact device/build/modem/carrier/route/backend configuration. The template is deliberately `UNKNOWN` and is not evidence.
+
+Every configuration requires exactly three incoming and three outgoing real cellular calls. Each trial must retain three distinct WAV files: near-end participant reference, far-end participant reference, and the app-produced capture. The manifest records SHA-256 digests, a finalized `COMPLETED` Room record, requested and actual backend, no fallback, reviewer and timezone-aware timestamp, and independent 5/5 intelligibility scores for both directions.
+
+Run:
+
+```bash
+python3 scripts/validate_physical_device_evidence.py /restricted/evidence/<configuration>/manifest.json
+```
+
+The validator fails closed on incomplete trial sets, emulator/synthetic calls, missing or reused WAVs (including path/symlink aliases), path traversal, invalid/non-PCM16/empty WAV data, checksum mismatch, missing provenance, sensitive identifier fields, backend substitution, fallback, incomplete permissions/Shizuku evidence, and non-finalized app records. The CLI accepts only `PASS_TWO_WAY`; CI uses generated synthetic fixtures under `TEST_FIXTURE` solely to test validator behavior. Synthetic fixtures cannot produce a physical pass. Keep speech WAVs and completed manifests in restricted storage; never commit or upload them to CI.
+
 ## Device compatibility matrix
 
 The matrix is intentionally unpopulated. Add a row only after the above protocol is run; never generalize one carrier/route/build result to an entire model family.
