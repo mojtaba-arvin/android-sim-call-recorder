@@ -174,6 +174,10 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.manifest["configuration"]["phoneNumber"] = "not-allowed"
         self.assertTrue(any("sensitive identifier" in error for error in self._errors()))
 
+    def test_rejects_fields_outside_allow_list(self) -> None:
+        self.manifest["device"]["notes"] = "not part of the manifest contract"
+        self.assertTrue(any("not part of the allow-listed evidence schema" in error for error in self._errors()))
+
     def test_rejects_path_traversal(self) -> None:
         self.manifest["trials"][0]["near_end"]["wav"] = "../outside.wav"
         self.assertTrue(any("resolves outside" in error for error in self._errors()))
