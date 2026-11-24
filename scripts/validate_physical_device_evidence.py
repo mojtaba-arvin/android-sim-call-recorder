@@ -222,9 +222,10 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
         errors.append("configuration.permission_grants: actual permission grant map is required")
         grants = {}
     _validate_allowed_keys(grants, "permission_grants", "configuration.permission_grants", errors)
-    for permission in ("READ_PHONE_STATE", "RECORD_AUDIO"):
-        if grants.get(permission) is not True:
-            errors.append(f"configuration.permission_grants.{permission}: actual grant must be true")
+    if grants.get("READ_PHONE_STATE") is not True:
+        errors.append("configuration.permission_grants.READ_PHONE_STATE: actual grant must be true")
+    if backend == "SPEAKERPHONE_MIC" and grants.get("RECORD_AUDIO") is not True:
+        errors.append("configuration.permission_grants.RECORD_AUDIO: actual grant must be true for the microphone backend")
     if backend == "VOICE_CALL":
         for permission in ("CAPTURE_AUDIO_OUTPUT", "CALL_AUDIO_INTERCEPTION"):
             if grants.get(permission) is not True:
