@@ -8,6 +8,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 mkdir -p "$tmp/bin" "$tmp/scripts/ci" "$tmp/app/build/reports"
 cp "$source_script" "$tmp/scripts/ci/run-emulator-tests.sh"
+cp "$repo_root/scripts/ci/clear-logcat-fail-closed.sh" "$tmp/scripts/ci/clear-logcat-fail-closed.sh"
 
 cat > "$tmp/bin/adb" <<'ADB'
 #!/usr/bin/env bash
@@ -61,8 +62,9 @@ echo "Emulator logcat preflight fail-closed test passed."
 
 # The process-death phase has its own logcat reset after the ADB wait. It must
 # also stop before launching any phase when that reset fails.
-mkdir -p "$tmp/process-death/bin" "$tmp/process-death/scripts"
+mkdir -p "$tmp/process-death/bin" "$tmp/process-death/scripts/ci"
 cp "$repo_root/scripts/run-process-death-emulator-tests.sh" "$tmp/process-death/scripts/run-process-death-emulator-tests.sh"
+cp "$repo_root/scripts/ci/clear-logcat-fail-closed.sh" "$tmp/process-death/scripts/ci/clear-logcat-fail-closed.sh"
 cat > "$tmp/process-death/bin/adb" <<'ADB'
 #!/usr/bin/env bash
 set -euo pipefail
