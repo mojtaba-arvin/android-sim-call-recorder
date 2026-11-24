@@ -97,76 +97,88 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
             val sourceCandidates = privilegedFullDuplexAudioSources()
             for (audioSource in sourceCandidates) {
                 for ((channelMask, channelCount) in candidates) {
-                val minBufferBytes = try {
-                    AudioRecord.getMinBufferSize(
-                        sampleRate,
-                        channelMask,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                    )
-                } catch (exception: Exception) {
-                    lastError = "Could not query AudioRecord buffer size: ${exception.message}"
-                    continue
-                }
-
-                if (minBufferBytes <= 0) {
-                    lastError = "AudioRecord rejected the requested sample rate/channel format."
-                    continue
-                }
-
-                val record = try {
-                    AudioRecord(
-                        audioSource,
-                        sampleRate,
-                        channelMask,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                        max(minBufferBytes * 4, sampleRate * channelCount),
-                    )
-                } catch (exception: Exception) {
-                    lastError = "AudioSource $audioSource AudioRecord creation failed: ${exception.javaClass.simpleName}: ${exception.message}"
-                    continue
-                }
-
-                if (record.state != AudioRecord.STATE_INITIALIZED) {
-                    runCatching { record.release() }
-                    lastError = "AudioSource $audioSource did not initialize for ${channelCount}-channel PCM."
-                    continue
-                }
-
-                val sink = try {
-                    ParcelFileDescriptor.dup(output.fileDescriptor)
-                } catch (exception: Exception) {
-                    runCatching { record.release() }
-                    lastError = "Could not duplicate the capture output pipe: ${exception.message}"
-                    continue
-                }
-
-                try {
-                    record.startRecording()
-                    if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                        throw IllegalStateException("AudioRecord did not enter RECORDSTATE_RECORDING.")
+                    val minBufferBytes = try {
+                        AudioRecord.getMinBufferSize(
+                            sampleRate,
+                            channelMask,
+                            AudioFormat.ENCODING_PCM_16BIT,
+                        )
+                    } catch (exception: Exception) {
+                        lastError = "Could not query AudioRecord buffer size: ${exception.message}"
+                        continue
                     }
-                } catch (exception: Exception) {
-                    closeQuietly(sink)
-                    runCatching { record.release() }
-                    lastError = "AudioSource $audioSource start failed: ${exception.javaClass.simpleName}: ${exception.message}"
-                    continue
-                }
 
-                closeQuietly(output)
-                stopRequested = AtomicBoolean(false)
-                currentRecord = record
-                active = true
-                lastError = ""
+                    if (minBufferBytes <= 0) {
+                        lastError = "AudioRecord rejected the requested sample rate/channel format."
+                        continue
+                    }
 
-                writerThread = Thread(
-                    { drainAudioRecord(record, sink) },
-                    "privileged-voice-call-capture",
-                ).apply {
-                    isDaemon = true
-                    start()
-                }
+                    val record = try {
+                        AudioRecord(
+                            audioSource,
+                            sampleRate,
+                            channelMask,
+                            AudioFormat.ENCODING_PCM_16BIT,
+                            max(minBufferBytes * 4, sampleRate * channelCount),
+                        )
+                    } catch (exception: Exception) {
+                        lastError = "AudioSource $audioSource AudioRecord creation failed: ${exception.javaClass.simpleName}: ${exception.message}"
+                        continue
+                    }
 
-                return channelCount
+                    if (record.state != AudioRecord.STATE_INITIALIZED) {
+                        runCatching { record.release() }
+                        lastError = "AudioSource $audioSource did not initialize for ${channelCount}-channel PCM."
+                        continue
+                    }
+
+                    val sink = try {
+                        ParcelFileDescriptor.dup(output.fileDescriptor)
+                    } catch (exception: Exception) {
+                        runCatching { record.release() }
+                        lastError = "Could not duplicate the capture output pipe: ${exception.message}"
+                        continue
+                    }
+
+                    try {
+                        record.startRecording()
+                        if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                            throw IllegalStateException("AudioRecord did not enter RECORDSTATE_RECORDING.")
+                        }
+                    } catch (exception: Exception) {
+                        closeQuietly(sink)
+                        runCatching { record.release() }
+                        lastError = "AudioSource $audioSource start failed: ${exception.javaClass.simpleName}: ${exception.message}"
+                        continue
+                    }
+
+                    closeQuietly(output)
+                    stopRequested = AtomicBoolean(false)
+                    currentRecord = record
+                    active = true
+                    lastError = ""
+
+                    val thread = try {
+                        Thread(
+                            { drainAudioRecord(record, sink) },
+                            "privileged-voice-call-capture",
+                        ).apply { isDaemon = true }
+                    } catch (exception: Exception) {
+                        releaseUnstartedCapture(record, sink)
+                        lastError = "Could not create the AudioRecord writer thread: ${exception.javaClass.simpleName}: ${exception.message}"
+                        return 0
+                    }
+
+                    writerThread = thread
+                    try {
+                        thread.start()
+                    } catch (exception: Exception) {
+                        releaseUnstartedCapture(record, sink)
+                        lastError = "Could not start the AudioRecord writer thread: ${exception.javaClass.simpleName}: ${exception.message}"
+                        return 0
+                    }
+
+                    return channelCount
                 }
             }
 
@@ -176,6 +188,22 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
             }
             return 0
         }
+    }
+
+    /**
+     * Releases resources when the writer thread could not be created or started. In this path
+     * there is no drain thread to own AudioRecord/sink cleanup.
+     */
+    private fun releaseUnstartedCapture(record: AudioRecord, sink: ParcelFileDescriptor) {
+        stopRequested.set(true)
+        runCatching {
+            if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()
+        }
+        runCatching { record.release() }
+        closeQuietly(sink)
+        if (currentRecord === record) currentRecord = null
+        writerThread = null
+        active = false
     }
 
     private fun drainAudioRecord(
@@ -247,6 +275,9 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
         }
         if (thread != null && thread !== Thread.currentThread()) {
             runCatching { thread.join(STOP_JOIN_TIMEOUT_MS) }
+            if (thread.isAlive) {
+                lastError = "AudioRecord writer thread did not terminate within ${STOP_JOIN_TIMEOUT_MS} ms."
+            }
         }
     }
 
@@ -337,9 +368,21 @@ internal class RecorderServiceController(
     fun stop() {
         if (state == State.IDLE) return
         state = State.STOPPING
-        runCatching { engine.stop() }
-            .onFailure { policyError = "Capture stop failed: ${it.message}" }
-        state = State.IDLE
+        val stopFailure = runCatching { engine.stop() }.exceptionOrNull()
+        when {
+            stopFailure != null -> {
+                state = State.FAILED
+                policyError = "Capture stop failed: ${stopFailure.message}"
+            }
+            engine.isCapturing -> {
+                state = State.FAILED
+                policyError = "Capture engine remained active after stop; refusing to report an idle recorder."
+            }
+            else -> {
+                state = State.IDLE
+                policyError = ""
+            }
+        }
     }
 
     private companion object {

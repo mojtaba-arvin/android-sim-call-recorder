@@ -183,9 +183,33 @@ class RecorderServiceControllerTest {
         secondPipe[0].close()
     }
 
+    @Test
+    fun stopDoesNotReportIdleWhileCaptureEngineRemainsActive() {
+        val engine = FakeCaptureEngine(stopKeepsCapturing = true)
+        val controller = RecorderServiceController(engine, hostUid = { 2_000 })
+        val pipe = ParcelFileDescriptor.createPipe()
+
+        assertEquals(2, controller.start(pipe[1], 48_000, 2))
+        controller.stop()
+
+        assertEquals(RecorderServiceController.State.FAILED, controller.state)
+        assertTrue(engine.isCapturing)
+        assertTrue(controller.lastError.contains("remained active"))
+
+        engine.finishCapture()
+        assertFalse(engine.isCapturing)
+        val retryPipe = ParcelFileDescriptor.createPipe()
+        assertEquals(2, controller.start(retryPipe[1], 48_000, 2))
+        engine.finishCapture()
+        controller.stop()
+        pipe[0].close()
+        retryPipe[0].close()
+    }
+
     private class FakeCaptureEngine(
         var startResult: Int = 2,
         private val error: String = "",
+        private val stopKeepsCapturing: Boolean = false,
     ) : VoiceCallCaptureEngine {
         var startCount = 0
         var stopCount = 0
@@ -207,6 +231,10 @@ class RecorderServiceControllerTest {
 
         override fun stop() {
             stopCount++
+            if (!stopKeepsCapturing) isCapturing = false
+        }
+
+        fun finishCapture() {
             isCapturing = false
         }
     }
