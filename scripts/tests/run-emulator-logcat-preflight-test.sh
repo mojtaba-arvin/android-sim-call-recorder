@@ -23,6 +23,7 @@ case "$*" in
   "shell getprop ro.build.version.sdk") echo "35" ;;
   "logcat -c") exit 23 ;;
   "logcat -b all -c") exit 23 ;;
+  "logcat -b all -c") exit 23 ;;
   "version") echo "Android Debug Bridge test stub" ;;
   *) exit 0 ;;
 esac
@@ -70,6 +71,7 @@ case "$*" in
   "wait-for-device") exit 0 ;;
   "shell getprop ro.build.version.sdk") echo "30" ;;
   "logcat -c") exit 23 ;;
+  "logcat -b all -c") exit 23 ;;
   "version") echo "Android Debug Bridge test stub" ;;
   "devices -l") printf 'List of devices attached\nemulator-5554 device product:ci\n' ;;
   *) exit 0 ;;
