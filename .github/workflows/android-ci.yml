@@ -116,6 +116,9 @@ jobs:
       - name: Verify sample app consumes only the SDK public boundary
         run: bash scripts/verify-sdk-boundary.sh
 
+      - name: Test fail-closed physical two-way evidence validator
+        run: python3 -m unittest discover -s scripts/tests -p 'test_physical_device_evidence_validator.py' -v
+
       - name: Run unit tests, lint, and assemble debug APK
         run: gradle --continue --console=plain :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug
 
