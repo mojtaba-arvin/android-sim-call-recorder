@@ -88,7 +88,12 @@ android {
 
 // APK packaging is blocked unless the production signing inputs and keystore file exist.
 tasks.configureEach {
-    if (name == "packageRelease" || name == "bundleRelease") {
+    if (
+        name == "validateSigningRelease" ||
+        name == "validateSigningReleaseBundle" ||
+        name == "packageRelease" ||
+        name == "bundleRelease"
+    ) {
         dependsOn(verifyReleaseSigningInputs)
     }
 }
