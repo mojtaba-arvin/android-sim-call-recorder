@@ -235,6 +235,8 @@ def validate_manifest(manifest_path: Path) -> list[str]:
                 continue
             if item.get("all_required_phrases_intelligible") is not True:
                 errors.append(f"{label}.{direction_label}: all required phrases must be independently intelligible")
+            if type(item.get("score")) is not int or item.get("score") != 5:
+                errors.append(f"{label}.{direction_label}.score: score 5/5 is required for all phrases to count as intelligible")
             if isinstance(item.get("wav"), str):
                 if item["wav"] in evidence_paths:
                     errors.append(f"{label}.{direction_label}.wav: each direction requires a distinct physical WAV file")
