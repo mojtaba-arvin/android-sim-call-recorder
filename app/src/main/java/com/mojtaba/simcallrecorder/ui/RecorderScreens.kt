@@ -307,11 +307,15 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
                 Text("Failure reason", style = MaterialTheme.typography.titleSmall)
                 Text(reason, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            if (record.captureProfile != null || record.captureDiagnostics != null) {
+            if (record.captureProfile != null || record.captureDiagnostics != null || record.fallbackReason != null) {
                 HorizontalDivider()
                 Text("Capture diagnostics", style = MaterialTheme.typography.titleMedium)
                 record.captureProfile?.let {
                     Text("Device profile", style = MaterialTheme.typography.labelLarge)
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                record.fallbackReason?.let {
+                    Text("Fallback reason", style = MaterialTheme.typography.labelLarge)
                     Text(it, style = MaterialTheme.typography.bodySmall)
                 }
                 record.captureDiagnostics?.let {
@@ -382,11 +386,15 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
         Text("${record.recordingMode} · ${record.audioSource} · ${record.channelCount} channel(s)")
         Text("Duration: ${formatDuration(record.durationMillis ?: 0L)}")
         if (record.isSilent == true) Text("Digital silence detected", color = MaterialTheme.colorScheme.error)
-        if (record.captureProfile != null || record.captureDiagnostics != null) {
+        if (record.captureProfile != null || record.captureDiagnostics != null || record.fallbackReason != null) {
             HorizontalDivider()
             Text("Capture evidence", style = MaterialTheme.typography.titleLarge)
             record.captureProfile?.let {
                 Text("Device profile", style = MaterialTheme.typography.labelLarge)
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+            record.fallbackReason?.let {
+                Text("Fallback reason", style = MaterialTheme.typography.labelLarge)
                 Text(it, style = MaterialTheme.typography.bodySmall)
             }
             record.captureDiagnostics?.let {
