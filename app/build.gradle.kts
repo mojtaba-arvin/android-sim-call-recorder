@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.mojtaba.simcallrecorder"
-        minSdk = 26
+        minSdk = 24
         // Keep targetSdk 36 until Android 17 foreground-service and call-audio behavior is validated.
         targetSdk = 36
         versionCode = providers.gradleProperty("appVersionCode").map(String::toInt).getOrElse(2)
