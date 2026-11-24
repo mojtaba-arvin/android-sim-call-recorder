@@ -26,10 +26,43 @@ BACKENDS = {"VOICE_CALL", "SPEAKERPHONE_MIC"}
 SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-fA-F]{40}$")
 
+ALLOWED_KEYS = {
+    "manifest": {"schema_version", "verdict", "device", "configuration", "trials"},
+    "device": {
+        "manufacturer", "model", "android_version", "api_level", "build_fingerprint",
+        "security_patch", "modem_baseband", "carrier", "country", "network_type", "sim_slot",
+    },
+    "configuration": {
+        "call_path", "is_emulator", "synthetic_call_state", "route", "backend",
+        "requested_backend", "app_commit", "permission_grants", "shizuku",
+    },
+    "permission_grants": {"READ_PHONE_STATE", "RECORD_AUDIO", "CAPTURE_AUDIO_OUTPUT", "CALL_AUDIO_INTERCEPTION"},
+    "shizuku": {"version", "process_uid"},
+    "trial": {
+        "id", "direction", "outcome", "reviewer", "reviewed_at", "recording_mode",
+        "fallback_reason", "near_end", "far_end", "capture",
+    },
+    "near_end": {"wav", "sha256", "all_required_phrases_intelligible", "score"},
+    "far_end": {"wav", "sha256", "all_required_phrases_intelligible", "score"},
+    "capture": {
+        "wav", "sha256", "db_status", "recording_mode", "audio_source",
+        "finalized", "integrity_verified", "fallback_reason",
+    },
+}
+
 
 def _text(value: Any, label: str, errors: list[str]) -> None:
     if not isinstance(value, str) or not value.strip() or value.strip().upper() in {"UNKNOWN", "N/A", "NOT TESTED"}:
         errors.append(f"{label}: a real, non-placeholder value is required")
+
+
+def _validate_allowed_keys(value: Any, object_type: str, prefix: str, errors: list[str]) -> None:
+    if not isinstance(value, dict):
+        return
+    allowed = ALLOWED_KEYS[object_type]
+    for key in value:
+        if key not in allowed:
+            errors.append(f"{prefix}.{key}: field is not part of the allow-listed evidence schema")
 
 
 def _find_forbidden_keys(value: Any, prefix: str, errors: list[str]) -> None:
@@ -134,6 +167,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
     if not isinstance(manifest, dict):
         return ["manifest: root must be a JSON object"]
 
+    _validate_allowed_keys(manifest, "manifest", "manifest", errors)
     _find_forbidden_keys(manifest, "manifest", errors)
     if manifest.get("schema_version") != 1:
         errors.append("schema_version: expected integer 1")
@@ -149,6 +183,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
     if not isinstance(device, dict):
         errors.append("device: object is required")
         device = {}
+    _validate_allowed_keys(device, "device", "device", errors)
     for field in (
         "manufacturer", "model", "android_version", "build_fingerprint",
         "security_patch", "modem_baseband", "carrier", "country", "network_type",
@@ -165,6 +200,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
     if not isinstance(configuration, dict):
         errors.append("configuration: object is required")
         configuration = {}
+    _validate_allowed_keys(configuration, "configuration", "configuration", errors)
     if configuration.get("call_path") != "CELLULAR":
         errors.append("configuration.call_path: must be CELLULAR; VoIP/emulator calls are not accepted")
     if configuration.get("is_emulator") is not False:
@@ -185,6 +221,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
     if not isinstance(grants, dict):
         errors.append("configuration.permission_grants: actual permission grant map is required")
         grants = {}
+    _validate_allowed_keys(grants, "permission_grants", "configuration.permission_grants", errors)
     for permission in ("READ_PHONE_STATE", "RECORD_AUDIO"):
         if grants.get(permission) is not True:
             errors.append(f"configuration.permission_grants.{permission}: actual grant must be true")
@@ -196,6 +233,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
         if not isinstance(shizuku, dict):
             errors.append("configuration.shizuku: version and process UID are required for VOICE_CALL")
         else:
+            _validate_allowed_keys(shizuku, "shizuku", "configuration.shizuku", errors)
             _text(shizuku.get("version"), "configuration.shizuku.version", errors)
             if type(shizuku.get("process_uid")) is not int or shizuku.get("process_uid") not in {0, 2000}:
                 errors.append("configuration.shizuku.process_uid: actual root (0) or shell (2000) process UID is required")
@@ -215,6 +253,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
         if not isinstance(trial, dict):
             errors.append(f"{label}: trial object is required")
             continue
+        _validate_allowed_keys(trial, "trial", label, errors)
         direction = trial.get("direction")
         trial_id = trial.get("id")
         if direction not in DIRECTIONS:
@@ -256,6 +295,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
             if not isinstance(item, dict):
                 errors.append(f"{label}.{direction_label}: separate physical reference WAV evidence is required")
                 continue
+            _validate_allowed_keys(item, direction_label, f"{label}.{direction_label}", errors)
             if item.get("all_required_phrases_intelligible") is not True:
                 errors.append(f"{label}.{direction_label}: all required phrases must be independently intelligible")
             if type(item.get("score")) is not int or item.get("score") != 5:
@@ -270,6 +310,7 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
         if not isinstance(capture, dict):
             errors.append(f"{label}.capture: app-produced recording evidence is required")
         else:
+            _validate_allowed_keys(capture, "capture", f"{label}.capture", errors)
             if capture.get("recording_mode") != backend:
                 errors.append(f"{label}.capture.recording_mode: must match the configured backend exactly")
             audio_source = capture.get("audio_source")
