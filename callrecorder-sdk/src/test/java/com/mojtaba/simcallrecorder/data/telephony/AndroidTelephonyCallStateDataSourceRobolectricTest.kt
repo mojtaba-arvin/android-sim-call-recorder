@@ -6,7 +6,7 @@ import android.os.Looper
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import com.mojtaba.simcallrecorder.domain.model.CallState
-import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
@@ -55,7 +55,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val dataSource = AndroidTelephonyCallStateDataSource(context)
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+        val collector = launch(Dispatchers.IO) {
             dataSource.observeCallStateEvents().take(4).toList(events)
         }
 
@@ -96,7 +96,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val dataSource = AndroidTelephonyCallStateDataSource(context)
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+        val collector = launch(Dispatchers.IO) {
             dataSource.observeCallStateEvents().take(4).toList(events)
         }
 
@@ -141,7 +141,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(secondSubscriptionId, secondManager)
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
-        val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+        val collector = launch(Dispatchers.IO) {
             AndroidTelephonyCallStateDataSource(context)
                 .observeCallStateEvents()
                 .filter { it.state != CallState.IDLE }
