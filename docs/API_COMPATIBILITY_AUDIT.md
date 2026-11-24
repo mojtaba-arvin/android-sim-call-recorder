@@ -18,16 +18,20 @@ This is a software/API compatibility audit. It does not claim cellular call-audi
 |---|---:|---|---|
 | `AudioDeviceInfo` and `AudioManager.getDevices()` | 23 | `data/audio/AudioDeviceInventory.kt`, `data/audio/AndroidAudioRouteDataSource.kt` | Available at API 24. Device type values are inventory labels only; inventory does not imply call-audio access. |
 | `TelephonyManager.createForSubscriptionId()` | 24 | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Available at the declared API 24 floor. |
-| `PhoneStateListener` subscription call-state path | 1 / multi-SIM APIs 22+ | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Legacy path is used below API 31; listener registration is dispatched through Main. |
-| `SubscriptionManager.addOnSubscriptionsChangedListener(Executor, listener)` | 30 | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Used only on API 30+; API 24–29 use the Looper-backed overload on Main. |
+| `PhoneStateListener` subscription call-state path | 1 / multi-SIM APIs 22+ | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Legacy path is used below API 31. |
 | `TelephonyCallback` / `registerTelephonyCallback()` | 31 | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Guarded by `SDK_INT >= S`; older devices use `PhoneStateListener`. |
 | `NotificationChannel` / `createNotificationChannel()` | 26 | `recording/CallRecordingForegroundService.kt` | `createNotificationChannel()` returns before touching channel APIs on API 24–25. The foreground notification itself remains required. |
-| `AudioRecordingCallback` / `AudioRecordingConfiguration.isClientSilenced()` | 29 | `recording/MicrophoneCallCaptureStrategy.kt` | Callback setup is skipped below API 29; it is diagnostic-only and does not prove two-way speech. |
+| `AudioRecordingCallback` | 24 | `recording/MicrophoneCallCaptureStrategy.kt` | The app registers it only on API 29+ because the consumed `isClientSilenced()` diagnostic is API 29+. |
+| `AudioRecordingConfiguration.isClientSilenced()` | 29 | `recording/MicrophoneCallCaptureStrategy.kt` | Guarded by the API 29+ callback path; it is diagnostic-only and does not prove two-way speech. |
 | `AudioManager.availableCommunicationDevices`, `getCommunicationDevice()`, `setCommunicationDevice()`, `clearCommunicationDevice()` | 31 | `recording/MicrophoneCallCaptureStrategy.kt`, `data/audio/AudioDeviceInventory.kt` | Guarded by `SDK_INT >= S`; older releases use the legacy speakerphone mode request. |
 | Runtime notification permission `POST_NOTIFICATIONS` | 33 | `core/permissions/CallPermissionManager.kt`, `app/MainActivity.kt` | Requested and enforced only on API 33+; older releases do not expose this runtime permission. |
 | Microphone foreground-service type | 29/30 | `recording/CallRecordingForegroundService.kt`, SDK manifest | Service type flags are selected only on supported API levels; API 24–28 use the legacy foreground-service call. |
 | Special-use foreground-service type and subtype property | 34 | SDK manifest and `CallRecordingForegroundService.kt` | Runtime type selection is guarded by API 34; older platforms use supported foreground-service behavior. |
 | `ContextCompat.startForegroundService()` | AndroidX backport | `app/MainActivity.kt` | AndroidX dispatches to the service-start path supported by the current OS. |
+
+## Telephony subscription-change scope
+
+Dynamic subscription-list reconciliation is being delivered separately in PR #52. It is not part of this API-floor branch and is not included in this branch's framework API inventory; the current legacy observer remains the compatibility path tested below.
 
 ## Compatibility test coverage
 
