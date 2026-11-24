@@ -176,6 +176,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         for trial in self.manifest["trials"]:
             trial["recording_mode"] = "VOICE_CALL"
             trial["capture"]["recording_mode"] = "VOICE_CALL"
+            trial["capture"]["audio_source"] = "Shizuku VOICE_CALL"
         result = self._run()
         self.assertEqual(0, result.returncode, result.stderr)
 
