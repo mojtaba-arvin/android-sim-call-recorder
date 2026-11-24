@@ -746,6 +746,10 @@ internal class CallRecordingForegroundService : Service() {
     }
 
     private fun createNotificationChannel() {
+        // Notification channels were introduced in API 26. Older supported devices
+        // still require the foreground notification, but do not have channel APIs.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 NOTIFICATION_CHANNEL,
