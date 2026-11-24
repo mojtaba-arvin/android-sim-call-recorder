@@ -165,10 +165,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # API 37 is covered by Robolectric for now. The current stable emulator-runner
-        # bootstrap still requests platforms;android-37 (not the installed 37.2
-        # extension package), so it cannot provision an API 37 AVD reliably.
-        api-level: [26, 35]
+        # API 24 is the declared software floor; API 26 covers Android 8 and API 35
+        # covers the current Android 15 behavior. API 37 remains in Robolectric only.
+        api-level: [24, 26, 35]
 
     steps:
       - name: Check out source
