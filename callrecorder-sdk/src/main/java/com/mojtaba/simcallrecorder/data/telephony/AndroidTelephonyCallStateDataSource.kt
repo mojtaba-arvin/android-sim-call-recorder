@@ -16,7 +16,9 @@ import com.mojtaba.simcallrecorder.domain.model.SimSlot
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.channelFlow
@@ -51,6 +53,7 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    @Suppress("DEPRECATION")
     fun observeCallStateEvents(): Flow<CallStateEvent> = channelFlow {
         requireCallStatePermission()
 
@@ -58,17 +61,49 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
             appContext.getSystemService(SubscriptionManager::class.java)
                 ?: throw IllegalStateException("Subscription service is unavailable.")
 
-        val subscriptions = activeSubscriptions(subscriptionManager)
-        if (subscriptions.isEmpty()) {
-            throw IllegalStateException("No active SIM subscriptions are visible to this app.")
+        val refreshSignals = Channel<Unit>(Channel.CONFLATED)
+        val observerJobs = mutableMapOf<Int, Job>()
+        val observedSlotBySubscriptionId = mutableMapOf<Int, Int>()
+        val listener = object : SubscriptionManager.OnSubscriptionsChangedListener() {
+            override fun onSubscriptionsChanged() {
+                refreshSignals.trySend(Unit)
+            }
         }
 
-        subscriptions.forEach { info ->
-            launch {
-                observeSubscription(info).collect { event ->
-                    send(event)
+        subscriptionManager.addOnSubscriptionsChangedListener(listener)
+        val reconciliationJob = launch {
+            for (ignored in refreshSignals) {
+                val subscriptions = activeSubscriptions(subscriptionManager)
+                val plan = planSubscriptionObserverChanges(
+                    currentlyObserved = observedSlotBySubscriptionId,
+                    currentSubscriptions = subscriptions,
+                    subscriptionId = SubscriptionInfo::getSubscriptionId,
+                    slotIndex = SubscriptionInfo::getSimSlotIndex,
+                )
+
+                plan.toStop.forEach { subscriptionId ->
+                    observerJobs.remove(subscriptionId)?.cancel()
+                    observedSlotBySubscriptionId.remove(subscriptionId)
+                }
+                plan.toStart.forEach { info ->
+                    val subscriptionId = info.subscriptionId
+                    observedSlotBySubscriptionId[subscriptionId] = info.simSlotIndex
+                    observerJobs[subscriptionId] = launch {
+                        observeSubscription(info).collect { event -> send(event) }
+                    }
                 }
             }
+        }
+        // A SIM can be inserted/removed before this flow starts; always reconcile once immediately.
+        refreshSignals.trySend(Unit)
+
+        awaitClose {
+            subscriptionManager.removeOnSubscriptionsChangedListener(listener)
+            refreshSignals.close()
+            reconciliationJob.cancel()
+            observerJobs.values.forEach { it.cancel() }
+            observerJobs.clear()
+            observedSlotBySubscriptionId.clear()
         }
     }
 
