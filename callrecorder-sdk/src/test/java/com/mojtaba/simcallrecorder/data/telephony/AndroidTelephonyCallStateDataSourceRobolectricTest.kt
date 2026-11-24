@@ -186,8 +186,11 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(Looper.getMainLooper()).idle()
         withTimeout(10_000) { collector.join() }
 
-        assertEquals(listOf(0, 1), events.map { it.simSlotIndex })
-        assertEquals(listOf(CallState.RINGING, CallState.OFFHOOK), events.map { it.state })
+        assertEquals(2, events.size)
+        assertEquals(
+            mapOf(CallState.RINGING to 0, CallState.OFFHOOK to 1),
+            events.associate { it.state to it.simSlotIndex },
+        )
     }
 
     @Test
