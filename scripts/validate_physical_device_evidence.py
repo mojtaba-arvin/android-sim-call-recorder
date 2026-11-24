@@ -174,8 +174,8 @@ def validate_manifest(manifest_path: Path) -> list[str]:
             errors.append("configuration.shizuku: version and process UID are required for VOICE_CALL")
         else:
             _text(shizuku.get("version"), "configuration.shizuku.version", errors)
-            if not isinstance(shizuku.get("process_uid"), int) or shizuku.get("process_uid") < 0:
-                errors.append("configuration.shizuku.process_uid: non-negative actual process UID is required")
+            if type(shizuku.get("process_uid")) is not int or shizuku.get("process_uid") not in {0, 2000}:
+                errors.append("configuration.shizuku.process_uid: actual root (0) or shell (2000) process UID is required")
 
     trials = manifest.get("trials")
     if not isinstance(trials, list) or len(trials) != TRIALS_PER_DIRECTION * len(DIRECTIONS):
