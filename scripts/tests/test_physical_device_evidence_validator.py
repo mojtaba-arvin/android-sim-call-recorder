@@ -188,6 +188,20 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.manifest["trials"][0]["far_end"]["sha256"] = first["sha256"]
         self.assertTrue(any("distinct physical WAV" in error for error in self._errors()))
 
+    def test_voice_call_does_not_require_microphone_permission(self) -> None:
+        self.manifest["configuration"]["backend"] = "VOICE_CALL"
+        self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
+        self.manifest["configuration"]["permission_grants"].pop("RECORD_AUDIO", None)
+        self.manifest["configuration"]["permission_grants"]["CAPTURE_AUDIO_OUTPUT"] = True
+        self.manifest["configuration"]["permission_grants"]["CALL_AUDIO_INTERCEPTION"] = True
+        self.manifest["configuration"]["shizuku"] = {"version": "13.1.5", "process_uid": 2000}
+        for trial in self.manifest["trials"]:
+            trial["recording_mode"] = "VOICE_CALL"
+            trial["capture"]["recording_mode"] = "VOICE_CALL"
+            trial["capture"]["audio_source"] = "Shizuku VOICE_CALL"
+        result = self._run()
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_voice_call_requires_actual_shizuku_and_protected_permission_evidence(self) -> None:
         self.manifest["configuration"]["backend"] = "VOICE_CALL"
         self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
