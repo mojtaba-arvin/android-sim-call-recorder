@@ -79,7 +79,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
     @Test
     @Config(sdk = [24, 25, 26, 27, 28, 29, 30])
-    fun api26To30_legacyPhoneStateListener_emitsAllCallTransitions() = runBlocking {
+    fun api24To30_legacyPhoneStateListener_emitsAllCallTransitions() = runBlocking {
         grantPhoneStatePermission()
         val subscriptionId = 202
         val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
