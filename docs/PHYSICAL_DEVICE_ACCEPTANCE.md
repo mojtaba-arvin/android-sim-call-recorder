@@ -104,7 +104,7 @@ python3 scripts/validate_physical_device_evidence.py /restricted/evidence/<confi
 
 A zero exit code is the only software path that accepts `PASS_TWO_WAY`. It requires exactly three incoming and three outgoing real cellular trials; distinct near/far/app WAV files; valid PCM16 WAVs with non-zero data; matching SHA-256 checksums; complete device/build/modem/carrier/route/backend provenance; a finalized `COMPLETED` app record; independently intelligible 5/5 near/far phrase sets; exact requested-to-actual backend equality; no fallback; and the required actual permission/Shizuku evidence. It rejects emulator or synthetic-call evidence, path traversal, missing files, duplicate WAVs, mismatched checksums, and sensitive identifier fields.
 
-CI tests this validator with generated synthetic WAV fixtures only to test the gate implementation. Those fixtures are never physical evidence and must never be entered in the device compatibility matrix.
+CI tests this validator with generated synthetic WAV fixtures under the non-physical `TEST_FIXTURE` verdict. The production CLI explicitly rejects `TEST_FIXTURE`; CI tests only the internal structural validation path and never print or issue `PASS_TWO_WAY`. Those fixtures are never physical evidence and must never be entered in the device compatibility matrix.
 
 ## Device compatibility matrix
 
