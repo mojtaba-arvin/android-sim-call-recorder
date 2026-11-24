@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 import json
 import re
 import sys
@@ -71,7 +72,11 @@ def _validate_wav(root: Path, evidence: Any, label: str, errors: list[str]) -> N
     if path is None:
         return
 
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    try:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as exception:
+        errors.append(f"{label}.wav: cannot read evidence file ({type(exception).__name__})")
+        return
     if isinstance(expected_sha, str) and SHA256_PATTERN.fullmatch(expected_sha):
         if digest.lower() != expected_sha.lower():
             errors.append(f"{label}.sha256: checksum does not match the evidence file")
@@ -143,8 +148,10 @@ def validate_manifest(manifest_path: Path) -> list[str]:
         errors.append("configuration.synthetic_call_state: must be false")
     _text(configuration.get("route"), "configuration.route", errors)
     backend = configuration.get("backend")
-    if backend not in BACKENDS:
+    if not isinstance(backend, str) or backend not in BACKENDS:
         errors.append("configuration.backend: must be VOICE_CALL or SPEAKERPHONE_MIC")
+    if configuration.get("requested_backend") != backend:
+        errors.append("configuration.requested_backend: must equal the backend accepted for this evidence set")
     commit = configuration.get("app_commit")
     if not isinstance(commit, str) or not COMMIT_PATTERN.fullmatch(commit):
         errors.append("configuration.app_commit: exact 40-character app commit SHA is required")
@@ -174,6 +181,7 @@ def validate_manifest(manifest_path: Path) -> list[str]:
         trials = trials if isinstance(trials, list) else []
 
     seen: set[tuple[str, str]] = set()
+    evidence_paths: set[str] = set()
     counts = {direction: 0 for direction in DIRECTIONS}
     root = manifest_path.resolve().parent
 
@@ -202,7 +210,15 @@ def validate_manifest(manifest_path: Path) -> list[str]:
         if trial.get("outcome") != "PASS":
             errors.append(f"{label}.outcome: each trial must independently pass")
         _text(trial.get("reviewer"), f"{label}.reviewer", errors)
-        _text(trial.get("reviewed_at"), f"{label}.reviewed_at", errors)
+        reviewed_at = trial.get("reviewed_at")
+        _text(reviewed_at, f"{label}.reviewed_at", errors)
+        if isinstance(reviewed_at, str):
+            try:
+                reviewed_datetime = datetime.fromisoformat(reviewed_at.replace("Z", "+00:00"))
+                if reviewed_datetime.tzinfo is None:
+                    errors.append(f"{label}.reviewed_at: timezone offset is required")
+            except ValueError:
+                errors.append(f"{label}.reviewed_at: valid ISO-8601 timestamp is required")
 
         if trial.get("recording_mode") != backend:
             errors.append(f"{label}.recording_mode: must match the configured backend exactly")
@@ -217,12 +233,23 @@ def validate_manifest(manifest_path: Path) -> list[str]:
                 continue
             if item.get("all_required_phrases_intelligible") is not True:
                 errors.append(f"{label}.{direction_label}: all required phrases must be independently intelligible")
+            if isinstance(item.get("wav"), str):
+                if item["wav"] in evidence_paths:
+                    errors.append(f"{label}.{direction_label}.wav: each direction requires a distinct physical WAV file")
+                evidence_paths.add(item["wav"])
             _validate_wav(root, item, f"{label}.{direction_label}", errors)
 
         capture = trial.get("capture")
         if not isinstance(capture, dict):
             errors.append(f"{label}.capture: app-produced recording evidence is required")
         else:
+            if capture.get("recording_mode") != backend:
+                errors.append(f"{label}.capture.recording_mode: must match the configured backend exactly")
+            _text(capture.get("audio_source"), f"{label}.capture.audio_source", errors)
+            if isinstance(capture.get("wav"), str):
+                if capture["wav"] in evidence_paths:
+                    errors.append(f"{label}.capture.wav: app capture must be a distinct WAV file")
+                evidence_paths.add(capture["wav"])
             if capture.get("db_status") != "COMPLETED":
                 errors.append(f"{label}.capture.db_status: finalized COMPLETED record is required")
             if capture.get("finalized") is not True or capture.get("integrity_verified") is not True:
