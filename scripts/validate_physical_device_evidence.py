@@ -61,6 +61,14 @@ def _safe_evidence_file(root: Path, relative_path: Any, label: str, errors: list
     return candidate
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _validate_wav(root: Path, evidence: Any, label: str, errors: list[str]) -> None:
     if not isinstance(evidence, dict):
         errors.append(f"{label}: evidence object is required")
@@ -73,7 +81,7 @@ def _validate_wav(root: Path, evidence: Any, label: str, errors: list[str]) -> N
         return
 
     try:
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = _sha256_file(path)
     except OSError as exception:
         errors.append(f"{label}.wav: cannot read evidence file ({type(exception).__name__})")
         return
@@ -88,19 +96,27 @@ def _validate_wav(root: Path, evidence: Any, label: str, errors: list[str]) -> N
             sample_rate = audio.getframerate()
             frames = audio.getnframes()
             compression = audio.getcomptype()
-            pcm = audio.readframes(frames)
-        if compression != "NONE":
-            errors.append(f"{label}.wav: uncompressed PCM WAV is required")
-        if channels not in (1, 2):
-            errors.append(f"{label}.wav: mono or stereo PCM is required")
-        if sample_width != 2:
-            errors.append(f"{label}.wav: signed 16-bit PCM is required")
-        if sample_rate <= 0 or frames <= 0:
-            errors.append(f"{label}.wav: sample rate and frame count must be positive")
-        if len(pcm) != frames * channels * sample_width:
-            errors.append(f"{label}.wav: PCM data is truncated")
-        if pcm and not any(pcm):
-            errors.append(f"{label}.wav: all-zero PCM is not valid speech evidence")
+            if compression != "NONE":
+                errors.append(f"{label}.wav: uncompressed PCM WAV is required")
+            if channels not in (1, 2):
+                errors.append(f"{label}.wav: mono or stereo PCM is required")
+            if sample_width != 2:
+                errors.append(f"{label}.wav: signed 16-bit PCM is required")
+            if sample_rate <= 0 or frames <= 0:
+                errors.append(f"{label}.wav: sample rate and frame count must be positive")
+            frame_bytes = channels * sample_width
+            remaining_frames = frames
+            has_nonzero_pcm = False
+            while remaining_frames > 0:
+                requested_frames = min(remaining_frames, 65_536)
+                pcm_chunk = audio.readframes(requested_frames)
+                if len(pcm_chunk) != requested_frames * frame_bytes:
+                    errors.append(f"{label}.wav: PCM data is truncated")
+                    break
+                has_nonzero_pcm = has_nonzero_pcm or any(pcm_chunk)
+                remaining_frames -= requested_frames
+            if not has_nonzero_pcm:
+                errors.append(f"{label}.wav: all-zero PCM is not valid speech evidence")
     except (OSError, EOFError, wave.Error) as exception:
         errors.append(f"{label}.wav: invalid or unreadable WAV ({type(exception).__name__})")
 
