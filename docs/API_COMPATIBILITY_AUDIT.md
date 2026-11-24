@@ -18,8 +18,9 @@ This is a software/API compatibility audit. It does not claim cellular call-audi
 |---|---:|---|---|
 | `AudioDeviceInfo` and `AudioManager.getDevices()` | 23 | `data/audio/AudioDeviceInventory.kt`, `data/audio/AndroidAudioRouteDataSource.kt` | Available at API 24. Device type values are inventory labels only; inventory does not imply call-audio access. |
 | `TelephonyManager.createForSubscriptionId()` | 24 | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Available at the declared API 24 floor. |
-| `PhoneStateListener` subscription call-state path | 1 / multi-SIM APIs 22+ | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Legacy path is used below API 31. |
-| `TelephonyCallback` / `registerTelephonyCallback()` | 31 | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Guarded by `SDK_INT >= S`; older devices use `PhoneStateListener`. |
+| `PhoneStateListener` subscription call-state path | 1 / multi-SIM APIs 22+ | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Legacy path is used below API 31; listener creation, registration, and cleanup are dispatched on Main. |
+| `SubscriptionManager.addOnSubscriptionsChangedListener(Executor, listener)` | 30 | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Used on API 30+; API 24–29 use the Looper-backed overload on Main. Listener changes reconcile per-subscription observers without cancelling unchanged subscriptions. |
+| `TelephonyCallback` / `registerTelephonyCallback()` | 31 | `data/telephony/AndroidTelephonyCallStateDataSource.kt` | Guarded by `SDK_INT >= S`; older devices use `PhoneStateListener`. A current call-state snapshot is emitted after registration so an already-active call is not missed. |
 | `NotificationChannel` / `createNotificationChannel()` | 26 | `recording/CallRecordingForegroundService.kt` | `createNotificationChannel()` returns before touching channel APIs on API 24–25. The foreground notification itself remains required. |
 | `AudioRecordingCallback` | 24 | `recording/MicrophoneCallCaptureStrategy.kt` | The app registers it only on API 29+ because the consumed `isClientSilenced()` diagnostic is API 29+. |
 | `AudioRecordingConfiguration.isClientSilenced()` | 29 | `recording/MicrophoneCallCaptureStrategy.kt` | Guarded by the API 29+ callback path; it is diagnostic-only and does not prove two-way speech. |
@@ -29,9 +30,11 @@ This is a software/API compatibility audit. It does not claim cellular call-audi
 | Special-use foreground-service type and subtype property | 34 | SDK manifest and `CallRecordingForegroundService.kt` | Runtime type selection is guarded by API 34; older platforms use supported foreground-service behavior. |
 | `ContextCompat.startForegroundService()` | AndroidX backport | `app/MainActivity.kt` | AndroidX dispatches to the service-start path supported by the current OS. |
 
-## Telephony subscription-change scope
+## Additional library compatibility APIs
 
-Dynamic subscription-list reconciliation is being delivered separately in PR #52. It is not part of this API-floor branch and is not included in this branch's framework API inventory; the current legacy observer remains the compatibility path tested below.
+- `java.time.LocalDate` in the app date filter is supported below API 26 through core-library desugaring (`desugar_jdk_libs:2.1.5`).
+- `java.nio.file.Files.move` is not used for WAV promotion; `android.system.Os.rename()` (API 21+) performs atomic same-filesystem promotion without an API 26 dependency.
+- Dynamic subscription-list reconciliation is included in this branch: the API 30 Executor overload is guarded, legacy listener construction/registration occurs on Main, and no-active-SIM is a waiting state.
 
 ## Compatibility test coverage
 
