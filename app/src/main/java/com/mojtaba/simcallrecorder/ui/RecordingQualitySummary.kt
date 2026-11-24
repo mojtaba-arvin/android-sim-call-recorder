@@ -12,9 +12,9 @@ internal fun recordingQualitySummary(record: CallRecord): List<String> {
     val payload = if (record.dataBytes > 0L) "${record.dataBytes} bytes" else "Unavailable"
     val frameworkSilence = when {
         record.captureDiagnostics?.contains("clientSilenced=true", ignoreCase = true) == true ->
-            "Android reports clientSilenced=true; do not treat this capture as verified near-end speech."
+            "Android reported clientSilenced=true during this recording; do not treat this capture as verified near-end speech."
         record.captureDiagnostics?.contains("clientSilenced=false", ignoreCase = true) == true ->
-            "Android reports clientSilenced=false; this still does not prove near-end or far-end speech."
+            "Android reported clientSilenced=false during this recording; this still does not prove near-end or far-end speech."
         else -> null
     }
     return buildList {
