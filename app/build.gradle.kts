@@ -92,7 +92,8 @@ tasks.configureEach {
         name == "validateSigningRelease" ||
         name == "validateSigningReleaseBundle" ||
         name == "packageRelease" ||
-        name == "bundleRelease"
+        name == "bundleRelease" ||
+        name == "assembleRelease"
     ) {
         dependsOn(verifyReleaseSigningInputs)
     }
