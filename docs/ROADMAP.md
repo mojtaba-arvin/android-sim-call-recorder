@@ -1,6 +1,6 @@
 # Engineering Roadmap
 
-Last reviewed: 2026-11-19
+Last reviewed: 2026-11-24
 
 ## Product outcome
 
@@ -17,7 +17,7 @@ A recording is accepted as successful only when the file is finalized, persisted
 - Standard acoustic capture is not digital cellular downlink. Its limitations must remain explicit in product UI and documentation.
 - Recording data remains app-private. WAV finalization and Room metadata consistency are release-critical.
 - APK/AAR release automation exists, but no first public beta release is accepted until the required CI gate and physical-device validation policy are satisfied.
-- API 26 is an experimental software compatibility floor, not a promise of cellular audio compatibility.
+- API 24 is an experimental software compatibility floor, not a promise of cellular audio compatibility.
 - The agent workflow is governed by the repository-root `AGENTS.md`; detailed history-derived process lessons are in [Engineering Execution Policy](ENGINEERING_EXECUTION_POLICY.md).
 
 ## Execution plan and acceptance gates
@@ -25,14 +25,14 @@ A recording is accepted as successful only when the file is finalized, persisted
 ### P0 — Make CI trustworthy and economical
 
 1. **Implemented, awaiting proof on the current head:** emulator-runner command now preserves the Gradle exit code while collecting best-effort diagnostics in one physical shell command.
-2. **In progress:** complete API 26 and API 35 instrumentation on the current PR head; classify test failures separately from runner/bootstrap failures. A running job is not a pass.
+2. **In progress:** complete API 24, API 26 and API 35 instrumentation on the current PR head; classify test failures separately from runner/bootstrap failures. A running job is not a pass.
 3. Keep a single required-check aggregator. Documentation-only changes may skip expensive Android jobs, but every code/build/workflow change must execute the full required pipeline.
 4. Keep PR concurrency cancellation for superseded commits, but do not interpret cancellation as a code failure.
 5. Upload unit, lint, instrumentation, and emulator diagnostics even when tests fail.
 6. Keep dependency and action versions pinned or managed by Dependabot; review action runtime deprecation warnings.
 7. Add the Gradle Wrapper only after validating the pinned Gradle distribution and wrapper checksum policy.
 
-**Exit criteria:** required-check aggregator is green on the current PR head; both emulator API levels pass; reports are retained; no false-green path exists.
+**Exit criteria:** required-check aggregator is green on the current PR head; all emulator API levels (24, 26, 35) pass; reports are retained; no false-green path exists.
 
 ### P1 — Recording lifecycle and file integrity
 
