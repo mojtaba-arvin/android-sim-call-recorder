@@ -50,3 +50,14 @@ A device/route is not supported unless all of these are observed:
 - Incoming call, outgoing call, rejected call, unanswered call, remote hang-up, local hang-up, and call waiting.
 
 A report must include the exact device model, OS build, carrier/network mode, SIM slot, source configuration, helper UID where applicable, audio route, test repetition count, phrase-intelligibility result, and reproducible notes. Do not include phone numbers, SIM identifiers, call recordings, or other personal call content in issue reports.
+
+
+## Privacy-safe diagnostics export
+
+The Diagnostics screen can share a plain-text support snapshot. The export is built from an explicit allow-list: manufacturer/model/build/API/security patch, missing permission names, visible SIM slot numbers and call-state labels/timestamps, mapped audio endpoint types, and boolean runtime states. It intentionally does not accept or serialize phone numbers, subscription IDs, ICCIDs, device serials, call content, audio samples, recording paths, or recording files. It includes an explicit statement that two-way cellular audio is not verified by this report.
+
+Definition of Done:
+- Export is available from the Diagnostics screen through the Android Sharesheet.
+- The report contains only allow-listed device/session fields and limits call-state history to the latest 40 events.
+- Tests assert useful device/SIM/audio/runtime fields are present and private identifiers/labels are excluded.
+- The export is text-only and does not attach WAV files or read recording contents.
