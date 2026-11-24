@@ -19,6 +19,21 @@ class RecordingQualitySummaryTest {
     }
 
     @Test
+    fun frameworkSilencedStateIsProminentlyReportedWithoutInferringSpeech() {
+        val silenced = recordingQualitySummary(
+            record(isSilent = false, dataBytes = 96_000L, captureDiagnostics = "clientSilenced=true"),
+        )
+        assertTrue(silenced.any { it.contains("clientSilenced=true") })
+        assertTrue(silenced.any { it.contains("do not treat this capture as verified near-end speech") })
+
+        val notSilenced = recordingQualitySummary(
+            record(isSilent = false, dataBytes = 96_000L, captureDiagnostics = "clientSilenced=false"),
+        )
+        assertTrue(notSilenced.any { it.contains("clientSilenced=false") })
+        assertTrue(notSilenced.any { it.contains("does not prove near-end or far-end speech") })
+    }
+
+    @Test
     fun silentAndUnavailableMeasurementsRemainExplicit() {
         assertTrue(recordingQualitySummary(record(isSilent = true, dataBytes = 0L)).first()
             .contains("Digital silence detected"))
@@ -28,7 +43,7 @@ class RecordingQualitySummaryTest {
             .contains("Unavailable"))
     }
 
-    private fun record(isSilent: Boolean?, dataBytes: Long) = CallRecord(
+    private fun record(isSilent: Boolean?, dataBytes: Long, captureDiagnostics: String? = null) = CallRecord(
         startedAtEpochMillis = 1L,
         durationMillis = 1_000L,
         phoneNumber = null,
@@ -44,5 +59,6 @@ class RecordingQualitySummaryTest {
         isSilent = isSilent,
         status = if (isSilent == null) "FAILED" else "COMPLETED",
         failureReason = null,
+        captureDiagnostics = captureDiagnostics,
     )
 }
