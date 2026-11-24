@@ -1,0 +1,377 @@
+#!/usr/bin/env python3
+"""Fail-closed validator for physical cellular two-way audio evidence manifests."""
+
+from __future__ import annotations
+
+import hashlib
+from datetime import datetime
+import json
+import re
+import sys
+import wave
+from pathlib import Path
+from typing import Any
+
+FORBIDDEN_KEYS = {
+    "phonenumber", "msisdn", "imei", "imsi", "iccid", "serial",
+    "serialnumber", "subscriberid", "subscriptionid", "contactname",
+    "transcript", "phone", "subscriberidentity", "androidid", "deviceid",
+    "hardwareid", "macaddress", "bluetoothaddress", "pairingcode",
+    "pairingsecret", "pairingkey", "password", "token", "authtoken",
+    "privatekey",
+}
+DIRECTIONS = ("INCOMING", "OUTGOING")
+TRIALS_PER_DIRECTION = 3
+BACKENDS = {"VOICE_CALL", "SPEAKERPHONE_MIC"}
+SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
+COMMIT_PATTERN = re.compile(r"^[0-9a-fA-F]{40}$")
+
+ALLOWED_KEYS = {
+    "manifest": {"schema_version", "verdict", "device", "configuration", "trials"},
+    "device": {
+        "manufacturer", "model", "android_version", "api_level", "build_fingerprint",
+        "security_patch", "modem_baseband", "carrier", "country", "network_type", "sim_slot",
+    },
+    "configuration": {
+        "call_path", "is_emulator", "synthetic_call_state", "route", "backend",
+        "requested_backend", "app_commit", "permission_grants", "shizuku",
+    },
+    "permission_grants": {"READ_PHONE_STATE", "RECORD_AUDIO", "CAPTURE_AUDIO_OUTPUT", "CALL_AUDIO_INTERCEPTION"},
+    "shizuku": {"version", "process_uid"},
+    "trial": {
+        "id", "direction", "outcome", "reviewer", "reviewed_at", "recording_mode",
+        "fallback_reason", "near_end", "far_end", "capture",
+    },
+    "near_end": {"wav", "sha256", "all_required_phrases_intelligible", "score"},
+    "far_end": {"wav", "sha256", "all_required_phrases_intelligible", "score"},
+    "capture": {
+        "wav", "sha256", "db_status", "recording_mode", "audio_source",
+        "finalized", "integrity_verified", "fallback_reason",
+    },
+}
+
+
+def _text(value: Any, label: str, errors: list[str]) -> None:
+    if not isinstance(value, str) or not value.strip() or value.strip().upper() in {"UNKNOWN", "N/A", "NOT TESTED"}:
+        errors.append(f"{label}: a real, non-placeholder value is required")
+
+
+def _validate_allowed_keys(value: Any, object_type: str, prefix: str, errors: list[str]) -> None:
+    if not isinstance(value, dict):
+        return
+    allowed = ALLOWED_KEYS[object_type]
+    for key in value:
+        if key not in allowed:
+            errors.append(f"{prefix}.{key}: field is not part of the allow-listed evidence schema")
+
+
+def _find_forbidden_keys(value: Any, prefix: str, errors: list[str]) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = re.sub(r"[^a-z0-9]", "", str(key).strip().lower())
+            if normalized in FORBIDDEN_KEYS:
+                errors.append(f"{prefix}.{key}: sensitive identifier fields are not allowed")
+            _find_forbidden_keys(child, f"{prefix}.{key}", errors)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _find_forbidden_keys(child, f"{prefix}[{index}]", errors)
+
+
+def _safe_evidence_file(root: Path, relative_path: Any, label: str, errors: list[str]) -> Path | None:
+    if not isinstance(relative_path, str) or not relative_path.strip():
+        errors.append(f"{label}.wav: a relative WAV path is required")
+        return None
+    candidate_path = Path(relative_path)
+    if candidate_path.is_absolute():
+        errors.append(f"{label}.wav: absolute paths are not allowed")
+        return None
+    try:
+        candidate = (root / candidate_path).resolve(strict=True)
+        candidate.relative_to(root.resolve())
+    except (OSError, ValueError):
+        errors.append(f"{label}.wav: file is missing or resolves outside the evidence directory")
+        return None
+    if not candidate.is_file() or candidate.suffix.lower() != ".wav":
+        errors.append(f"{label}.wav: an existing .wav file is required")
+        return None
+    return candidate
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _record_unique_evidence_path(root: Path, evidence: Any, label: str, evidence_paths: set[str], errors: list[str]) -> None:
+    if not isinstance(evidence, dict) or not isinstance(evidence.get("wav"), str):
+        return
+    try:
+        resolved = (root / Path(evidence["wav"])).resolve(strict=True)
+        resolved.relative_to(root.resolve())
+    except (OSError, ValueError):
+        return  # _validate_wav emits the actionable path error.
+    identity = str(resolved)
+    if identity in evidence_paths:
+        errors.append(f"{label}.wav: evidence files must be distinct after path and symlink resolution")
+    evidence_paths.add(identity)
+
+
+def _validate_wav(root: Path, evidence: Any, label: str, errors: list[str]) -> None:
+    if not isinstance(evidence, dict):
+        errors.append(f"{label}: evidence object is required")
+        return
+    path = _safe_evidence_file(root, evidence.get("wav"), label, errors)
+    expected_sha = evidence.get("sha256")
+    if not isinstance(expected_sha, str) or not SHA256_PATTERN.fullmatch(expected_sha):
+        errors.append(f"{label}.sha256: a 64-character SHA-256 digest is required")
+    if path is None:
+        return
+
+    try:
+        digest = _sha256_file(path)
+    except OSError as exception:
+        errors.append(f"{label}.wav: cannot read evidence file ({type(exception).__name__})")
+        return
+    if isinstance(expected_sha, str) and SHA256_PATTERN.fullmatch(expected_sha):
+        if digest.lower() != expected_sha.lower():
+            errors.append(f"{label}.sha256: checksum does not match the evidence file")
+
+    try:
+        with wave.open(str(path), "rb") as audio:
+            channels = audio.getnchannels()
+            sample_width = audio.getsampwidth()
+            sample_rate = audio.getframerate()
+            frames = audio.getnframes()
+            compression = audio.getcomptype()
+            if compression != "NONE":
+                errors.append(f"{label}.wav: uncompressed PCM WAV is required")
+            if channels not in (1, 2):
+                errors.append(f"{label}.wav: mono or stereo PCM is required")
+            if sample_width != 2:
+                errors.append(f"{label}.wav: signed 16-bit PCM is required")
+            if sample_rate <= 0 or frames <= 0:
+                errors.append(f"{label}.wav: sample rate and frame count must be positive")
+            frame_bytes = channels * sample_width
+            remaining_frames = frames
+            has_nonzero_pcm = False
+            while remaining_frames > 0:
+                requested_frames = min(remaining_frames, 65_536)
+                pcm_chunk = audio.readframes(requested_frames)
+                if len(pcm_chunk) != requested_frames * frame_bytes:
+                    errors.append(f"{label}.wav: PCM data is truncated")
+                    break
+                has_nonzero_pcm = has_nonzero_pcm or any(pcm_chunk)
+                remaining_frames -= requested_frames
+            if not has_nonzero_pcm:
+                errors.append(f"{label}.wav: all-zero PCM is not valid speech evidence")
+    except (OSError, EOFError, wave.Error) as exception:
+        errors.append(f"{label}.wav: invalid or unreadable WAV ({type(exception).__name__})")
+
+
+def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> list[str]:
+    errors: list[str] = []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exception:
+        return [f"manifest: cannot read valid JSON ({type(exception).__name__})"]
+
+    if not isinstance(manifest, dict):
+        return ["manifest: root must be a JSON object"]
+
+    _validate_allowed_keys(manifest, "manifest", "manifest", errors)
+    _find_forbidden_keys(manifest, "manifest", errors)
+    if type(manifest.get("schema_version")) is not int or manifest.get("schema_version") != 1:
+        errors.append("schema_version: expected integer 1")
+
+    expected_verdict = "TEST_FIXTURE" if allow_test_fixture else "PASS_TWO_WAY"
+    if manifest.get("verdict") != expected_verdict:
+        if allow_test_fixture:
+            errors.append("verdict: test validation requires TEST_FIXTURE")
+        else:
+            errors.append("verdict: only PASS_TWO_WAY can be validated; TEST_FIXTURE/incomplete evidence is never a physical pass")
+
+    device = manifest.get("device")
+    if not isinstance(device, dict):
+        errors.append("device: object is required")
+        device = {}
+    _validate_allowed_keys(device, "device", "device", errors)
+    for field in (
+        "manufacturer", "model", "android_version", "build_fingerprint",
+        "security_patch", "modem_baseband", "carrier", "country", "network_type",
+    ):
+        _text(device.get(field), f"device.{field}", errors)
+    api_level = device.get("api_level")
+    if not isinstance(api_level, int) or api_level < 24:
+        errors.append("device.api_level: integer API level >= 24 is required")
+    sim_slot = device.get("sim_slot")
+    if not isinstance(sim_slot, int) or sim_slot < 0:
+        errors.append("device.sim_slot: non-negative slot index is required")
+
+    configuration = manifest.get("configuration")
+    if not isinstance(configuration, dict):
+        errors.append("configuration: object is required")
+        configuration = {}
+    _validate_allowed_keys(configuration, "configuration", "configuration", errors)
+    if configuration.get("call_path") != "CELLULAR":
+        errors.append("configuration.call_path: must be CELLULAR; VoIP/emulator calls are not accepted")
+    if configuration.get("is_emulator") is not False:
+        errors.append("configuration.is_emulator: must be false")
+    if configuration.get("synthetic_call_state") is not False:
+        errors.append("configuration.synthetic_call_state: must be false")
+    _text(configuration.get("route"), "configuration.route", errors)
+    backend = configuration.get("backend")
+    if not isinstance(backend, str) or backend not in BACKENDS:
+        errors.append("configuration.backend: must be VOICE_CALL or SPEAKERPHONE_MIC")
+    if configuration.get("requested_backend") != backend:
+        errors.append("configuration.requested_backend: must equal the backend accepted for this evidence set")
+    commit = configuration.get("app_commit")
+    if not isinstance(commit, str) or not COMMIT_PATTERN.fullmatch(commit):
+        errors.append("configuration.app_commit: exact 40-character app commit SHA is required")
+
+    grants = configuration.get("permission_grants")
+    if not isinstance(grants, dict):
+        errors.append("configuration.permission_grants: actual permission grant map is required")
+        grants = {}
+    _validate_allowed_keys(grants, "permission_grants", "configuration.permission_grants", errors)
+    if grants.get("READ_PHONE_STATE") is not True:
+        errors.append("configuration.permission_grants.READ_PHONE_STATE: actual grant must be true")
+    if backend == "SPEAKERPHONE_MIC" and grants.get("RECORD_AUDIO") is not True:
+        errors.append("configuration.permission_grants.RECORD_AUDIO: actual grant must be true for the microphone backend")
+    shizuku = configuration.get("shizuku")
+    if shizuku is not None:
+        if not isinstance(shizuku, dict):
+            errors.append("configuration.shizuku: when present, this must be an object")
+            shizuku = {}
+        _validate_allowed_keys(shizuku, "shizuku", "configuration.shizuku", errors)
+
+    if backend == "VOICE_CALL":
+        if not isinstance(shizuku, dict):
+            errors.append("configuration.shizuku: version and process UID are required for VOICE_CALL")
+        else:
+            _text(shizuku.get("version"), "configuration.shizuku.version", errors)
+            process_uid = shizuku.get("process_uid")
+            if type(process_uid) is not int or process_uid not in {0, 2000}:
+                errors.append("configuration.shizuku.process_uid: actual root (0) or shell (2000) process UID is required")
+            elif process_uid == 2000 and not (
+                grants.get("CAPTURE_AUDIO_OUTPUT") is True or
+                grants.get("CALL_AUDIO_INTERCEPTION") is True
+            ):
+                errors.append(
+                    "configuration.permission_grants: shell UID requires at least one accepted protected permission "
+                    "(CALL_AUDIO_INTERCEPTION or CAPTURE_AUDIO_OUTPUT)"
+                )
+
+    trials = manifest.get("trials")
+    if not isinstance(trials, list) or len(trials) != TRIALS_PER_DIRECTION * len(DIRECTIONS):
+        errors.append("trials: exactly six trials (three incoming and three outgoing) are required")
+        trials = trials if isinstance(trials, list) else []
+
+    seen: set[tuple[str, str]] = set()
+    evidence_paths: set[str] = set()
+    counts = {direction: 0 for direction in DIRECTIONS}
+    root = manifest_path.resolve().parent
+
+    for index, trial in enumerate(trials):
+        label = f"trials[{index}]"
+        if not isinstance(trial, dict):
+            errors.append(f"{label}: trial object is required")
+            continue
+        _validate_allowed_keys(trial, "trial", label, errors)
+        direction = trial.get("direction")
+        trial_id = trial.get("id")
+        if direction not in DIRECTIONS:
+            errors.append(f"{label}.direction: must be INCOMING or OUTGOING")
+        else:
+            counts[direction] += 1
+        if not isinstance(trial_id, str) or not re.fullmatch(r"(IN|OUT)-[1-3]", trial_id):
+            errors.append(f"{label}.id: expected IN-1..IN-3 or OUT-1..OUT-3")
+        else:
+            expected_prefix = "IN" if direction == "INCOMING" else "OUT"
+            if not trial_id.startswith(expected_prefix + "-"):
+                errors.append(f"{label}.id: does not match the declared direction")
+            key = (str(direction), trial_id)
+            if key in seen:
+                errors.append(f"{label}.id: duplicate trial identifier")
+            seen.add(key)
+
+        if trial.get("outcome") != "PASS":
+            errors.append(f"{label}.outcome: each trial must independently pass")
+        _text(trial.get("reviewer"), f"{label}.reviewer", errors)
+        reviewed_at = trial.get("reviewed_at")
+        _text(reviewed_at, f"{label}.reviewed_at", errors)
+        if isinstance(reviewed_at, str):
+            try:
+                reviewed_datetime = datetime.fromisoformat(reviewed_at.replace("Z", "+00:00"))
+                if reviewed_datetime.tzinfo is None:
+                    errors.append(f"{label}.reviewed_at: timezone offset is required")
+            except ValueError:
+                errors.append(f"{label}.reviewed_at: valid ISO-8601 timestamp is required")
+
+        if trial.get("recording_mode") != backend:
+            errors.append(f"{label}.recording_mode: must match the configured backend exactly")
+        if trial.get("fallback_reason") not in (None, ""):
+            errors.append(f"{label}.fallback_reason: fallback/substitution disqualifies PASS_TWO_WAY")
+
+        near = trial.get("near_end")
+        far = trial.get("far_end")
+        for direction_label, item in (("near_end", near), ("far_end", far)):
+            if not isinstance(item, dict):
+                errors.append(f"{label}.{direction_label}: separate physical reference WAV evidence is required")
+                continue
+            _validate_allowed_keys(item, direction_label, f"{label}.{direction_label}", errors)
+            if item.get("all_required_phrases_intelligible") is not True:
+                errors.append(f"{label}.{direction_label}: all required phrases must be independently intelligible")
+            if type(item.get("score")) is not int or item.get("score") != 5:
+                errors.append(f"{label}.{direction_label}.score: score 5/5 is required for all phrases to count as intelligible")
+            _record_unique_evidence_path(root, item, f"{label}.{direction_label}", evidence_paths, errors)
+            _validate_wav(root, item, f"{label}.{direction_label}", errors)
+
+        capture = trial.get("capture")
+        if not isinstance(capture, dict):
+            errors.append(f"{label}.capture: app-produced recording evidence is required")
+        else:
+            _validate_allowed_keys(capture, "capture", f"{label}.capture", errors)
+            if capture.get("recording_mode") != backend:
+                errors.append(f"{label}.capture.recording_mode: must match the configured backend exactly")
+            audio_source = capture.get("audio_source")
+            _text(audio_source, f"{label}.capture.audio_source", errors)
+            if isinstance(audio_source, str) and isinstance(backend, str):
+                expected_source = "VOICE_CALL" if backend == "VOICE_CALL" else "MIC"
+                if expected_source not in audio_source.upper():
+                    errors.append(f"{label}.capture.audio_source: does not match the selected backend")
+            if capture.get("fallback_reason") not in (None, ""):
+                errors.append(f"{label}.capture.fallback_reason: fallback/substitution disqualifies PASS_TWO_WAY")
+            _record_unique_evidence_path(root, capture, f"{label}.capture", evidence_paths, errors)
+            if capture.get("db_status") != "COMPLETED":
+                errors.append(f"{label}.capture.db_status: finalized COMPLETED record is required")
+            if capture.get("finalized") is not True or capture.get("integrity_verified") is not True:
+                errors.append(f"{label}.capture: finalized WAV integrity must be independently verified")
+            _validate_wav(root, capture, f"{label}.capture", errors)
+
+    for direction, count in counts.items():
+        if count != TRIALS_PER_DIRECTION:
+            errors.append(f"trials.{direction}: expected exactly three, found {count}")
+
+    return errors
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        print("Usage: validate_physical_device_evidence.py <manifest.json>", file=sys.stderr)
+        return 2
+    manifest_path = Path(argv[1])
+    errors = validate_manifest(manifest_path)
+    if errors:
+        for error in errors:
+            print(f"BLOCKED: {error}", file=sys.stderr)
+        print("INCOMPLETE: PASS_TWO_WAY was not accepted.", file=sys.stderr)
+        return 2
+    print("PASS_TWO_WAY: six physical cellular trials, separate near/far WAVs, app capture WAVs, checksums, and provenance validated for this exact device/build/route/backend.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))
