@@ -49,8 +49,8 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 1. Preserve the distinction between strategy capability, runtime eligibility, arm-time session selection, observed signal, and verified device support.
 2. **Implemented:** best-eligible selection snapshots live Shizuku UserService/UID/attribution readiness when the user arms monitoring, then fixes the selected mode until disarm. Remaining work is adversarial service-level coverage for stale/disconnected readiness and exact backend invocation.
-3. **Partially implemented:** actual source and bounded diagnostic history are persisted. Add an explicit structured selection/fallback reason where it is still missing, and ensure notification/recording-detail UI consistently reports the actual selected mode rather than a preferred candidate.
-4. **Partially implemented:** permission, service, source, silence, and finalization diagnostics exist across the UI/recording metadata. Complete tests for callback registration/session filtering, silenced-state transitions, cleanup, and failure reason persistence.
+3. **Partially implemented:** actual source and bounded diagnostic history are persisted. PR #56 adds a first-class structured fallback-reason field and recording-detail presentation; retain the timestamped event timeline for runtime source/permission changes.
+4. **Implemented in current base:** `MicrophoneDiagnosticsPolicyTest` covers callback registration/session filtering/silenced transitions/cleanup/failure retry, and API 35 callback instrumentation covers platform delivery. PR #56 adds structured fallback-reason persistence and UI coverage. Keep these checks required; physical two-way evidence remains separate.
 5. Preserve the fail-closed contract: no implicit cross-mode substitution, no one-sided VOICE_UPLINK/DOWNLINK success path, and no Shizuku-to-MIC fallback.
 6. Ensure observability never logs phone numbers, ICCIDs, subscription IDs, call content, or audio samples.
 
