@@ -149,9 +149,8 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
 
     def test_rejects_any_automatic_backend_fallback(self) -> None:
         self.manifest["trials"][0]["fallback_reason"] = "Shizuku unavailable; microphone selected"
-        result = self._run()
-        self.assertEqual(2, result.returncode)
-        self.assertIn("fallback/substitution disqualifies PASS_TWO_WAY", result.stderr)
+        errors = self._errors()
+        self.assertTrue(any("fallback/substitution disqualifies PASS_TWO_WAY" in error for error in errors))
 
     def test_rejects_requested_backend_mismatch(self) -> None:
         self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
@@ -164,6 +163,11 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
     def test_rejects_actual_backend_substitution(self) -> None:
         self.manifest["trials"][0]["recording_mode"] = "VOICE_CALL"
         self.assertTrue(any("recording_mode" in error for error in self._errors()))
+
+    def test_rejects_fallback_recorded_in_capture_metadata(self) -> None:
+        self.manifest["trials"][0]["capture"]["fallback_reason"] = "MIC substituted"
+        errors = self._errors()
+        self.assertTrue(any("capture.fallback_reason" in error for error in errors))
 
     def test_rejects_mid_trial_fallback(self) -> None:
         self.manifest["trials"][0]["fallback_reason"] = "VOICE_CALL unavailable"
@@ -199,8 +203,7 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
             trial["recording_mode"] = "VOICE_CALL"
             trial["capture"]["recording_mode"] = "VOICE_CALL"
             trial["capture"]["audio_source"] = "Shizuku VOICE_CALL"
-        result = self._run()
-        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], self._errors())
 
     def test_voice_call_requires_actual_shizuku_and_protected_permission_evidence(self) -> None:
         self.manifest["configuration"]["backend"] = "VOICE_CALL"
