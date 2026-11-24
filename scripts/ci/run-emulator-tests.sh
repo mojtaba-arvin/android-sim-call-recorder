@@ -52,8 +52,8 @@ if [[ "$boot_completed" != "1" ]]; then
 fi
 
 echo "==> Emulator ready: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
-if ! adb logcat -c; then
-  echo "Unable to clear logcat after emulator readiness was confirmed; refusing to run instrumentation with ambiguous diagnostics." >&2
+if ! adb logcat -c && ! adb logcat -b all -c; then
+  echo "Unable to clear logcat with either the default or explicit all-buffer command after emulator readiness; refusing to run instrumentation with ambiguous diagnostics." >&2
   adb_diagnostics
   exit 1
 fi
