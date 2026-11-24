@@ -13,9 +13,12 @@ from pathlib import Path
 from typing import Any
 
 FORBIDDEN_KEYS = {
-    "phone_number", "msisdn", "imei", "imsi", "iccid", "serial",
-    "serial_number", "subscriber_id", "subscription_id", "contact_name",
-    "transcript", "phone", "subscriberidentity",
+    "phonenumber", "msisdn", "imei", "imsi", "iccid", "serial",
+    "serialnumber", "subscriberid", "subscriptionid", "contactname",
+    "transcript", "phone", "subscriberidentity", "androidid", "deviceid",
+    "hardwareid", "macaddress", "bluetoothaddress", "pairingcode",
+    "pairingsecret", "pairingkey", "password", "token", "authtoken",
+    "privatekey",
 }
 DIRECTIONS = ("INCOMING", "OUTGOING")
 TRIALS_PER_DIRECTION = 3
@@ -32,7 +35,7 @@ def _text(value: Any, label: str, errors: list[str]) -> None:
 def _find_forbidden_keys(value: Any, prefix: str, errors: list[str]) -> None:
     if isinstance(value, dict):
         for key, child in value.items():
-            normalized = str(key).strip().lower()
+            normalized = re.sub(r"[^a-z0-9]", "", str(key).strip().lower())
             if normalized in FORBIDDEN_KEYS:
                 errors.append(f"{prefix}.{key}: sensitive identifier fields are not allowed")
             _find_forbidden_keys(child, f"{prefix}.{key}", errors)
