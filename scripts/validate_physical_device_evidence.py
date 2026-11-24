@@ -227,17 +227,23 @@ def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> 
     if backend == "SPEAKERPHONE_MIC" and grants.get("RECORD_AUDIO") is not True:
         errors.append("configuration.permission_grants.RECORD_AUDIO: actual grant must be true for the microphone backend")
     if backend == "VOICE_CALL":
-        for permission in ("CAPTURE_AUDIO_OUTPUT", "CALL_AUDIO_INTERCEPTION"):
-            if grants.get(permission) is not True:
-                errors.append(f"configuration.permission_grants.{permission}: actual grant must be true")
         shizuku = configuration.get("shizuku")
         if not isinstance(shizuku, dict):
             errors.append("configuration.shizuku: version and process UID are required for VOICE_CALL")
         else:
             _validate_allowed_keys(shizuku, "shizuku", "configuration.shizuku", errors)
             _text(shizuku.get("version"), "configuration.shizuku.version", errors)
-            if type(shizuku.get("process_uid")) is not int or shizuku.get("process_uid") not in {0, 2000}:
+            process_uid = shizuku.get("process_uid")
+            if type(process_uid) is not int or process_uid not in {0, 2000}:
                 errors.append("configuration.shizuku.process_uid: actual root (0) or shell (2000) process UID is required")
+            elif process_uid == 2000 and not (
+                grants.get("CAPTURE_AUDIO_OUTPUT") is True or
+                grants.get("CALL_AUDIO_INTERCEPTION") is True
+            ):
+                errors.append(
+                    "configuration.permission_grants: shell UID requires at least one accepted protected permission "
+                    "(CALL_AUDIO_INTERCEPTION or CAPTURE_AUDIO_OUTPUT)"
+                )
 
     trials = manifest.get("trials")
     if not isinstance(trials, list) or len(trials) != TRIALS_PER_DIRECTION * len(DIRECTIONS):
