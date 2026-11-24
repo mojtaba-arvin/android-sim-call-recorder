@@ -129,7 +129,11 @@ class AndroidVoiceCallCaptureEngineTest {
         assertTrue(session.readFinished.await(2, TimeUnit.SECONDS))
         val eof = ByteArray(1)
         assertEquals(-1, ParcelFileDescriptor.AutoCloseInputStream(pipe[0]).read(eof))
-        assertFalse(engine.isCapturing)
+        val stoppedDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+        while (engine.isCapturing && System.nanoTime() < stoppedDeadline) {
+            Thread.sleep(10)
+        }
+        assertFalse("capture state should settle after the writer closes the pipe", engine.isCapturing)
         assertTrue(engine.lastError.contains("ERROR_DEAD_OBJECT"))
     }
 
