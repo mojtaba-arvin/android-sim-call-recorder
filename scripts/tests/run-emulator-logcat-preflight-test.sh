@@ -22,6 +22,7 @@ case "$*" in
   "shell getprop sys.boot_completed") echo "1" ;;
   "shell getprop ro.build.version.sdk") echo "35" ;;
   "logcat -c") exit 23 ;;
+  "logcat -b all -c") exit 23 ;;
   "version") echo "Android Debug Bridge test stub" ;;
   *) exit 0 ;;
 esac
