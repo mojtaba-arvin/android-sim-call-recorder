@@ -147,6 +147,12 @@ class PhysicalDeviceEvidenceValidatorTest(unittest.TestCase):
         self.manifest["trials"][0]["far_end"]["score"] = 4
         self.assertTrue(any("score 5/5 is required" in error for error in self._errors()))
 
+    def test_rejects_any_automatic_backend_fallback(self) -> None:
+        self.manifest["trials"][0]["fallback_reason"] = "Shizuku unavailable; microphone selected"
+        result = self._run()
+        self.assertEqual(2, result.returncode)
+        self.assertIn("fallback/substitution disqualifies PASS_TWO_WAY", result.stderr)
+
     def test_rejects_requested_backend_mismatch(self) -> None:
         self.manifest["configuration"]["requested_backend"] = "VOICE_CALL"
         self.assertTrue(any("requested_backend" in error for error in self._errors()))
