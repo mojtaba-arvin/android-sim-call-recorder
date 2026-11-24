@@ -78,6 +78,35 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     }
 
     @Test
+    @Config(sdk = [36])
+    fun api31Plus_emitsInitialSnapshotForCallAlreadyInProgress() = runBlocking {
+        grantPhoneStatePermission()
+        val subscriptionId = 111
+        val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+        val subscription = ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
+            .setId(subscriptionId)
+            .setSimSlotIndex(0)
+            .buildSubscriptionInfo()
+        shadowOf(subscriptionManager).setActiveSubscriptionInfoList(listOf(subscription))
+
+        val perSubscriptionManager = newTelephonyManager()
+        shadowOf(context.getSystemService(TelephonyManager::class.java))
+            .setTelephonyManagerForSubscriptionId(subscriptionId, perSubscriptionManager)
+        shadowOf(perSubscriptionManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
+
+        val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
+        val collector = launch(Dispatchers.IO) {
+            AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().take(1).toList(events)
+        }
+
+        awaitModernRegistration(perSubscriptionManager)
+        withTimeout(10_000) { collector.join() }
+
+        assertEquals(listOf(CallState.OFFHOOK), events.map { it.state })
+        assertEquals(listOf(0), events.map { it.simSlotIndex })
+    }
+
+    @Test
     @Config(sdk = [26, 27, 28, 29, 30])
     fun api26To30_legacyPhoneStateListener_emitsAllCallTransitions() = runBlocking {
         grantPhoneStatePermission()
