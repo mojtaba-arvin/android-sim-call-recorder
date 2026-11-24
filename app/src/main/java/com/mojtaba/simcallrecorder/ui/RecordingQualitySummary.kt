@@ -10,12 +10,20 @@ internal fun recordingQualitySummary(record: CallRecord): List<String> {
         null -> "Signal measurement unavailable"
     }
     val payload = if (record.dataBytes > 0L) "${record.dataBytes} bytes" else "Unavailable"
-    return listOf(
-        "Signal: $signal",
-        "PCM format: ${record.sampleRate} Hz · ${record.channelCount} channel(s)",
-        "PCM payload: $payload",
-        "Peak sample: ${record.peakSample}",
-        "RMS sample: ${record.rmsSample}",
-        "Peak/RMS and non-zero samples do not prove near-end or far-end speech.",
-    )
+    val frameworkSilence = when {
+        record.captureDiagnostics?.contains("clientSilenced=true", ignoreCase = true) == true ->
+            "Android reports clientSilenced=true; do not treat this capture as verified near-end speech."
+        record.captureDiagnostics?.contains("clientSilenced=false", ignoreCase = true) == true ->
+            "Android reports clientSilenced=false; this still does not prove near-end or far-end speech."
+        else -> null
+    }
+    return buildList {
+        add("Signal: $signal")
+        add("PCM format: ${record.sampleRate} Hz · ${record.channelCount} channel(s)")
+        add("PCM payload: $payload")
+        add("Peak sample: ${record.peakSample}")
+        add("RMS sample: ${record.rmsSample}")
+        frameworkSilence?.let(::add)
+        add("Peak/RMS and non-zero samples do not prove near-end or far-end speech.")
+    }
 }
