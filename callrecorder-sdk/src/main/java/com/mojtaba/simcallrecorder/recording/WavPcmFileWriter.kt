@@ -3,8 +3,6 @@ package com.mojtaba.simcallrecorder.recording
 import java.io.File
 import java.io.InputStream
 import java.io.IOException
-import android.system.ErrnoException
-import android.system.Os
 import java.io.RandomAccessFile
 import kotlin.math.sqrt
 
@@ -112,13 +110,11 @@ internal object WavPcmFileWriter {
     }
 
     private fun moveIntoPlace(temporary: File, destination: File) {
-        // The temporary file is created beside the destination, so POSIX rename is an atomic
-        // same-filesystem promotion and is available from API 21 (unlike java.nio.file.Files.move).
-        // rename replaces an existing destination atomically, matching REPLACE_EXISTING semantics.
-        try {
-            Os.rename(temporary.absolutePath, destination.absolutePath)
-        } catch (failure: ErrnoException) {
-            throw IOException("Unable to atomically promote the finalized WAV file.", failure)
+        // The temporary file is created beside the destination. Android's File.renameTo delegates
+        // to the same-filesystem native rename operation, available on the API 24 floor, and
+        // atomically replaces an existing destination on Android/Linux.
+        if (!temporary.renameTo(destination)) {
+            throw IOException("Unable to atomically promote the finalized WAV file.")
         }
     }
 
