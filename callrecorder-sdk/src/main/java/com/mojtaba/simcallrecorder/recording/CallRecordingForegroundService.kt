@@ -391,6 +391,7 @@ internal class CallRecordingForegroundService : Service() {
                             add("source=${recordingCoordinator.audioSourceLabel(request.mode)}")
                             selectedFallbackReason?.let { add("fallbackReason=$it") }
                         }.joinToString("; "),
+                        fallbackReason = selectedFallbackReason?.take(500),
                     ),
                 )
                 activeRecordId = insertedRecordId
