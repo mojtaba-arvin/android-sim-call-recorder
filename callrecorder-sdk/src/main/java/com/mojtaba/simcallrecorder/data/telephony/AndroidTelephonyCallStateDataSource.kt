@@ -77,8 +77,8 @@ internal class AndroidTelephonyCallStateDataSource @Inject constructor(
                 val plan = planSubscriptionObserverChanges(
                     currentlyObserved = observedSlotBySubscriptionId,
                     currentSubscriptions = subscriptions,
-                    subscriptionId = SubscriptionInfo::getSubscriptionId,
-                    slotIndex = SubscriptionInfo::getSimSlotIndex,
+                    subscriptionId = { it.subscriptionId },
+                    slotIndex = { it.simSlotIndex },
                 )
 
                 plan.toStop.forEach { subscriptionId ->
