@@ -1,6 +1,7 @@
 package com.mojtaba.simcallrecorder
 
 import android.os.Build
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.mojtaba.simcallrecorder.domain.model.AudioRoute
@@ -525,6 +527,7 @@ private fun DiagnosticsScreen(
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -540,6 +543,35 @@ private fun DiagnosticsScreen(
             text = if (recorderActive) "Device diagnostics · call-audio capture active" else "Device diagnostics · no call-audio capture",
             style = MaterialTheme.typography.bodyMedium,
         )
+        OutlinedButton(
+            onClick = {
+                val report = buildPrivacySafeDiagnosticsReport(
+                    generatedAtEpochMillis = System.currentTimeMillis(),
+                    manufacturer = Build.MANUFACTURER,
+                    model = Build.MODEL,
+                    androidRelease = Build.VERSION.RELEASE,
+                    apiLevel = Build.VERSION.SDK_INT,
+                    buildDisplay = Build.DISPLAY,
+                    securityPatch = Build.VERSION.SECURITY_PATCH,
+                    missingPermissions = missingPermissions,
+                    activeSimSlots = activeSims,
+                    callEvents = callEvents,
+                    audioRoutes = audioRoutes,
+                    monitoring = monitoring,
+                    recorderConnected = recorderConnected,
+                    recorderActive = recorderActive,
+                    automaticRecordingArmed = automaticRecordingArmed,
+                )
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, report)
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share privacy-safe diagnostics"))
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Export privacy-safe diagnostics")
+        }
 
         DiagnosticCard(title = "Device profile") {
             DiagnosticLine("Manufacturer", Build.MANUFACTURER)
