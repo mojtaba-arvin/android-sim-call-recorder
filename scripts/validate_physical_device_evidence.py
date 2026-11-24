@@ -124,7 +124,7 @@ def _validate_wav(root: Path, evidence: Any, label: str, errors: list[str]) -> N
         errors.append(f"{label}.wav: invalid or unreadable WAV ({type(exception).__name__})")
 
 
-def validate_manifest(manifest_path: Path) -> list[str]:
+def validate_manifest(manifest_path: Path, allow_test_fixture: bool = False) -> list[str]:
     errors: list[str] = []
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -138,8 +138,12 @@ def validate_manifest(manifest_path: Path) -> list[str]:
     if manifest.get("schema_version") != 1:
         errors.append("schema_version: expected integer 1")
 
-    if manifest.get("verdict") != "PASS_TWO_WAY":
-        errors.append("verdict: only PASS_TWO_WAY can be validated; incomplete/unknown evidence is not a pass")
+    expected_verdict = "TEST_FIXTURE" if allow_test_fixture else "PASS_TWO_WAY"
+    if manifest.get("verdict") != expected_verdict:
+        if allow_test_fixture:
+            errors.append("verdict: test validation requires TEST_FIXTURE")
+        else:
+            errors.append("verdict: only PASS_TWO_WAY can be validated; TEST_FIXTURE/incomplete evidence is never a physical pass")
 
     device = manifest.get("device")
     if not isinstance(device, dict):
