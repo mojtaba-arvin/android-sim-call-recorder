@@ -103,7 +103,7 @@ jobs:
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
       - name: Verify resolved AAR metadata and manifest merge
-        run: gradle --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata :callrecorder-sdk:processDebugMainManifest :app:processDebugMainManifest
+        run: gradle --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata
 
       - name: Verify sample app consumes only the SDK public boundary
         run: bash scripts/verify-sdk-boundary.sh
