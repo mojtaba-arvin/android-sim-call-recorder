@@ -19,6 +19,32 @@ This document is an executable test protocol and evidence register. Empty or `UN
 - Verify the resulting file is finalized, decodable, non-empty, frame-aligned, and has the expected duration. Listen to the beginning, middle, and end. Record objective measurements and human intelligibility separately.
 - A backend is not accepted if it silently substitutes MIC-only or one-sided audio. Record selected backend, fallback reason, observed near/far levels, and final support verdict.
 
+## Standardized spoken phrase set
+
+Use these original, fixed phrases for every required call. The handset-side participant is the **near-end/local** speaker; the second handset participant is the **far-end/remote** speaker. Do not substitute spontaneous conversation or prerecorded audio.
+
+Near-end participant reads all three phrases:
+
+1. "Local test: amber kite, seven, north window."
+2. "Local test: silver river, four, paper lantern."
+3. "Local test: cobalt garden, nine, quiet harbor."
+
+Far-end participant reads all three different phrases:
+
+1. "Remote test: violet compass, three, morning bridge."
+2. "Remote test: copper meadow, eight, winter orchard."
+3. "Remote test: ivory thunder, two, distant station."
+
+For each call, leave approximately two seconds of silence before the first phrase and after the last phrase. Read each phrase twice at a steady conversational level, with a short pause between phrases. Alternate which participant speaks first across trials. Do not shout, hold the microphone, or move the handset between earpiece/speaker positions during a single trial.
+
+Score the two directions independently from the saved WAV:
+
+- `local_phrase_intelligible=true` only if all three local phrases and both repetitions are intelligible in the recording.
+- `remote_phrase_intelligible=true` only if all three remote phrases and both repetitions are intelligible in the recording.
+- If even one required phrase is missing, clipped, masked, or unintelligible, mark that direction false for that call. RMS/peak activity is not a substitute for listening.
+
+Use the same phrase set for incoming and outgoing calls so the only changed variable is call direction. Keep each WAV separate and identify it only by a synthetic `call_id`.
+
 ## Per-case procedure
 
 1. Install the exact debug build identified by commit SHA. Capture `adb shell getprop ro.build.fingerprint`, `getprop ro.build.version.security_patch`, `getprop gsm.version.baseband`, `getprop ro.build.version.sdk`, and carrier/SIM details with personal identifiers redacted.
