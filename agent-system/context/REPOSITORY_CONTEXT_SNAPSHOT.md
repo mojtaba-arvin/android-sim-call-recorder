@@ -4,16 +4,18 @@
 **Captured at:** 2026-11-25T07:46:56Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `bootstrap/native-android-foundation`  
-**Source HEAD:** `959ea7ae545321c46dfb5b69e58fda6abb76a0fd`  
+**Source HEAD:** `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
 
 ## Live state refresh — 2026-11-25T07:46:56Z
+- 2026-11-25 follow-up: PR #39's unique standardized near/far spoken phrase protocol was preserved in `docs/PHYSICAL_DEVICE_ACCEPTANCE.md` (commit `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4`) before retiring the older evidence-contract PR. The phrase protocol is required by the newer #61 acceptance validator; it is not physical evidence itself.
+
 
 This section supersedes all older live-state statements below. Refresh GitHub before every mutation.
 
-- Foundation HEAD: `959ea7ae545321c46dfb5b69e58fda6abb76a0fd` (PR #61 squash merge; includes #62 and #63).
+- Foundation HEAD: `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4` (PR #61 squash merge; includes #62 and #63).
 - `main`: `71fe1f386fffe67547c1848ff12bc844247677de`; its tree contains only `LICENSE`. It is intentionally unchanged and is NOT the app development branch.
 - PR #61 is merged. The physical evidence validator requires six real cellular calls (three incoming, three outgoing), distinct near-end/far-end/app-capture WAVs, PCM16 integrity, SHA-256, completed Room records, exact backend/no fallback, provenance, and independent intelligibility review. Synthetic CI fixtures cannot issue a physical pass.
 - Post-merge Agent System Contracts failed on PR #1 because the context snapshot/benchmark source SHA was stale and Foundation had changed outside the snapshot-only paths. This refresh pins both files to the new Foundation HEAD; exact-head validation must be rerun.
@@ -30,7 +32,7 @@ This is the authoritative live-state section for this snapshot. Older sections b
 ### Repository refs and Foundation
 
 - `main`: `71fe1f386fffe67547c1848ff12bc844247677de` (unchanged).
-- `bootstrap/native-android-foundation`: `959ea7ae545321c46dfb5b69e58fda6abb76a0fd`.
+- `bootstrap/native-android-foundation`: `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4`.
 - Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains open and Draft against `main`. No independent review submissions or review threads are recorded.
 - Latest PR #1 validation is not green: Agent System Contracts run [#45341248265](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45341248265) failed because the context snapshot/benchmark source SHA was stale after Foundation integration. The log identifies changes outside `agent-system/context/` and `agent-system/benchmarks/`. Android CI run [#45341248335](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45341248335) was pending at capture time. This refresh is intended to correct the stale-context failure; only a new exact-head run can validate it.
 - The current snapshot source SHA is the Foundation head immediately before this refresh branch. The benchmark `source_head_sha` must match it exactly.
@@ -51,7 +53,7 @@ The following PRs were squash-merged into the Foundation branch only; none chang
 | [#59](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/59) | Prior A0 context/benchmark refresh (now superseded by this refresh) | `05fa1444e39580e06f14eb1843a2fe74ef440d3d` |
 | [#51](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/51) | Privacy-safe diagnostics export | `ebcec33b09ef20bc055bf9d934c4efbe84257d65` |
 | [#53](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/53) | Recording signal-quality details UI | `e9df713f1eb1843a114ca49a86d26a849b8a1a29` |
-| [#40](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/40) | Fail-closed Shizuku teardown | `959ea7ae545321c46dfb5b69e58fda6abb76a0fd` |
+| [#40](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/40) | Fail-closed Shizuku teardown | `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4` |
 
 These are Foundation integrations, not acceptance of the complete SDK or product for release. Their earlier exact-head CI passes do not replace the new Foundation PR #1 checks after integration.
 
@@ -191,7 +193,7 @@ Refresh each issue before changing it:
 
 ## 8. Snapshot provenance
 
-This snapshot and benchmark are pinned to Foundation source SHA `959ea7ae545321c46dfb5b69e58fda6abb76a0fd` immediately before the A0 refresh commit. The benchmark `tasks.json` uses the same `source_head_sha`. The only changes in the A0 refresh branch are within `agent-system/context/` and `agent-system/benchmarks/`; the validator enforces this boundary. Older dated diagnosis notes below are historical evidence, not current status.
+This snapshot and benchmark are pinned to Foundation source SHA `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4` immediately before the A0 refresh commit. The benchmark `tasks.json` uses the same `source_head_sha`. The only changes in the A0 refresh branch are within `agent-system/context/` and `agent-system/benchmarks/`; the validator enforces this boundary. Older dated diagnosis notes below are historical evidence, not current status.
 
 
 ### Latest exact-head diagnosis — 2026-11-21
