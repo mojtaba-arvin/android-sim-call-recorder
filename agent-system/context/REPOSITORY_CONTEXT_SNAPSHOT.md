@@ -1,3 +1,14 @@
+## Live state refresh — 2026-11-25T15:06:00Z
+
+- Foundation PR #1 remains Draft/open against `main`; Foundation HEAD is `05ef7b73fa123590569bf65663b997da31d9a3d3`. `main` remains unchanged at `71fe1f386fffe67547c1848ff12bc844247677de`.
+- PR #64 remains Draft/open against `bootstrap/native-android-foundation`; exact head before this metadata-only refresh is `a87cc6669a2493e204fdbe2b61dfffcebea91b8a`.
+- PR #64 integrates the six source streams #41/#44/#47/#49/#50/#56. Exact code head `a0a5443` had Android CI run #45634823850 fail only in the bounded full SDK test step: focused Multi-SIM, StaleRecordingRecoveryCallbackRobolectricTest, and DefaultCallRecordRepositoryRobolectricTest passed; the full SDK task hit its 15-minute timeout (exit 124). API 24/26/35 instrumentation and API 36 Shell probe passed. Agent System Contracts passed on that code head.
+- The failed run's uploaded unit-test artifact was inspected: it contains the 9-test repository class report with 0 failures/errors; the full-suite task was killed before emitting a complete SDK suite report. This is not evidence of a particular failing test.
+- Added Gradle test-level STARTED/PASSED/SKIPPED/FAILED logging on commit `9c7f213` so the next bounded run identifies the last in-flight test. Fixed the CI classifier's malformed double-escaped printf newline on commit `a87cc66`; it now passes actual newline-delimited changed paths to the Python classifier.
+- Exact-head Android CI run #45640762860 and Agent System Contracts run #45640763186 were created for `a87cc66`. The latter failed because the context/benchmark baseline still pointed at `aa5a284` while subsequent non-agent files had changed. This refresh advances both baseline SHAs to `a87cc66`; fresh exact-head validation is required.
+- PR #64 must remain Draft until exact-head Android CI and Agent System Contracts pass and its full diff is reviewed. Only then may the six superseded PRs be closed. Target remains Foundation; do not merge #1, change `main`, create a tag, release, or publish.
+- Physical two-way evidence remains absent: no handset/build/carrier/route has the required three incoming plus three outgoing consented calls with separate near/far intelligibility. No `PASS_TWO_WAY` is claimed. Production APK signing remains blocked on owner-provisioned protected signing material and an independently approved certificate fingerprint.
+
 ## Live state refresh — 2026-11-25T14:23:00Z
 
 - Latest PR #64 branch head is `6f16a81d94d005b5baba5ac9cf8369cee05f462f` (documentation-only commit); code source head is `aa5a2845446d400d171b29e83201413de5878738`. Target is `bootstrap/native-android-foundation`. `main` is unchanged.
@@ -67,7 +78,7 @@
 **Captured at:** 2026-11-25T14:30:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `aa5a2845446d400d171b29e83201413de5878738`  
+**Source HEAD:** `a87cc6669a2493e204fdbe2b61dfffcebea91b8a`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
