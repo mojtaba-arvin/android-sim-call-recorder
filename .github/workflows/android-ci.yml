@@ -42,6 +42,17 @@ jobs:
       - name: Test Android CI path classifier
         run: python -m unittest discover -s scripts/tests -p 'test_classify_android_ci_changes.py' -v
 
+      - name: Verify multi-path classifier stdin handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(printf '%s\\n' \
+            'README.md' \
+            'callrecorder-sdk/src/main/java/com/mojtaba/simcallrecorder/recording/shizuku/PrivilegedVoiceCallCaptureEngine.kt' \
+            | python scripts/classify_android_ci_changes.py)"
+          grep -Fxq 'code=true' <<< "$output"
+          grep -Fxq 'audio=true' <<< "$output"
+
       - name: Classify changed files
         id: filter
         env:
