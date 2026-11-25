@@ -22,18 +22,18 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 ## Operational readiness snapshot — 2026-11-25
 
-- Current integration PR: [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64), targeting `bootstrap/native-android-foundation`; `main` remains unchanged.
-- App and SDK currently declare `minSdk 24`; app target is API 36 and compile SDK is 37. API 24 is still an experimental software floor, not a cellular-audio support promise.
-- PR #64 consolidates six streams: capture/fallback metadata (#56), AudioRecord reliability (#44), fail-closed ADB preflight (#50), safe CI path classification (#41), external SDK consumer smoke app (#47), and release AAR checksum verification (#49).
-- Latest code head at this review: `aa5a2845446d400d171b29e83201413de5878738`. Exact-head CI run [#45632360523](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45632360523) is in progress. Agent System Contracts is also running.
-- On the prior code head `818fcf3`, API 24/26/35 emulator lanes and API 36 Shell probe passed; the SDK unit suite timed out after only three class reports, so that run was not an overall pass.
-- On `aa5a284`, focused multi-SIM, stale-recording recovery and recording-repository Robolectric test classes passed. The full SDK suite is now running with `--info` and a 15-minute cap; API 36 Shell probe passed; API 24/26/35 emulator lanes are running.
-- Do not merge #64 until the exact latest head has green Agent System Contracts, full SDK/app tests, lint, SDK AAR, app APK, consumer smoke build, API 24/26/35 emulator lanes, conditional API 36 probe and Required checks.
-- Former PRs #41/#44/#47/#49/#50/#56 are superseded by #64; close them only after exact-head CI is green and #64 merges. Then close Issues #2/#5/#31 with CI-backed evidence.
-- Governance Issue #8 is complete and closed. Live ruleset #27531148 was rechecked: PR required, `Android CI / Required checks` required, deletion/non-fast-forward protection active, no bypass actors, approval count 0, strict checks false. The no-independent-reviewer model is intentional.
-- Issues #4 and #7 were refreshed to remove stale implementation/minSdk statements. Keep them open for remaining API 28–37 FGS/service validation and the full API/dependency compatibility audit.
-- Physical two-way device evidence (#3) remains zero. Production signing (#38) remains unavailable until the owner provisions production signing material. Do not create a release tag or claim support.
-- No active issue is assigned to a GitHub Milestone; do not mark roadmap phases complete from code presence alone.
+- Current integration PR: [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64), Draft/open, targeting `bootstrap/native-android-foundation`; `main` remains unchanged.
+- Foundation PR #1 remains Draft/open against `main`, head `05ef7b73fa123590569bf65663b997da31d9a3d3`. Do not merge it while independent review and hardware acceptance remain outstanding.
+- PR #64 consolidates six streams: structured fallback metadata (#56), AudioRecord initialization/read/cleanup reliability (#44), fail-closed ADB/logcat preflight (#50), safe CI path classification (#41), independent Release AAR consumer smoke app (#47), and AAR checksum verification (#49).
+- Current PR #64 code head: `a87cc6669a2493e204fdbe2b61dfffcebea91b8a`; subsequent commits refresh only the agent-system context and benchmark. The exact-head Android CI run #45641121028 and Agent System Contracts run #45641121358 are pending/queued as of this snapshot.
+- Previous integration head `a0a5443` passed focused Multi-SIM, StaleRecordingRecoveryCallbackRobolectricTest, and DefaultCallRecordRepositoryRobolectricTest classes; its uploaded repository report has 9 tests, 0 failures/errors. The full SDK unit suite nevertheless hit its 15-minute cap (exit 124) before producing a complete report. This is an unresolved full-suite hang, not a confirmed failing test.
+- On `a0a5443`, API 24/26/35 emulator lanes and the conditional API 36 Shell permission probe passed. These are software/permission checks only; they do not establish real SIM audio.
+- Added per-test STARTED/PASSED/SKIPPED/FAILED Gradle logging so the next full-suite timeout identifies the last in-flight test. Corrected the CI classifier's newline-delimited stdin handoff; Shizuku path classification must be verified on the new exact head.
+- Do not merge #64 until Android CI, Agent System Contracts, the full SDK/app tests, lint, AAR/consumer smoke build, all API 24/26/35 emulator lanes, conditional API 36 probe and Required checks pass on the same exact head. Then inspect the full diff and close former PRs #41/#44/#47/#49/#50/#56 as superseded.
+- Governance Issue #8 is complete. Live ruleset #27531148 was observed to require PRs and `Android CI / Required checks`, with deletion/non-fast-forward protection; approval count is 0 and strict checks are false. Do not simulate independent review.
+- Issues #2/#4/#5/#7/#31 remain open pending exact-head integration CI and their remaining service/API/dependency acceptance. Issue #3 remains blocked on physical handset trials. Issue #38 remains blocked on owner-provisioned protected signing material and an independently approved certificate fingerprint.
+- No active issue is assigned to a GitHub Milestone. No physical device configuration has evidence for the required three incoming and three outgoing calls with separate near/far intelligibility; no `PASS_TWO_WAY` is claimed. No production APK signing, tag, release, or publication is enabled.
+
 
 ## Execution plan and acceptance gates
 
