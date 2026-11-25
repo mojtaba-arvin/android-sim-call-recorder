@@ -3,12 +3,12 @@
 - Latest PR #64 branch head is `6f16a81d94d005b5baba5ac9cf8369cee05f462f` (documentation-only commit); code source head is `aa5a2845446d400d171b29e83201413de5878738`. Target is `bootstrap/native-android-foundation`. `main` is unchanged.
 - PR #64 consolidates former PRs #41/#44/#47/#49/#50/#56 into one integration batch: capture metadata, AudioRecord reliability, ADB/logcat preflight, safe CI classifier, SDK consumer smoke app and release AAR checksum verification.
 - Exact-head Android CI run [#45632360523](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45632360523) is in progress. Agent System Contracts is also in progress.
-- The API 36 Shell permission probe passed. API 24/26/35 emulator jobs are still running.
+- The API 36 Shell permission probe passed. API 24/26/35 emulator jobs all passed; artifacts show 18/18 tests on API 24, 18/18 on API 26, and 22/22 on API 35, with process-death recovery markers on all three.
 - On this head, focused Multi-SIM test passed; the complete `StaleRecordingRecoveryCallbackRobolectricTest` and `DefaultCallRecordRepositoryRobolectricTest` classes both passed. The full SDK suite is in progress with `--info` and a 15-minute bound. This isolates the previous 15-minute timeout more narrowly; do not claim the full suite passed yet.
 - Prior head `818fcf3` had API 24/26/35 emulator lanes green but the SDK suite timed out; it is not a green overall result and must not be reused for merge.
 - If the full SDK suite times out again, inspect `--info` logs to identify the last test started/completed, isolate that class, and fix its cleanup/worker lifecycle. Do not increase the timeout blindly and do not rerun successful emulator lanes for a unit-test-only failure.
 - Governance Issue #8 closed as completed. Live ruleset #27531148 confirms active PR requirement, stable `Android CI / Required checks`, deletion/non-fast-forward protection, no bypass actors, required approvals 0 and strict checks false. No independent reviewer is available or expected; do not turn on approval requirements.
-- Issues #4 and #7 were updated with current state: minSdk 24/targetSdk 36/compileSdk 37; consent/arm persistence and fallback metadata are implemented, while API 28–37 FGS/service matrix and full API/dependency audit remain open.
+- Issues #4 and #7 were updated with current state: minSdk 24/targetSdk 36/compileSdk 37; consent/arm persistence and fallback metadata are implemented. A source-level framework API guard inventory was added to COMPATIBILITY_MATRIX.md; AAR metadata preflight passed on aa5a284. Remaining API 28–37 FGS/service matrix and expanded dependency/API audit remain open.
 - Issue #3 has zero physical-device results. Issue #38 still has no production signing material. Emulator/CI must never be represented as two-way cellular audio evidence.
 - Former PRs #41/#44/#47/#49/#50/#56 and Issues #2/#5/#31 remain open until #64 exact-head CI passes and merge succeeds. No branches were deleted. No active issue is assigned to a GitHub Milestone.
 
@@ -64,7 +64,7 @@
 # Repository Context Pack — Snapshot v1
 
 **Snapshot ID:** `android-sim-call-recorder-2026-11-24T06-33-00Z`  
-**Captured at:** 2026-11-25T14:23:00Z
+**Captured at:** 2026-11-25T14:30:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
 **Source HEAD:** `aa5a2845446d400d171b29e83201413de5878738`  
