@@ -4,12 +4,12 @@
 **Captured at:** 2026-11-25T07:46:56Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `bootstrap/native-android-foundation`  
-**Source HEAD:** `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4`  
+**Source HEAD:** `7430894cbdd3a936d8034c56cd48f96292eac8b7`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
 
-## Live state refresh — 2026-11-25T07:46:56Z
+## Live state refresh — 2026-11-25T07:52:00Z
 - 2026-11-25 SIM reconciliation reconciliation: the observer, pure plan, API 24–37 Robolectric coverage, and foreground-service diagnostic log were already present in Foundation from the #55 integration. PR #52's remaining unique architecture/Definition-of-Done documentation is now preserved in `docs/ARCHITECTURE.md` at `7430894cbdd3a936d8034c56cd48f96292eac8b7`; #52 can be retired as superseded after this documentation is confirmed.
 
 - 2026-11-25 follow-up: PR #39's unique standardized near/far spoken phrase protocol was preserved in `docs/PHYSICAL_DEVICE_ACCEPTANCE.md` (commit `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4`) before retiring the older evidence-contract PR. The phrase protocol is required by the newer #61 acceptance validator; it is not physical evidence itself.
@@ -17,7 +17,7 @@
 
 This section supersedes all older live-state statements below. Refresh GitHub before every mutation.
 
-- Foundation HEAD: `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4` (PR #61 squash merge; includes #62 and #63).
+- Foundation HEAD: `7430894cbdd3a936d8034c56cd48f96292eac8b7` (PR #61 squash merge; includes #62 and #63).
 - `main`: `71fe1f386fffe67547c1848ff12bc844247677de`; its tree contains only `LICENSE`. It is intentionally unchanged and is NOT the app development branch.
 - PR #61 is merged. The physical evidence validator requires six real cellular calls (three incoming, three outgoing), distinct near-end/far-end/app-capture WAVs, PCM16 integrity, SHA-256, completed Room records, exact backend/no fallback, provenance, and independent intelligibility review. Synthetic CI fixtures cannot issue a physical pass.
 - Post-merge Agent System Contracts failed on PR #1 because the context snapshot/benchmark source SHA was stale and Foundation had changed outside the snapshot-only paths. This refresh pins both files to the new Foundation HEAD; exact-head validation must be rerun.
