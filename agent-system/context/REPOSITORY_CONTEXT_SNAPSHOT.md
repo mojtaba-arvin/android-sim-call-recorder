@@ -1,3 +1,13 @@
+## Live state refresh — 2026-11-25T15:08:00Z
+
+- Foundation remains `bootstrap/native-android-foundation` at `05ef7b73fa123590569bf65663b997da31d9a3d3`; PR #1 is Draft/open against unchanged `main` (`71fe1f386fffe67547c1848ff12bc844247677de`).
+- PR #64 is Draft/open, targeting Foundation. Its code changes are at `a87cc6669a2493e204fdbe2b61dfffcebea91b8a`; the only later non-agent file change is the roadmap status refresh at `94907cb884bb84e524972546b3fdf4c529376ba4`.
+- Android CI run #45641121028 and Agent System Contracts run #45641121358 are the current exact-head validation for PR #64 and are pending/queued. Earlier run #45640762860 was cancelled when a newer commit superseded it; run #45640763186 failed because the agent snapshot baseline had not yet been refreshed after code/workflow/doc changes. This snapshot and benchmark now use `94907cb` as the baseline; rerun/inspect exact-head Agent System Contracts.
+- The last completed full SDK run on `a0a5443` timed out at 15 minutes (exit 124) after the three focused tests passed. Artifact inspection confirmed the repository class report: 9 tests, 0 failures/errors. The full suite did not produce a complete report.
+- Gradle per-test progress logging is enabled, and the CI path classifier's printf format now sends newline-delimited paths. The new exact-head CI must demonstrate both fixes and identify any still-blocking test.
+- Keep PR #64 Draft until exact-head Android CI and Agent System Contracts are green and the full diff is reviewed. Former PRs #41/#44/#47/#49/#50/#56 are not closed yet.
+- Physical two-way call evidence and production signing remain external owner gates; no device support, release, tag, or publication is claimed.
+
 ## Live state refresh — 2026-11-25T15:06:00Z
 
 - Foundation PR #1 remains Draft/open against `main`; Foundation HEAD is `05ef7b73fa123590569bf65663b997da31d9a3d3`. `main` remains unchanged at `71fe1f386fffe67547c1848ff12bc844247677de`.
@@ -78,7 +88,7 @@
 **Captured at:** 2026-11-25T14:30:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `a87cc6669a2493e204fdbe2b61dfffcebea91b8a`  
+**Source HEAD:** `94907cb884bb84e524972546b3fdf4c529376ba4`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
