@@ -1,13 +1,23 @@
 # Repository Context Pack — Snapshot v1
 
 **Snapshot ID:** `android-sim-call-recorder-2026-11-24T06-33-00Z`  
-**Captured at:** 2026-11-25T11:27:00Z
+**Captured at:** 2026-11-25T11:45:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
 **Source HEAD:** `c8bbdc2e07f4ce6ef08a81fc7da1ee73a77235e8`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
+
+## Live state refresh — 2026-11-25T11:45:00Z
+
+- Latest code head remains `c8bbdc2e07f4ce6ef08a81fc7da1ee73a77235e8`; PR head includes snapshot/benchmark commit `9feaf731129e0edb3c483b07ecff46617384f599`.
+- Agent System Contracts passed on exact head `9feaf731129e0edb3c483b07ecff46617384f599` in run [#45604356465](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45604356465).
+- Android CI run [#45604356675](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45604356675): focused multi-SIM Robolectric regression passed; API 36 Shell permission probe passed. API 24 emulator failed before tests because ADB/system_server/package service crashed; API 35 emulator failed during dependency resolution with Maven Central HTTP 429 for `org.junit.platform:junit-platform-engine:1.13.3`; API 26 emulator and SDK/app tests+lint+packaging were still running at this refresh.
+- Once this run completes, retry only failed API 24 and API 35 jobs. If the JUnit Platform 429 repeats, extend the existing Google Maven Central mirror's content filter to include `org.junit.platform`. Do not weaken emulator coverage or Required checks.
+- Do not merge PR #64 until SDK/app tests, lint, AAR/APK, all API 24/26/35 emulator lanes, API 36 probe and Required checks pass on the latest relevant code head. The earlier exact-head CI result is not a pass.
+- Issue #34 is closed as not planned because no independent reviewer is available or expected. Ruleset approval count remains 0; PR requirement, required CI, deletion/non-fast-forward protection, last-push approval and no-bypass policy remain intact.
+- PR #64 remains open against Foundation `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged. No physical two-way cellular evidence or production signing is claimed.
 
 ## Live state refresh — 2026-11-25T11:27:00Z
 
