@@ -1,13 +1,21 @@
 # Repository Context Pack — Snapshot v1
 
 **Snapshot ID:** `android-sim-call-recorder-2026-11-24T06-33-00Z`  
-**Captured at:** 2026-11-25T07:57:48Z
+**Captured at:** 2026-11-25T11:17:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `e48f970e40ca262a137d3f54b20bb1354f195b98`  
+**Source HEAD:** `db68cca471c8b839f93925b6212822aaff1f839b`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
+
+## Live state refresh — 2026-11-25T11:17:00Z
+
+- PR #64 exact-head CI run [#45573103201](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45573103201) did not pass: the SDK/app verification job reached its 40-minute timeout while the SDK Robolectric test `multipleSubscriptions_keepTheirOwnSlotAssociation` was in progress. The job was cancelled by the timeout; this was not a test assertion failure. Emulator API 24/26/35, API 36 permission probe, Agent System Contracts and all pre-Gradle verification scripts passed on that head.
+- The multi-SIM regression now seeds each subscription's call state before collection and asserts the initial per-subscription snapshots. This avoids timing-sensitive cross-callback interleaving in Robolectric while retaining the production contract under test. The test has a 30-second JUnit bound.
+- Android CI now runs this test alone first with a 180-second process timeout before the full SDK/app test, lint and packaging tasks. The exact-head result is pending on the updated PR commit.
+- Ruleset `27531148` remains active with `required_approving_review_count=0`; independent review is intentionally not required. Required CI, deletion protection, non-fast-forward protection and last-push approval remain enabled.
+- PR #64 remains based on Foundation `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged at `71fe1f386fffe67547c1848ff12bc844247677de`. No physical two-way cellular evidence or production signing is claimed.
 
 ## Live state refresh — 2026-11-25T08:05:00Z
 - 2026-11-25 integration batch PR [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64), source commit `17c7233473d1cdd83e86a980f3e7a485d4c4c01b`: combines PR #50's fail-closed ADB/logcat preflight and stubbed regressions; PR #56's nullable structured fallbackReason Room 3→4 migration, service persistence and UI; and PR #44's injectable AudioRecord session factory, HAL error classification and deterministic engine tests. The batch is intentionally based on Foundation `05ef7b73fa123590569bf65663b997da31d9a3d3`; no physical audio pass or production signing is implied.
