@@ -19,6 +19,8 @@ data class CallRecord(
     val failureReason: String?,
     val captureProfile: String? = null,
     val captureDiagnostics: String? = null,
+    /** Why the selected backend differs from the user's preferred/privileged path, if applicable. */
+    val fallbackReason: String? = null,
 )
 
 data class CallRecordFilter(

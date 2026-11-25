@@ -37,4 +37,6 @@ internal data class CallRecordEntity(
     val captureProfile: String? = null,
     /** Latest matching AudioRecordingConfiguration snapshot; null for non-microphone backends. */
     val captureDiagnostics: String? = null,
+    /** Structured fallback explanation; duplicated in the bounded timeline for older consumers. */
+    val fallbackReason: String? = null,
 )

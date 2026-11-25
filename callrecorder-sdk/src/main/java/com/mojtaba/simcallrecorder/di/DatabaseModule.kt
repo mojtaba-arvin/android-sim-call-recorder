@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.mojtaba.simcallrecorder.data.local.AppDatabase
 import com.mojtaba.simcallrecorder.data.local.MIGRATION_1_2
 import com.mojtaba.simcallrecorder.data.local.MIGRATION_2_3
+import com.mojtaba.simcallrecorder.data.local.MIGRATION_3_4
 import com.mojtaba.simcallrecorder.data.local.StaleRecordingRecoveryCallback
 import com.mojtaba.simcallrecorder.data.local.dao.CallRecordDao
 import dagger.Module
@@ -27,7 +28,7 @@ internal object DatabaseModule {
         AppDatabase::class.java,
         "recordings.db",
     )
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         // Runs once when this process first opens the database, before any new session can
         // insert a RECORDING row. Unlike Activity.onCreate, it cannot interrupt a live
         // recording merely because the user returns to the UI.
