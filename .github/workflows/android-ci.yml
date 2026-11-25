@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          output="$(printf '%s\\n' \
+          output="$(printf '%s\n' \
             'README.md' \
             'callrecorder-sdk/src/main/java/com/mojtaba/simcallrecorder/recording/shizuku/PrivilegedVoiceCallCaptureEngine.kt' \
             | python scripts/classify_android_ci_changes.py)"
