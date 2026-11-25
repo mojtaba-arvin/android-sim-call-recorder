@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.yield
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -78,6 +79,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
         withTimeout(10_000) { collector.join() }
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
@@ -111,6 +113,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
         awaitModernRegistration(perSubscriptionManager)
         withTimeout(10_000) { collector.join() }
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertEquals(listOf(CallState.OFFHOOK), events.map { it.state })
         assertEquals(listOf(0), events.map { it.simSlotIndex })
@@ -148,6 +151,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
         withTimeout(10_000) { collector.join() }
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
@@ -210,8 +214,10 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
             }
             shadowOf(Looper.getMainLooper()).idle()
             withTimeout(10_000) { collector.join() }
+        shadowOf(Looper.getMainLooper()).idle()
         } finally {
-            collector.cancel()
+            collector.cancelAndJoin()
+            shadowOf(Looper.getMainLooper()).idle()
         }
 
         assertEquals(2, events.size)
