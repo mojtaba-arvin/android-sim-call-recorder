@@ -1,13 +1,20 @@
 # Repository Context Pack — Snapshot v1
 
 **Snapshot ID:** `android-sim-call-recorder-2026-11-24T06-33-00Z`  
-**Captured at:** 2026-11-25T11:17:00Z
+**Captured at:** 2026-11-25T11:27:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `db68cca471c8b839f93925b6212822aaff1f839b`  
+**Source HEAD:** `c8bbdc2e07f4ce6ef08a81fc7da1ee73a77235e8`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
+
+## Live state refresh — 2026-11-25T11:27:00Z
+
+- Exact-head Android CI run [#45603288180](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45603288180) confirmed API 24 and API 26 emulator lanes and the API 36 Shell permission probe passed; API 35 was still running at refresh. The SDK verify job failed before the full suite because its focused multi-SIM regression command hit the explicit 180-second shell timeout (exit 124).
+- The first deterministic rewrite had seeded both SIM call states but omitted pumping Robolectric's paused main looper while the data source dispatched listener creation through `Dispatchers.Main.immediate`. This is the identified test-harness deadlock, not a product assertion failure. The test now pumps the main looper until both subscription callbacks are registered, then awaits both initial snapshots; JUnit and collector waits remain bounded.
+- The focused command itself needs a fresh exact-head run. Do not infer success from the earlier run or merge until SDK/app tests, lint, AAR/APK, all emulator lanes and Required checks pass.
+- Ruleset `27531148` remains active with zero required approvals by owner decision. Issue #34 is closed as not planned; Issue #8 remains open pending post-stack strict-check policy review.
 
 ## Live state refresh — 2026-11-25T11:17:00Z
 
