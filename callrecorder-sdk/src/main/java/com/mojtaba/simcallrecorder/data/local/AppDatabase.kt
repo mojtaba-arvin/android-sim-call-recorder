@@ -9,7 +9,7 @@ import com.mojtaba.simcallrecorder.data.local.entity.CallRecordEntity
 
 @Database(
     entities = [CallRecordEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 internal abstract class AppDatabase : RoomDatabase() {
