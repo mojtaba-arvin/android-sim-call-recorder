@@ -1,6 +1,6 @@
 ## Live state refresh — 2026-11-25T14:20:00Z
 
-- Current PR #64 branch head is `aa5a2845446d400d171b29e83201413de5878738`; target is `bootstrap/native-android-foundation`. `main` is unchanged.
+- Latest PR #64 branch head is `28af18b2a17876b4c8c136b61b768f7edd27d7cb` (documentation-only commit); code source head is `aa5a2845446d400d171b29e83201413de5878738`. Target is `bootstrap/native-android-foundation`. `main` is unchanged.
 - PR #64 consolidates former PRs #41/#44/#47/#49/#50/#56 into one integration batch: capture metadata, AudioRecord reliability, ADB/logcat preflight, safe CI classifier, SDK consumer smoke app and release AAR checksum verification.
 - Exact-head Android CI run [#45632360523](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45632360523) is in progress. Agent System Contracts is also in progress.
 - The API 36 Shell permission probe passed. API 24/26/35 emulator jobs are still running.
