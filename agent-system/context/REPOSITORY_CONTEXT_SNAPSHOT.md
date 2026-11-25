@@ -1,5 +1,15 @@
 ## Consolidated SDK/CI acceptance batch — 2026-11-25T13:25:00Z
 
+- PR #64 integrates the former #41, #47 and #49 scopes: safe Android CI path classification, a Release-AAR consumer smoke app, and AAR checksum verification.
+- Integration code commit: `8c125b9f8918af98504bdc0fbb47fa3435405900`; benchmark and snapshot pin this SHA. Subsequent commits are documentation/snapshot-only.
+- Classifier excludes only known non-Android paths and two dedicated Python tests. It does not exclude all `scripts/tests/*`; emulator preflight and Release verifier tests trigger Android CI. Unknown paths fail safe to full CI.
+- Consumer smoke app uses the generated Release AAR by file dependency and only public SDK/domain packages. It uses `android.app.Activity` to avoid an undeclared AndroidX Activity dependency.
+- Release AAR verifier rejects empty AARs, symlinked AARs/manifests, checksum mismatch, malformed/multiple entries and unexpected top-level files. Build and publish jobs both verify the bundle.
+- Close #41, #47 and #49 as superseded only after #64 merges with exact-head CI green.
+- Efficiency: batch code changes before a single full CI run; while CI is active, inspect independent issues and docs. Retry only transient failed jobs; never rerun successful emulator lanes for SDK unit-test hangs.
+
+## Consolidated SDK/CI acceptance batch — 2026-11-25T13:25:00Z
+
 - PR #64 now also integrates the previously separate PR #41, #47 and #49 scopes to avoid another full CI cycle: safe Android CI path classification, an external Release-AAR consumer smoke app, and release AAR checksum verification.
 - Integration code commit: `8c125b9f8918af98504bdc0fbb47fa3435405900`; benchmark and this snapshot pin this SHA. The next commit is snapshot/benchmark-only.
 - Classifier deliberately excludes only known non-Android paths and two dedicated non-Android Python tests. It no longer excludes all `scripts/tests/*`; emulator preflight and release-asset verifier test changes must trigger full Android CI. Unknown paths fail safe to full CI.
@@ -27,7 +37,7 @@
 **Captured at:** 2026-11-25T11:45:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `2252515a68dff1a0a269c6e5793ce527a81ba2a5`  
+**Source HEAD:** `8c125b9f8918af98504bdc0fbb47fa3435405900`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
