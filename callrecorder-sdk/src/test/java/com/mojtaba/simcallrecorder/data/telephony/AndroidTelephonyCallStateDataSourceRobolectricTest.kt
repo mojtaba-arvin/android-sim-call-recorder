@@ -195,6 +195,20 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         }
 
         try {
+            // The data source creates its subscription listener on Dispatchers.Main.immediate.
+            // Robolectric's paused main looper must be pumped while both callbacks register.
+            val firstShadow = shadowOf(firstManager)
+            val secondShadow = shadowOf(secondManager)
+            withTimeout(5_000) {
+                while (
+                    firstShadow.getLastTelephonyCallback() == null ||
+                    secondShadow.getLastTelephonyCallback() == null
+                ) {
+                    shadowOf(Looper.getMainLooper()).idle()
+                    yield()
+                }
+            }
+            shadowOf(Looper.getMainLooper()).idle()
             withTimeout(10_000) { collector.join() }
         } finally {
             collector.cancel()
