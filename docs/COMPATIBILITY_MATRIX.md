@@ -46,6 +46,31 @@ The Shizuku UserService can now be attempted from API 24 when a live server is a
 
 **Remaining validation gaps:** exact-head CI for the API 24 floor and subscription reconciliation, stale/disconnected-binder and permission-revocation edge cases, and physical-device two-way evidence. Selector-to-backend persistence and AudioRecordingCallback registration/session-filtering/silenced-transition/cleanup coverage exist in the current test suite. Structured fallback reasons are persisted as a nullable Room field and shown separately in recording details; the bounded diagnostic timeline remains the event history. No physical-device compatibility result has been recorded.
 
+## Direct framework API compatibility inventory — 2026-11-25
+
+Source-level audit of the current app/SDK implementation (app `minSdk 24`, `targetSdk 36`, `compileSdk 37`):
+
+| API surface | Guard / fallback | Source location |
+|---|---|---|
+| Per-subscription call-state observation | API 31+ uses `TelephonyCallback.CallStateListener`; API 24–30 uses deprecated `PhoneStateListener`. Both paths take an immediate `callState` snapshot after registration and unregister on flow cancellation. | `AndroidTelephonyCallStateDataSource.observeSubscription()` |
+| Subscription-change listener Executor overload | API 30+ uses the Executor overload; API 24–29 uses the legacy listener overload. | `AndroidTelephonyCallStateDataSource.observeCallStates()` |
+| Subscription-scoped TelephonyManager | Uses `createForSubscriptionId`; app floor is API 24. Active subscription access is guarded by `READ_PHONE_STATE` and catches security failure. | `AndroidTelephonyCallStateDataSource` |
+| Notification runtime permission | `POST_NOTIFICATIONS` is checked/requested only on API 33+; earlier versions treat it as not separately runtime-gated. Service rechecks permission while armed and disarms on revocation. | `MainActivity`, `CallPermissionManager`, `CallRecordingForegroundService.hasNotificationPermission()` |
+| Notification channels | Channel creation returns before API 26; API 26+ creates the persistent low-importance recording channel. | `CallRecordingForegroundService.createNotificationChannel()` |
+| Typed foreground-service start | API 34+ uses `ServiceCompat.startForeground` with `specialUse` for Shizuku and `microphone` for acoustic capture; older APIs use the two-argument start call. Manifest declares both types and corresponding permissions. | `CallRecordingForegroundService.startForegroundCompat()`, SDK `AndroidManifest.xml` |
+| Audio recording diagnostics | API 29+ registers `AudioRecordingCallback` and records session-correlated `isClientSilenced`; below API 29 it emits an explicit diagnostics-unavailable status and does not block capture. | `MicrophoneCallCaptureStrategy.registerAudioRecordingDiagnostics()` |
+| Selected communication device | API 31+ reads `AudioManager.communicationDevice`; earlier versions return no selected-device ID while retaining device inventory. | `AndroidAudioDeviceInventorySource.getInventory()` |
+| Audio device inventory | Uses `AudioManager.getDevices`; app floor API 24 is above this API's introduction. | `AndroidAudioDeviceInventorySource.getInventory()` |
+| Foreground-service launch from UI | Uses `ContextCompat.startForegroundService` for platform-version handling; permission and consent gates run before launch. | `MainActivity.launchAutomaticMonitoringService()`, `launchRecordingForegroundService()` |
+| Protected Shizuku call-audio permission | Checks the API 36+ `CALL_AUDIO_INTERCEPTION` permission by string and the legacy `CAPTURE_AUDIO_OUTPUT` permission, with UID and shell-attribution checks; no app-UID fallback is accepted. | `PrivilegedCallRecorderUserService`, `PrivilegedVoiceCallCaptureEngine` |
+
+Dependency evidence:
+- Shizuku API/provider are pinned to `13.1.5`; app and SDK both declare minSdk 24.
+- The early CI `checkDebugAarMetadata` tasks for both SDK and app passed on integration head `aa5a284`. This validates resolved AAR minSdk metadata against the declared app/SDK floor for that exact build; it does not replace a full direct-API inventory or physical runtime testing.
+- Current CI emulator lanes on the prior code head `818fcf3` passed API 24, 26 and 35 instrumentation. On code head `aa5a284`, API 24/26/35 and API 36 Shell probe passed; the full SDK unit suite was still running at this documentation update.
+
+**Still not established:** API 23 support, complete OEM/permission behavior on API 24/25/27–37 physical devices, Android 17 background-audio compliance, and cellular two-way audio. Keep API 24 experimental until the exact-head required gate and remaining dependency/API review are accepted.
+
 ## Physical-device acceptance matrix
 
 For every test row, record:
