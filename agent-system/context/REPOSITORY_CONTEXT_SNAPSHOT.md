@@ -10,6 +10,8 @@
 
 
 ## Live state refresh — 2026-11-25T07:46:56Z
+- 2026-11-25 SIM reconciliation reconciliation: the observer, pure plan, API 24–37 Robolectric coverage, and foreground-service diagnostic log were already present in Foundation from the #55 integration. PR #52's remaining unique architecture/Definition-of-Done documentation is now preserved in `docs/ARCHITECTURE.md` at `7430894cbdd3a936d8034c56cd48f96292eac8b7`; #52 can be retired as superseded after this documentation is confirmed.
+
 - 2026-11-25 follow-up: PR #39's unique standardized near/far spoken phrase protocol was preserved in `docs/PHYSICAL_DEVICE_ACCEPTANCE.md` (commit `f76d211fb4e7d5c197707ebe1fb15cc7dc4812f4`) before retiring the older evidence-contract PR. The phrase protocol is required by the newer #61 acceptance validator; it is not physical evidence itself.
 
 
