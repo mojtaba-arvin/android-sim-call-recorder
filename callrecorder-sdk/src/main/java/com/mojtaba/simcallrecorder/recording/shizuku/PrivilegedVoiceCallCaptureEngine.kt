@@ -16,6 +16,60 @@ import kotlin.math.max
 internal fun privilegedFullDuplexAudioSources(): List<Int> =
     listOf(MediaRecorder.AudioSource.VOICE_CALL)
 
+/** Preserve actionable platform failure classes instead of collapsing every HAL error to a code. */
+internal fun describeAudioRecordReadFailure(errorCode: Int): String = when (errorCode) {
+    AudioRecord.ERROR_DEAD_OBJECT -> "AudioRecord lost its audio server session (ERROR_DEAD_OBJECT)."
+    AudioRecord.ERROR_INVALID_OPERATION -> "AudioRecord rejected the read operation (ERROR_INVALID_OPERATION)."
+    AudioRecord.ERROR_BAD_VALUE -> "AudioRecord rejected the read buffer or format (ERROR_BAD_VALUE)."
+    AudioRecord.ERROR -> "AudioRecord reported a generic read failure (ERROR)."
+    else -> "AudioRecord read failed with unknown error code $errorCode."
+}
+
+internal interface AudioRecordSession {
+    val state: Int
+    val recordingState: Int
+    fun startRecording()
+    fun read(buffer: ByteArray, offset: Int, size: Int, readMode: Int): Int
+    fun stop()
+    fun release()
+}
+
+internal interface AudioRecordSessionFactory {
+    fun getMinBufferSize(sampleRate: Int, channelMask: Int, encoding: Int): Int
+    fun create(
+        audioSource: Int,
+        sampleRate: Int,
+        channelMask: Int,
+        encoding: Int,
+        bufferSizeBytes: Int,
+    ): AudioRecordSession
+}
+
+internal class AndroidAudioRecordSessionFactory : AudioRecordSessionFactory {
+    override fun getMinBufferSize(sampleRate: Int, channelMask: Int, encoding: Int): Int =
+        AudioRecord.getMinBufferSize(sampleRate, channelMask, encoding)
+
+    @SuppressLint("MissingPermission")
+    override fun create(
+        audioSource: Int,
+        sampleRate: Int,
+        channelMask: Int,
+        encoding: Int,
+        bufferSizeBytes: Int,
+    ): AudioRecordSession {
+        val record = AudioRecord(audioSource, sampleRate, channelMask, encoding, bufferSizeBytes)
+        return object : AudioRecordSession {
+            override val state: Int get() = record.state
+            override val recordingState: Int get() = record.recordingState
+            override fun startRecording() = record.startRecording()
+            override fun read(buffer: ByteArray, offset: Int, size: Int, readMode: Int): Int =
+                record.read(buffer, offset, size, readMode)
+            override fun stop() = record.stop()
+            override fun release() = record.release()
+        }
+    }
+}
+
 internal interface VoiceCallCaptureEngine {
     fun start(
         output: ParcelFileDescriptor,
@@ -36,14 +90,16 @@ internal interface VoiceCallCaptureEngine {
  * grant cellular call uplink/downlink access. If VOICE_CALL cannot be opened under the authorized
  * shell/root identity, the session fails closed instead of writing a misleading microphone file.
  */
-internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
+internal class AndroidVoiceCallCaptureEngine(
+    private val audioRecordFactory: AudioRecordSessionFactory = AndroidAudioRecordSessionFactory(),
+) : VoiceCallCaptureEngine {
     private val lock = Any()
 
     @Volatile
     private var active = false
 
     @Volatile
-    private var currentRecord: AudioRecord? = null
+    private var currentRecord: AudioRecordSession? = null
 
     @Volatile
     private var writerThread: Thread? = null
@@ -98,11 +154,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
             for (audioSource in sourceCandidates) {
                 for ((channelMask, channelCount) in candidates) {
                     val minBufferBytes = try {
-                        AudioRecord.getMinBufferSize(
-                            sampleRate,
-                            channelMask,
-                            AudioFormat.ENCODING_PCM_16BIT,
-                        )
+                        audioRecordFactory.getMinBufferSize(sampleRate, channelMask, AudioFormat.ENCODING_PCM_16BIT)
                     } catch (exception: Exception) {
                         lastError = "Could not query AudioRecord buffer size: ${exception.message}"
                         continue
@@ -114,7 +166,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                     }
 
                     val record = try {
-                        AudioRecord(
+                        audioRecordFactory.create(
                             audioSource,
                             sampleRate,
                             channelMask,
@@ -194,7 +246,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
      * Releases resources when the writer thread could not be created or started. In this path
      * there is no drain thread to own AudioRecord/sink cleanup.
      */
-    private fun releaseUnstartedCapture(record: AudioRecord, sink: ParcelFileDescriptor) {
+    private fun releaseUnstartedCapture(record: AudioRecordSession, sink: ParcelFileDescriptor) {
         stopRequested.set(true)
         runCatching {
             if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()
@@ -207,7 +259,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
     }
 
     private fun drainAudioRecord(
-        record: AudioRecord,
+        record: AudioRecordSession,
         sink: ParcelFileDescriptor,
     ) {
         val buffer = ByteArray(16 * 1024)
@@ -225,7 +277,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
                         count == 0 -> Thread.yield()
                         count < 0 -> {
                             if (!stopRequested.get()) {
-                                lastError = "AudioRecord read failed with code $count."
+                                lastError = describeAudioRecordReadFailure(count)
                             }
                             break
                         }
@@ -259,7 +311,7 @@ internal class AndroidVoiceCallCaptureEngine : VoiceCallCaptureEngine {
     }
 
     override fun stop() {
-        val record: AudioRecord?
+        val record: AudioRecordSession?
         val thread: Thread?
         synchronized(lock) {
             if (!active) return

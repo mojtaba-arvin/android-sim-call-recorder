@@ -226,6 +226,7 @@ internal class DefaultCallRecordRepository @Inject constructor(
         failureReason = failureReason,
         captureProfile = captureProfile,
         captureDiagnostics = captureDiagnostics,
+        fallbackReason = fallbackReason,
     )
 
     private fun CallRecordEntity.toDomain() = CallRecord(
@@ -247,6 +248,7 @@ internal class DefaultCallRecordRepository @Inject constructor(
         failureReason = failureReason,
         captureProfile = captureProfile,
         captureDiagnostics = captureDiagnostics,
+        fallbackReason = fallbackReason,
     )
 
     private companion object {

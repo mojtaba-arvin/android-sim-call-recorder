@@ -66,3 +66,10 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE call_records ADD COLUMN captureDiagnostics TEXT")
     }
 }
+
+/** Persists the arm-time backend fallback as a queryable field without rewriting prior diagnostics. */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE call_records ADD COLUMN fallbackReason TEXT")
+    }
+}

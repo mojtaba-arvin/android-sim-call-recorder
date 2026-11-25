@@ -119,6 +119,12 @@ jobs:
       - name: Test fail-closed physical two-way evidence validator
         run: python3 -m unittest discover -s scripts/tests -p 'test_physical_device_evidence_validator.py' -v
 
+      - name: Test emulator logcat preflight fail-closed behavior
+        run: bash scripts/tests/run-emulator-logcat-preflight-test.sh
+
+      - name: Test bounded ADB restart for logcat recovery
+        run: bash scripts/tests/run-adb-logcat-restart-test.sh
+
       - name: Test production APK signature verifier
         run: bash scripts/tests/test-apk-signature-verifier.sh
 
