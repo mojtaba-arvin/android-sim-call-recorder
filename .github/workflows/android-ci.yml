@@ -141,6 +141,9 @@ jobs:
           fi
           grep -F "APP_RELEASE_SIGNING_INPUTS_MISSING" "$output"
 
+      - name: Run focused multi-SIM snapshot regression
+        run: timeout 180s gradle --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.telephony.AndroidTelephonyCallStateDataSourceRobolectricTest.multipleSubscriptions_keepTheirOwnSlotAssociation'
+
       - name: Run unit tests, lint, and assemble debug APK
         run: gradle --continue --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug
 

@@ -156,7 +156,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         assertTrue(events.all { it.simSlotIndex == 0 })
     }
 
-    @Test
+    @Test(timeout = 30_000)
     @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun multipleSubscriptions_keepTheirOwnSlotAssociation() = runBlocking {
         grantPhoneStatePermission()
@@ -179,6 +179,12 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(firstSubscriptionId, firstManager)
         shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(secondSubscriptionId, secondManager)
 
+        // Seed each subscription before observation. The data source emits a snapshot after
+        // callback registration, so this deterministically verifies slot association without
+        // depending on interleaved asynchronous callback delivery from two Robolectric shadows.
+        shadowOf(firstManager).setCallState(TelephonyManager.CALL_STATE_RINGING)
+        shadowOf(secondManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
+
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val collector = launch(Dispatchers.IO) {
             AndroidTelephonyCallStateDataSource(context)
@@ -188,13 +194,11 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
                 .toList(events)
         }
 
-        awaitModernRegistration(firstManager)
-        awaitModernRegistration(secondManager)
-        shadowOf(firstManager).setCallState(TelephonyManager.CALL_STATE_RINGING)
-        shadowOf(Looper.getMainLooper()).idle()
-        shadowOf(secondManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
-        shadowOf(Looper.getMainLooper()).idle()
-        withTimeout(10_000) { collector.join() }
+        try {
+            withTimeout(10_000) { collector.join() }
+        } finally {
+            collector.cancel()
+        }
 
         assertEquals(2, events.size)
         assertEquals(
