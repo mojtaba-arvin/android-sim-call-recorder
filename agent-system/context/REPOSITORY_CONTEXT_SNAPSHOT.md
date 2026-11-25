@@ -1,3 +1,10 @@
+## CI preflight correction — 2026-11-25T13:45:00Z
+
+- The first API-floor preflight tried `:callrecorder-sdk:processDebugMainManifest`, which does not exist under the current AGP 9.5.1 library task graph. This was a workflow task-name error, not a dependency or app failure.
+- Removed the nonexistent manifest task. The early preflight now runs the supported `:callrecorder-sdk:checkDebugAarMetadata` and `:app:checkDebugAarMetadata` tasks. The normal AAR/APK assembly path still performs actual manifest processing/merge.
+- The focused multi-SIM preflight is now the single regression method with a 180-second cap; the full SDK unit suite is bounded at 15 minutes.
+- Workflow correction code commit: `a91bbddc63710c21bf609a31d0d1bb867509c0e9`; snapshot and benchmark pin this SHA.
+
 ## CI execution optimization — 2026-11-25T13:40:00Z
 
 - The full telephony Robolectric class preflight exceeded 120 seconds on intermediate head `3852154`; this is a class-duration timeout, not an assertion failure. It was too broad as a preflight.
@@ -46,7 +53,7 @@
 **Captured at:** 2026-11-25T13:40:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `baffdad2812b67a7b5f75c78ac192b2fa2532e0f`  
+**Source HEAD:** `a91bbddc63710c21bf609a31d0d1bb867509c0e9`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
