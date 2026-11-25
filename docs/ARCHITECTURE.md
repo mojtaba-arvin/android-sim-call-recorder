@@ -66,6 +66,7 @@ See [Android call-audio constraints](ANDROID_CALL_AUDIO_CONSTRAINTS.md), [the co
 ## Multi-SIM and diagnostics
 
 - Telephony observation uses subscription-specific `TelephonyManager` instances: `TelephonyCallback` on API 31+ and `PhoneStateListener` on API 28–30.
+- The call-state stream observes `OnSubscriptionsChangedListener` and reconciles per-subscription listeners when SIMs are inserted, removed, disabled, or moved between slots. Removed subscription listeners are cancelled; a slot remap restarts the listener so emitted events retain the current slot association. Subscription IDs remain in-memory keys and are never exposed in domain events.
 - Subscription identifiers are operational inputs only; do not display or persist them. Present the SIM slot label where appropriate.
 - Audio endpoint inventory comes from `AudioManager.getDevices(GET_DEVICES_ALL)`; on API 31+, the selected communication endpoint is available through `getCommunicationDevice`.
 - Endpoint inventory describes Android-reported devices; it does not establish access to cellular call audio.
@@ -112,3 +113,11 @@ See [the engineering roadmap](ROADMAP.md) for prioritized unfinished work and [S
 - Silent and unavailable measurements remain distinct from non-zero signal.
 - The UI explicitly states that peak/RMS/non-zero samples do not prove near-end or far-end speech.
 - Unit tests cover signal states, metric rendering, and the evidence boundary.
+
+
+## Dynamic SIM subscription listener Definition of Done
+
+- Active subscription changes trigger listener reconciliation without restarting unchanged subscriptions.
+- Removed subscriptions cancel their callbacks; newly active subscriptions receive listeners; slot remaps restart the affected listener.
+- No active SIM is a waiting state, not a terminal monitoring failure; a later subscription change can attach listeners.
+- Tests cover add/remove/no-op/slot-remap reconciliation. Physical call-waiting and dual-SIM behavior remains a handset validation gate.
