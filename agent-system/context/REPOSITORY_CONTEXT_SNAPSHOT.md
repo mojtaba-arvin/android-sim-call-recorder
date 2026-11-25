@@ -16,7 +16,7 @@
 **Captured at:** 2026-11-25T11:45:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `c8bbdc2e07f4ce6ef08a81fc7da1ee73a77235e8`  
+**Source HEAD:** `2252515a68dff1a0a269c6e5793ce527a81ba2a5`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
