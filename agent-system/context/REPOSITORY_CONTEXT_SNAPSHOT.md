@@ -1,3 +1,15 @@
+## CI execution refresh — 2026-11-25T13:15:00Z
+
+- Governance decision reaffirmed: no independent reviewer is available or expected; ruleset `27531148` correctly has `required_approving_review_count=0`. Do not add an approval requirement. Preserve Required checks, deletion/non-fast-forward protection, last-push approval, thread resolution and no-bypass.
+- PR #64 latest code commit: `2252515a68dff1a0a269c6e5793ce527a81ba2a5`; this is the source SHA for the next context/benchmark-only commit.
+- Android CI run [#45605785516](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45605785516): API 24, API 26 and API 35 emulator jobs passed; API 36 Shell probe passed; Agent System Contracts passed on PR head `25aa9373fe0294095b346fcc240dc22a9612f223`. The SDK/app verify job was cancelled at its 40-minute timeout while `:callrecorder-sdk:testDebugUnitTest` was running.
+- Retrieved artifact `15023945175` shows only one SDK unit test result: `AndroidTelephonyCallStateDataSourceRobolectricTest.multipleSubscriptions_keepTheirOwnSlotAssociation` passed (3.075s), but the Gradle test worker did not finish the suite. This points to test cleanup/worker lifecycle, not an assertion failure; do not retry API 24/26/35 lanes for this issue.
+- Code commit `2252515` improves deterministic test cleanup: await collector cancellation and drain Robolectric Main looper after collection; CI now runs the entire telephony Robolectric class as a 120-second focused preflight, then bounds the full SDK unit suite at 15 minutes before running app tests/lint/AAR/APK tasks separately. This is designed to fail quickly and localize a repeat hang.
+- Next: inspect the new exact-head CI run. If focused class preflight fails, fix that class before full suite. If it passes but full SDK suite hangs, inspect the first incomplete class/test artifact and isolate by test class; do not simply raise the 40-minute timeout.
+- PR #64 must not merge until the exact final head has Agent System Contracts, SDK/app tests, lint, AAR/APK, API 24/26/35 emulator jobs, any applicable API 36 permission probe and Required checks all green.
+- #3 physical cellular two-way evidence, #4 full consent/FGS matrix, #7 compatibility audit, #8 CI governance semantics and #38 production signing remain distinct acceptance gates. Emulator evidence is not physical call-audio evidence.
+- No branch deletion is needed. Keep `main` unchanged and continue development on `bootstrap/native-android-foundation`.
+
 # Repository Context Pack — Snapshot v1
 
 **Snapshot ID:** `android-sim-call-recorder-2026-11-24T06-33-00Z`  
