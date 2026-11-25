@@ -6,7 +6,7 @@ The stable branch-protection status check is **Android CI / Required checks** (j
 
 Do not make the conditional `verify` or `instrumented` jobs individually required: documentation-only changes intentionally skip those jobs. The `required` aggregator handles both cases and fails closed if change detection or any required code job fails.
 
-The active `Protect main` ruleset (ID `27531148`) was verified on 2026-11-19 to require pull requests and this stable status check. It also prevents branch deletion and non-fast-forward updates. Required approving reviews are 0, strict/up-to-date checks are disabled, and no bypass actors are configured. These are observed live settings, not inferred from this document. See [Issue #8](https://github.com/mojtaba-arvin/android-sim-call-recorder/issues/8) for outstanding behavior tests and the strict-check policy decision.
+The active `Protect main` ruleset (ID `27531148`) was reverified on 2026-11-25 to require pull requests and this stable status check. It also prevents branch deletion and non-fast-forward updates. Required approving reviews are 0, strict/up-to-date checks are disabled, and no bypass actors are configured. These are observed live settings, not inferred from this document. Issue #8 is closed as completed: docs-only skip, deliberate-failure propagation, superseded-run cancellation, and the owner-operated zero-review policy are all explicitly decided and evidenced.
 
 ## Change classification
 
@@ -30,8 +30,8 @@ The workflow `.github/workflows/android-ci.yml` currently performs. Its `pull_re
 3. SDK and app Android Lint.
 4. Android instrumentation-test compilation occurs as part of `:app:connectedDebugAndroidTest` on each emulator lane; do not compile the same test sources again in the unit/build lane.
 5. SDK release AAR and app debug APK assembly, with artifacts/reports uploaded.
-6. Compose UI instrumentation on Android emulator API 24, API 24, API 26 and API 35, with logcat, service, and audio diagnostics collected even after test failure.
-7. A final `Required checks` aggregator that fails unless change detection, verification, and both emulator jobs have the required result.
+6. Compose UI instrumentation on Android emulator API 24, API 26 and API 35, with logcat, service, and audio diagnostics collected even after test failure.
+7. A final `Required checks` aggregator that fails unless change detection, verification, and all three emulator API lanes have the required result.
 
 The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow installs Android SDK Platform 37.2 and Build Tools 37.0.0. Emulator Quick Boot is enabled; do not force cold boots without a reproducible reason.
 
@@ -42,7 +42,7 @@ The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow
 - AVD snapshot caching was experimentally evaluated and removed. It restored roughly 1 GB per API and still required SDK system-image installation; API 26 job time was 205.6 s on cache miss vs 207.9 s on cache hit, and API 35 was 202.6 s vs 191.2 s. The small/inconsistent gain did not justify cache restore, quota use, and snapshot complexity. KVM remains the primary performance win.
 - Pin `android-emulator-runner` v2.38.0 to immutable commit `a421e43855164a8197daf9d8d40fe71c6996bb0d`.
 - End-to-end critical path: previous Foundation run #44512168015 took 1,658.393 s (27m38.4s) from first job start to last completion; KVM + parallel run #44532876770 took 350.482 s (5m50.5s), a 4.73x improvement. AVD cache-miss run #44534029954 passed both API levels and Required checks after a failed API 35 dependency-resolution attempt was retried; both API snapshots were saved.
-- The two emulator API lanes now start after change detection and run concurrently with unit/lint/build verification. `Required checks` still depends on all jobs and remains fail-closed. This removes the previous serial `verify -> emulator` critical-path dependency without reducing coverage.
+- The three emulator API lanes now start after change detection and run concurrently with unit/lint/build verification. `Required checks` still depends on all jobs and remains fail-closed. This removes the previous serial `verify -> emulator` critical-path dependency without reducing coverage.
 - `:app:compileDebugAndroidTestKotlin` is not separately invoked in the verify job because each emulator lane compiles the instrumentation APK as part of `:app:connectedDebugAndroidTest`; the previous separate compile was redundant work.
 - Measure wall-clock duration and cache hit/reuse evidence on multiple exact-head runs before quantifying improvement. A single run or a runner-side emulator boot stall is not a valid performance benchmark.
 
@@ -81,3 +81,19 @@ Definition of Done: ADB server/device/boot checks are explicit and bounded; fail
 The manual SDK release workflow creates a SHA-256 manifest for the single Release AAR and verifies the manifest before uploading the build artifact. The isolated publish job verifies the downloaded AAR and manifest again before invoking the GitHub Release action. The verifier rejects missing or multiple AARs, empty or symlinked AARs, symlinked manifests, mismatched or malformed checksum entries, and unexpected top-level files. Its shell regression suite runs in Android CI; it validates packaging integrity only and does not sign an APK or publish a release.
 
 Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects tampering, duplicate AARs, extra files, missing manifests, malformed manifest paths, empty AARs, and symlinked assets. The publish job cannot reach the release action unless post-download verification succeeds.
+
+
+## SDK unit-test localization and current acceptance run — 2026-11-25
+
+The full SDK Robolectric suite previously exceeded its 15-minute bound after only three class reports were written. Do not treat that as a test assertion failure, and do not raise the timeout blindly.
+
+The workflow now runs, in order:
+1. The focused Multi-SIM callback/snapshot regression.
+2. The complete `StaleRecordingRecoveryCallbackRobolectricTest` class under a 120-second bound.
+3. The complete `DefaultCallRecordRepositoryRobolectricTest` class under a 120-second bound.
+4. The full SDK unit suite with Gradle `--info` logging and a 15-minute bound, so the last started/completed test is visible in logs.
+5. App unit tests, lint, Release AAR, debug APK and the external SDK consumer smoke build.
+
+On exact head `aa5a2845446d400d171b29e83201413de5878738`, the first three focused checks have passed; the full suite and API 24/26/35 emulator lanes are still running in [run #45632360523](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45632360523). API 36 Shell permission probe has passed. No merge decision is made until all required jobs and the aggregator pass on the latest head.
+
+Efficiency rule: do not rerun successful emulator jobs for a unit-only failure. Retry only transient failed jobs when the source SHA is unchanged; after any source/workflow change, require a new exact-head run.

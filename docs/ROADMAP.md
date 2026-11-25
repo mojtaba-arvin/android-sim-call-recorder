@@ -1,6 +1,6 @@
 # Engineering Roadmap
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25
 
 ## Product outcome
 
@@ -19,6 +19,21 @@ A recording is accepted as successful only when the file is finalized, persisted
 - APK/AAR release automation exists, but no first public beta release is accepted until the required CI gate and physical-device validation policy are satisfied.
 - API 24 is an experimental software compatibility floor, not a promise of cellular audio compatibility.
 - The agent workflow is governed by the repository-root `AGENTS.md`; detailed history-derived process lessons are in [Engineering Execution Policy](ENGINEERING_EXECUTION_POLICY.md).
+
+## Operational readiness snapshot — 2026-11-25
+
+- Current integration PR: [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64), targeting `bootstrap/native-android-foundation`; `main` remains unchanged.
+- App and SDK currently declare `minSdk 24`; app target is API 36 and compile SDK is 37. API 24 is still an experimental software floor, not a cellular-audio support promise.
+- PR #64 consolidates six streams: capture/fallback metadata (#56), AudioRecord reliability (#44), fail-closed ADB preflight (#50), safe CI path classification (#41), external SDK consumer smoke app (#47), and release AAR checksum verification (#49).
+- Latest code head at this review: `aa5a2845446d400d171b29e83201413de5878738`. Exact-head CI run [#45632360523](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45632360523) is in progress. Agent System Contracts is also running.
+- On the prior code head `818fcf3`, API 24/26/35 emulator lanes and API 36 Shell probe passed; the SDK unit suite timed out after only three class reports, so that run was not an overall pass.
+- On `aa5a284`, focused multi-SIM, stale-recording recovery and recording-repository Robolectric test classes passed. The full SDK suite is now running with `--info` and a 15-minute cap; API 36 Shell probe passed; API 24/26/35 emulator lanes are running.
+- Do not merge #64 until the exact latest head has green Agent System Contracts, full SDK/app tests, lint, SDK AAR, app APK, consumer smoke build, API 24/26/35 emulator lanes, conditional API 36 probe and Required checks.
+- Former PRs #41/#44/#47/#49/#50/#56 are superseded by #64; close them only after exact-head CI is green and #64 merges. Then close Issues #2/#5/#31 with CI-backed evidence.
+- Governance Issue #8 is complete and closed. Live ruleset #27531148 was rechecked: PR required, `Android CI / Required checks` required, deletion/non-fast-forward protection active, no bypass actors, approval count 0, strict checks false. The no-independent-reviewer model is intentional.
+- Issues #4 and #7 were refreshed to remove stale implementation/minSdk statements. Keep them open for remaining API 28–37 FGS/service validation and the full API/dependency compatibility audit.
+- Physical two-way device evidence (#3) remains zero. Production signing (#38) remains unavailable until the owner provisions production signing material. Do not create a release tag or claim support.
+- No active issue is assigned to a GitHub Milestone; do not mark roadmap phases complete from code presence alone.
 
 ## Execution plan and acceptance gates
 
@@ -93,8 +108,8 @@ The agent platform is tracked separately from product implementation under umbre
 
 ## Immediate next actions
 
-1. Finish the API 26/API 35 run on the current PR head and inspect the required-check aggregator.
-2. Resolve any real emulator failures without weakening the required gate.
-3. Audit the service lifecycle and WAV/Room recovery paths against P1, adding fault injection for process death during PCM write and after atomic WAV promotion but before Room commit.
-4. Verify the public SDK snapshot reflects build-enabled and actually installed backends, and that diagnostics preserve privacy-safe failure reason codes.
-5. Prepare the physical-device test protocol and begin evidence collection before any beta-support claims.
+1. Finish exact-head CI run #45632360523; inspect the full SDK test log/report, every emulator lane, and Required checks.
+2. If the SDK suite still hangs, isolate the last test from --info logs and fix lifecycle/worker cleanup; do not raise the timeout or weaken coverage.
+3. After #64 merges, close only the superseded PRs/issues with exact-head evidence and continue P1 adversarial lifecycle tests.
+4. Complete API/dependency compatibility inventory for Issue #7 and the API 28–37 FGS matrix for Issue #4.
+5. Arrange physical-device trials for Issue #3; keep all untested device/route combinations unknown.
