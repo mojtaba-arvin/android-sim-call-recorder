@@ -65,7 +65,7 @@ jobs:
             exit 0
           fi
 
-          printf '%s\\n' "$changed_files" | python scripts/classify_android_ci_changes.py >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$changed_files" | python scripts/classify_android_ci_changes.py >> "$GITHUB_OUTPUT"
           code_changed="$(grep '^code=' "$GITHUB_OUTPUT" | tail -n 1 | cut -d= -f2)"
           audio_changed="$(grep '^audio=' "$GITHUB_OUTPUT" | tail -n 1 | cut -d= -f2)"
           echo "Code/build changes: $code_changed"
