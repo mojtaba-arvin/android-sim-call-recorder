@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "verdict": "UNKNOWN",
+  "device": {
+    "manufacturer": "UNKNOWN",
+    "model": "UNKNOWN",
+    "android_version": "UNKNOWN",
+    "api_level": 0,
+    "build_fingerprint": "UNKNOWN",
+    "security_patch": "UNKNOWN",
+    "modem_baseband": "UNKNOWN",
+    "carrier": "UNKNOWN",
+    "country": "UNKNOWN",
+    "network_type": "UNKNOWN",
+    "sim_slot": 0
+  },
+  "configuration": {
+    "call_path": "CELLULAR",
+    "is_emulator": false,
+    "synthetic_call_state": false,
+    "route": "UNKNOWN",
+    "backend": "UNKNOWN",
+    "requested_backend": "UNKNOWN",
+    "app_commit": "UNKNOWN",
+    "permission_grants": {}
+  },
+  "trials": []
+}
