@@ -4,12 +4,12 @@
 **Captured at:** 2026-11-25T07:57:48Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `17c7233473d1cdd83e86a980f3e7a485d4c4c01b`  
+**Source HEAD:** `e48f970e40ca262a137d3f54b20bb1354f195b98`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
 
-## Live state refresh — 2026-11-25T07:57:48Z
+## Live state refresh — 2026-11-25T08:05:00Z
 - 2026-11-25 integration batch PR [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64), source commit `17c7233473d1cdd83e86a980f3e7a485d4c4c01b`: combines PR #50's fail-closed ADB/logcat preflight and stubbed regressions; PR #56's nullable structured fallbackReason Room 3→4 migration, service persistence and UI; and PR #44's injectable AudioRecord session factory, HAL error classification and deterministic engine tests. The batch is intentionally based on Foundation `05ef7b73fa123590569bf65663b997da31d9a3d3`; no physical audio pass or production signing is implied.
 
 - 2026-11-25 SIM reconciliation reconciliation: the observer, pure plan, API 24–37 Robolectric coverage, and foreground-service diagnostic log were already present in Foundation from the #55 integration. PR #52's remaining unique architecture/Definition-of-Done documentation is now preserved in `docs/ARCHITECTURE.md` at `7430894cbdd3a936d8034c56cd48f96292eac8b7`; #52 can be retired as superseded after this documentation is confirmed.
