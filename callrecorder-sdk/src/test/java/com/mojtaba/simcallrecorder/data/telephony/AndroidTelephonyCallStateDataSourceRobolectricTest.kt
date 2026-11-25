@@ -6,9 +6,11 @@ import android.os.Looper
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import com.mojtaba.simcallrecorder.domain.model.CallState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -54,11 +56,19 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
             .setTelephonyManagerForSubscriptionId(subscriptionId, perSubscriptionManager)
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
+        val initialSnapshot = CompletableDeferred<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val dataSource = AndroidTelephonyCallStateDataSource(context)
         val collector = launch(Dispatchers.IO) {
-            dataSource.observeCallStateEvents().take(4).toList(events)
+            dataSource.observeCallStateEvents()
+                .onEach { initialSnapshot.complete(it) }
+                .take(4)
+                .toList(events)
         }
 
+        // Wait for the initial IDLE snapshot itself, not merely callback registration. This
+        // removes a race where the test could inject RINGING before the snapshot was captured.
+        val initial = withTimeout(10_000) { initialSnapshot.await() }
+        assertEquals(CallState.IDLE, initial.state)
         awaitModernRegistration(perSubscriptionManager)
         val telephonyShadow = shadowOf(perSubscriptionManager)
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_RINGING)
