@@ -27,7 +27,7 @@ class CallRecordDaoRobolectricTest {
         database = Room.inMemoryDatabaseBuilder(
             RuntimeEnvironment.getApplication(),
             AppDatabase::class.java,
-        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
     }
 
     @After
@@ -66,6 +66,23 @@ class CallRecordDaoRobolectricTest {
 
         val saved = dao.findById(id)
         assertEquals("$first\n$second", saved?.captureDiagnostics)
+    }
+
+    @Test
+    fun structuredFallbackReasonIsPersistedSeparatelyFromTheDiagnosticTimeline() = runBlocking {
+        val dao = database.callRecordDao()
+        val reason = "Shizuku is not connected; user-selected acoustic mode was used."
+        val id = dao.insert(
+            record(
+                startedAt = 6_000L,
+                simSlot = 0,
+                file = "/private/recordings/fallback.wav",
+            ).copy(fallbackReason = reason),
+        )
+
+        val saved = dao.findById(id)
+        assertEquals(reason, saved?.fallbackReason)
+        assertNull(saved?.captureDiagnostics)
     }
 
     @Test
@@ -123,7 +140,7 @@ class CallRecordDaoRobolectricTest {
         legacy.close()
 
         val migrated = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .allowMainThreadQueries()
             .build()
 
@@ -137,6 +154,7 @@ class CallRecordDaoRobolectricTest {
             assertEquals(-1, record?.simSlotIndex)
             assertNull(record?.captureProfile)
             assertNull(record?.captureDiagnostics)
+            assertNull(record?.fallbackReason)
         } finally {
             migrated.close()
             context.deleteDatabase(databaseName)
@@ -153,7 +171,7 @@ class CallRecordDaoRobolectricTest {
             context,
             AppDatabase::class.java,
             databaseName,
-        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).allowMainThreadQueries().addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
 
         val recordingDirectory = File(context.filesDir, "recordings").apply { mkdirs() }
         val activeFile = File(recordingDirectory, "active.wav").apply { writeBytes(byteArrayOf(7, 8, 9)) }
@@ -184,7 +202,7 @@ class CallRecordDaoRobolectricTest {
             databaseName,
         )
             .allowMainThreadQueries()
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .addCallback(StaleRecordingRecoveryCallback(recordingDirectory))
             .build()
 
@@ -217,7 +235,7 @@ class CallRecordDaoRobolectricTest {
         val callback = StaleRecordingRecoveryCallback()
         val current = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
             .allowMainThreadQueries()
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .addCallback(callback)
             .build()
 

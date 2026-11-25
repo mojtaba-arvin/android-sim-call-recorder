@@ -13,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mojtaba.simcallrecorder.domain.model.CallRecord
 import com.mojtaba.simcallrecorder.domain.model.CallRecordFilter
 import com.mojtaba.simcallrecorder.ui.RecordingsListScreen
+import com.mojtaba.simcallrecorder.ui.RecordingPlayerScreen
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -42,6 +43,22 @@ class RecorderScreensInstrumentedTest {
         composeRule.onNodeWithTag("sim-filter-0").assertIsDisplayed()
         composeRule.onNodeWithTag("sim-filter-1").assertIsDisplayed()
         composeRule.onNodeWithTag("record-list-item-1").assertIsDisplayed()
+    }
+
+    @Test
+    fun failedRecordingShowsStructuredFallbackReasonSeparately() {
+        val failedRecord = record(3L, "fallback.wav", 0, 3_000L).copy(
+            status = "FAILED",
+            fallbackReason = "Shizuku unavailable: user service is not connected.",
+        )
+        composeRule.setContent {
+            MaterialTheme {
+                RecordingPlayerScreen(failedRecord, onBack = {}, onDelete = {})
+            }
+        }
+
+        composeRule.onNodeWithText("Fallback reason").assertIsDisplayed()
+        composeRule.onNodeWithText("Shizuku unavailable: user service is not connected.").assertIsDisplayed()
     }
 
     @Test
