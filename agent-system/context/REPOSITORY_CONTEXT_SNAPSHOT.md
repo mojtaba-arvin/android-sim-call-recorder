@@ -1,3 +1,12 @@
+## CI execution optimization — 2026-11-25T13:40:00Z
+
+- The full telephony Robolectric class preflight exceeded 120 seconds on intermediate head `3852154`; this is a class-duration timeout, not an assertion failure. It was too broad as a preflight.
+- The workflow now restores the previously successful, targeted `multipleSubscriptions_keepTheirOwnSlotAssociation` regression preflight with a 180-second cap, then runs the complete SDK unit suite with a 15-minute cap. This separates the known multi-SIM regression from the expensive full suite and prevents 40-minute blind waits.
+- Added an early dependency/manifest validation step: SDK/app `checkDebugAarMetadata` plus SDK/app `processDebugMainManifest`, before unit tests. This provides fast AAR metadata and manifest-merge evidence for Issue #7.
+- CI policy documentation now lists the exact safe non-Android classifier exclusions; no blanket `scripts/tests/*` skip remains. Emulator harness and SDK release verifier tests force full Android CI.
+- New code/policy commit: `baffdad2812b67a7b5f75c78ac192b2fa2532e0f`; this is the source SHA for this snapshot/benchmark.
+- The previous API 24/26/35 emulator successes remain valid for their exact old heads only; the consolidated final head still needs its own complete CI.
+
 ## Consolidated SDK/CI acceptance batch — 2026-11-25T13:25:00Z
 
 - PR #64 integrates the former #41, #47 and #49 scopes: safe Android CI path classification, a Release-AAR consumer smoke app, and AAR checksum verification.
@@ -34,10 +43,10 @@
 # Repository Context Pack — Snapshot v1
 
 **Snapshot ID:** `android-sim-call-recorder-2026-11-24T06-33-00Z`  
-**Captured at:** 2026-11-25T11:45:00Z
+**Captured at:** 2026-11-25T13:40:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `8c125b9f8918af98504bdc0fbb47fa3435405900`  
+**Source HEAD:** `baffdad2812b67a7b5f75c78ac192b2fa2532e0f`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
