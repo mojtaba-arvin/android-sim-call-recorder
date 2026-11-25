@@ -1,3 +1,13 @@
+## Live state refresh — 2026-11-25T15:10:00Z
+
+- PR #64 remains Draft/open against Foundation; code/workflow baseline is `fae069f07f679ae7cbf5f9b2e94a933fe67af174`. Foundation PR #1 remains Draft/open at `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged.
+- The Android CI workflow now includes a multi-path stdin integration check that asserts a Shizuku source path produces both `code=true` and `audio=true`. The actual `printf` format uses one backslash so each changed path reaches the classifier as a separate line.
+- The SDK test task emits per-test STARTED/PASSED/SKIPPED/FAILED events to make any 15-minute full-suite timeout diagnosable.
+- Last completed code validation remains run #45634823850 on `a0a5443`: focused Multi-SIM, recovery and repository suites passed; the full SDK suite timed out after 15 minutes; API 24/26/35 and API 36 probe passed. Run #45641121028 on `b9ff548` was cancelled when newer commits superseded it; do not count it as a pass.
+- Agent System Contracts run #45641121358 passed on `b9ff548`, before the later roadmap/snapshot baseline refresh and classifier integration test. Fresh exact-head validation is still required for `fae069f` and its final context/benchmark refresh.
+- Keep PR #64 Draft until exact-head Android CI and Agent System Contracts pass. The six superseded PRs remain open pending successful integration; no merge has occurred.
+- Physical-device two-way audio remains unverified; no `PASS_TWO_WAY`, production APK signing, tag, release, or publication is claimed.
+
 ## Live state refresh — 2026-11-25T15:08:00Z
 
 - Foundation remains `bootstrap/native-android-foundation` at `05ef7b73fa123590569bf65663b997da31d9a3d3`; PR #1 is Draft/open against unchanged `main` (`71fe1f386fffe67547c1848ff12bc844247677de`).
@@ -88,7 +98,7 @@
 **Captured at:** 2026-11-25T14:30:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `94907cb884bb84e524972546b3fdf4c529376ba4`  
+**Source HEAD:** `fae069f07f679ae7cbf5f9b2e94a933fe67af174`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
