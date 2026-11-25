@@ -139,8 +139,17 @@ jobs:
       - name: Run focused multi-SIM snapshot regression
         run: timeout 180s gradle --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.telephony.AndroidTelephonyCallStateDataSourceRobolectricTest.multipleSubscriptions_keepTheirOwnSlotAssociation'
 
+      # The full SDK suite previously stopped after the DAO tests with no completed
+      # report for stale-recovery or repository tests. Isolate these high-risk classes
+      # first so the CI log identifies the exact test if a worker blocks again.
+      - name: Isolate stale-recording recovery Robolectric tests
+        run: timeout 120s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.local.StaleRecordingRecoveryCallbackRobolectricTest'
+
+      - name: Isolate recording repository Robolectric tests
+        run: timeout 120s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.repository.DefaultCallRecordRepositoryRobolectricTest'
+
       - name: Run SDK unit tests with bounded execution
-        run: timeout 15m gradle --console=plain :callrecorder-sdk:testDebugUnitTest
+        run: timeout 15m gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest
 
       - name: Run app unit tests, lint, and assemble artifacts
         run: gradle --continue --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug :sdk-consumer-smoke:assembleDebug
