@@ -87,6 +87,7 @@ jobs:
           mkdir -p release-assets
           cp callrecorder-sdk/build/outputs/aar/callrecorder-sdk-release.aar "release-assets/callrecorder-sdk-$VERSION.aar"
           (cd release-assets && sha256sum *.aar > SHA256SUMS.txt)
+          bash scripts/verify-sdk-release-assets.sh release-assets
       - name: Upload SDK AAR and checksums
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -109,6 +110,8 @@ jobs:
         with:
           name: android-sdk-release-assets
           path: release-assets
+      - name: Verify downloaded SDK AAR and checksum manifest
+        run: bash scripts/verify-sdk-release-assets.sh release-assets
       - name: Publish SDK AAR and checksums to GitHub Releases
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:

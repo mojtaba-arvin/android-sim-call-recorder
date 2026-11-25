@@ -72,3 +72,10 @@ The change classifier emits an `audio` flag for Shizuku UserService and its test
 Each emulator lane starts and verifies the ADB server, waits for exactly one online emulator and Android boot completion, and only then clears logcat. If the default logcat clear fails, the harness retries with an explicit all-buffer clear. If both fail, it restarts the ADB server once, re-verifies the online emulator, and retries both clears; if that bounded recovery also fails, it stops before Gradle instrumentation and does not continue with ambiguous pre-test logs. The process-death phase repeats the same fail-closed rule after its own ADB wait, so it cannot launch phase markers after a failed log reset. Stubbed shell regression tests prove neither harness starts instrumentation after this failure.
 
 Definition of Done: ADB server/device/boot checks are explicit and bounded; failure of both logcat clears after one bounded ADB restart emits ADB diagnostics and exits non-zero; instrumentation is never run after a failed preflight; the existing API 26/API 35 test lanes remain unchanged after successful preflight.
+
+
+## SDK release asset integrity
+
+The manual SDK release workflow creates a SHA-256 manifest for the single Release AAR and verifies the manifest before uploading the build artifact. The isolated publish job verifies the downloaded AAR and manifest again before invoking the GitHub Release action. The verifier rejects missing or multiple AARs, empty or symlinked AARs, symlinked manifests, mismatched or malformed checksum entries, and unexpected top-level files. Its shell regression suite runs in Android CI; it validates packaging integrity only and does not sign an APK or publish a release.
+
+Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects tampering, duplicate AARs, extra files, missing manifests, malformed manifest paths, empty AARs, and symlinked assets. The publish job cannot reach the release action unless post-download verification succeeds.
