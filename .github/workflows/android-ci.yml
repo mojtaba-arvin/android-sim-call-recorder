@@ -102,6 +102,9 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
+      - name: Verify resolved AAR metadata and manifest merge
+        run: gradle --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata :callrecorder-sdk:processDebugMainManifest :app:processDebugMainManifest
+
       - name: Verify sample app consumes only the SDK public boundary
         run: bash scripts/verify-sdk-boundary.sh
 
@@ -133,8 +136,8 @@ jobs:
           fi
           grep -F "APP_RELEASE_SIGNING_INPUTS_MISSING" "$output"
 
-      - name: Run focused telephony Robolectric class regression
-        run: timeout 120s gradle --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.telephony.AndroidTelephonyCallStateDataSourceRobolectricTest'
+      - name: Run focused multi-SIM snapshot regression
+        run: timeout 180s gradle --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.telephony.AndroidTelephonyCallStateDataSourceRobolectricTest.multipleSubscriptions_keepTheirOwnSlotAssociation'
 
       - name: Run SDK unit tests with bounded execution
         run: timeout 15m gradle --console=plain :callrecorder-sdk:testDebugUnitTest

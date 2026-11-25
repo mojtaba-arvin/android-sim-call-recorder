@@ -10,14 +10,16 @@ The active `Protect main` ruleset (ID `27531148`) was verified on 2026-11-19 to 
 
 ## Change classification
 
-The `changes` job compares the PR base/head or push before/after commits. Files under `agent-system/` are specifications/benchmarks for the agent platform, not Android app inputs, so they do not boot Gradle or emulator jobs.
+The `changes` job runs the path classifier unit tests on every workflow invocation, then classifies the PR base/head or push before/after diff. Unknown paths fail safe to the full Android pipeline.
 
-- Markdown files, files under `docs/`, and `agent-system/` specifications/data are non-Android changes.
-- Source, Gradle/build files, workflow files, manifests, tests, scripts, and all other paths trigger the full Android pipeline.
-- Manual workflow dispatch always triggers the full pipeline.
-- Mixed documentation + code changes trigger the full pipeline.
+The classifier skips Android build/emulator lanes only for known non-Android paths:
+- Markdown, `docs/`, `agent-system/`, `schemas/`, `AGENTS.md`, `DECISIONS.md`, `.editorconfig`, `.gitignore`, and `LICENSE`.
+- Issue/PR templates, Dependabot configuration, and the dedicated agent-system / physical-device-evidence / SDK-release workflow files.
+- The standalone agent-system and physical-device report validators, the two dedicated Python tests for those validators/classification, and the classifier itself. The classifier tests still run in the `changes` job.
 
-The required-check aggregator still runs for documentation-only changes, so skipped Android jobs do not leave the required check pending.
+There is deliberately no blanket `scripts/tests/*` exclusion. Emulator ADB/logcat harness tests, SDK release-asset verifier tests, and any other unclassified script/test path trigger the full Android pipeline. Shizuku UserService source/tests additionally trigger the API 36 Shell permission probe. Mixed documentation + code changes trigger full CI. Manual workflow dispatch always triggers full CI.
+
+The stable Required-check aggregator still runs for documentation-only changes, so skipped Android jobs do not leave the required check pending.
 
 ## Full code pipeline
 
@@ -28,7 +30,7 @@ The workflow `.github/workflows/android-ci.yml` currently performs. Its `pull_re
 3. SDK and app Android Lint.
 4. Android instrumentation-test compilation occurs as part of `:app:connectedDebugAndroidTest` on each emulator lane; do not compile the same test sources again in the unit/build lane.
 5. SDK release AAR and app debug APK assembly, with artifacts/reports uploaded.
-6. Compose UI instrumentation on Android emulator API 26 and API 35, with logcat, service, and audio diagnostics collected even after test failure.
+6. Compose UI instrumentation on Android emulator API 24, API 24, API 26 and API 35, with logcat, service, and audio diagnostics collected even after test failure.
 7. A final `Required checks` aggregator that fails unless change detection, verification, and both emulator jobs have the required result.
 
 The configured toolchain is Ubuntu 24.04, JDK 21, and Gradle 9.6.0. The workflow installs Android SDK Platform 37.2 and Build Tools 37.0.0. Emulator Quick Boot is enabled; do not force cold boots without a reproducible reason.
