@@ -6,7 +6,11 @@ plugins {
 
 android {
     namespace = "com.mojtaba.simcallrecorder.sdk"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         minSdk = 24
