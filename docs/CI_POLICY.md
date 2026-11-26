@@ -83,10 +83,13 @@ Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects
 
 ## SDK unit-test localization and current acceptance run — 2026-11-26
 
-The broad SDK telephony package shard had timed out without JUnit lifecycle events. A JVM thread dump identified a Robolectric main-thread deadlock. The test class now uses Robolectric 4.18.1 `LooperMode.INSTRUMENTATION_TEST`; the method-level SDK shards passed, and the full SDK/app verification job passed on run #45805234778.
+The final exact-head validation on PR #65 head `1fb6d694bed7ed51c79926d4f21dfafac55c7a08` is green:
 
-Run #45805234778 also passed API 24 and API 26 emulator tests, including the bounded ADB/logcat recovery, and the API 36 Shell permission probe. API 35 failed because Maven Central returned HTTP 429 while resolving UTP/JUnit dependencies. Its one built-in retry used `--refresh-dependencies`, re-resolved cached plugin metadata, and then failed KSP plugin resolution. This was dependency infrastructure failure, not a test assertion.
+- Android CI [run #45806524184](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524184): all seven jobs successful — change detection, SDK/app tests + lint + AAR/debug APK, API 24, API 26, API 35, API 36 Shell permission probe, and Required checks.
+- Agent System Contracts [run #45806524167](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524167): success on the same exact head.
+- The SDK verification job passed the full SDK suite, app tests, lint, SDK Release AAR, consumer smoke build, and diagnostic debug APK assembly. The Gradle Maven retry regression test passed.
+- API 24/26/35 instrumentation passed. API 35 logs include both process-death windows, `RECOVERY_CAPTURE_RACE_PASSED`, and `PROCESS_DEATH_SUITE_PASSED`. API 36 Shell call-audio permission probe passed.
 
-Commit `64cf57f619c1d07a0315ac7efe086f626b617fbf` replaces that path with a bounded Gradle dependency-resolution retry helper (three retries, 15/30/45-second backoff, no forced metadata refresh) and regression tests. Only dependency-resolution failures are retried; application/test assertion failures fail immediately.
+The telephony Robolectric deadlock was diagnosed from a JVM thread dump and corrected with `LooperMode.INSTRUMENTATION_TEST`. ADB/logcat preflight uses bounded post-restart retries but still fails closed. Maven/UTP dependency-resolution retries are bounded, do not force-refresh cached plugin metadata, and do not retry application/test assertion failures.
 
-Do not merge PR #65 until the updated exact-head run passes API 24/26/35, API 36, all SDK/app/lint/AAR checks, Agent System Contracts, and Required checks. Physical-device validation (#3) and production signing/governance (#38) remain separate P3/P4 acceptance gates.
+These results satisfy the software/CI gate only. Physical-device validation (#3) and production signing/governance (#38) remain separate P3/P4 acceptance gates. PR #65 remains Draft until those gates and the full source diff audit are complete.

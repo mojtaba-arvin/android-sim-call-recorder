@@ -22,18 +22,16 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 ## Operational readiness snapshot — 2026-11-26
 
-- Integration PR [#65](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/65) is the single Draft integration candidate against `main`. Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains Draft and proposes the same 164 changed files; do not merge both.
-- The active `Protect main` ruleset requires PRs and `Android CI / Required checks`, prevents deletion/non-fast-forward updates, and requires zero approving reviews. No bypass actors are configured. The owner performs the full diff review; no external reviewer is required.
-- Android CI run #45805234778 passed the SDK/app verification job (full SDK tests, app tests, lint, AAR, consumer smoke, debug APK), API 24 and API 26 emulator lanes, and the API 36 Shell permission probe. API 35 failed only while resolving UTP/JUnit dependencies after Maven Central returned HTTP 429; its built-in retry force-refreshed cached plugin metadata and then failed KSP plugin resolution. The Required checks aggregator is not green.
-- The API 26 logcat issue is resolved by bounded post-restart retries: the same run passed API 26 instrumentation. Persistent inability to establish a clean logcat boundary still fails closed.
-- The telephony Robolectric deadlock is resolved by `LooperMode.INSTRUMENTATION_TEST`; the method-level SDK shards passed. The JVM thread dump had shown `LooperMode.PAUSED` running the test body on the SDK main Looper while `runBlocking` blocked the `Dispatchers.Main.immediate` callback-registration path.
-- Commit `64cf57f619c1d07a0315ac7efe086f626b617fbf` adds a bounded Gradle dependency-resolution retry helper: up to three retries with 15/30/45-second backoff, no `--refresh-dependencies`, and retries only for Maven/UTP/plugin dependency-resolution errors. Application/test assertion failures are not retried. A shell regression test covers transient recovery and non-transient fail-fast behavior.
-- The next full Android CI run on the updated source must pass API 24/26/35, API 36, all SDK/app/lint/AAR checks, and the Required checks aggregator. Agent System Contracts must pass on the final exact PR head after its context baseline is refreshed.
-- Keep PR #65 Draft until exact-head Android CI, Agent System Contracts, full diff review, and all repository acceptance gates are satisfied.
-- Milestones/issues remain open where evidence is incomplete: #2/#7 software/API acceptance; #3 physical-device validation; #10/#12–#15 R&D deliverables; #38 production signing.
+- PR [#65](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/65) is the sole Draft integration candidate to `main`, exact head `1fb6d694bed7ed51c79926d4f21dfafac55c7a08`. PR #1 was closed as superseded after verifying PR #65 contains all 164 files from #1 plus two CI retry helper/test files (166 total). Its historical discussion is retained; `bootstrap/native-android-foundation` remains as ancestry until #65 is accepted and merged.
+- Android CI [run #45806524184](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524184) passed **all seven jobs** on the exact current PR head: full SDK/app tests, lint, SDK Release AAR, consumer smoke, diagnostic debug APK assembly, API 24/26/35 emulator instrumentation, API 36 Shell permission probe, and Required checks.
+- Agent System Contracts [run #45806524167](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524167) passed on the same exact PR head.
+- The API 35 emulator log contains `WINDOW1_READY`, `WINDOW1_RECOVERED`, `WINDOW2_STOP_REQUESTED`, `WINDOW2_KILL_AFTER_WAV_PROMOTION`, `RECOVERY_CAPTURE_RACE_PASSED`, and `PROCESS_DEATH_SUITE_PASSED`. These are emulator/software lifecycle results, not physical SIM or two-way cellular-audio evidence.
+- The telephony Robolectric deadlock was fixed using `LooperMode.INSTRUMENTATION_TEST`; the ADB/logcat recovery helper now uses bounded retries and remains fail-closed; the Maven retry helper has a passing shell regression test and retries dependency-resolution errors only.
+- PR #65 remains Draft/unmerged because product acceptance is incomplete, not because an independent reviewer is expected. The active Protect main ruleset requires the Required checks context and zero approving reviews; no bypass is configured. The owner has authorized the integration work, but the full source diff audit and P3/P4 gates remain.
 - Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Require at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route; assess near-end and far-end intelligibility separately. No `PASS_TWO_WAY` is claimed.
 - Issue #38 remains blocked on owner-provisioned production signing material, a protected GitHub Environment, and an independently verified certificate fingerprint. No debug-signed APK, production APK, tag, GitHub Release, or publication is authorized.
-- Branches are `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. No branch has been deleted; preserve both integration branches until PR #65 is accepted and PR #1 is reconciled.
+- Issues #2 and #7 retain software/API acceptance work; #10 and #12–#15 retain unfinished R&D deliverables. Do not claim all milestones complete or close issues solely to make the merge appear complete.
+- Branches are `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. No branch has been deleted; keep the two integration branches until #65 is accepted and merged.
 
 ## Execution plan and acceptance gates
 
@@ -108,8 +106,8 @@ The agent platform is tracked separately from product implementation under umbre
 
 ## Immediate next actions
 
-1. Inspect the next Android CI run after commit `64cf57f619c1d07a0315ac7efe086f626b617fbf`, especially API 35's Maven/UTP retry path. The retry must not hide non-dependency failures.
-2. Require API 24/26/35 emulator lanes, API 36 Shell probe, the full SDK/app suite, lint, AAR/consumer smoke, Agent System Contracts, and Required checks to pass on the final PR #65 head.
-3. Keep PR #65 Draft while the P3 physical-device evidence and P4 production-signing/governance gates remain incomplete. Do not infer either from CI.
-4. After all explicit gates are satisfied, merge PR #65 with a merge commit to preserve existing history; then close PR #1 as superseded and delete `bootstrap/native-android-foundation` and `temp-main-from-origin` only after confirming no dependent PRs/workflows remain.
-5. Keep #2, #3, #7, #10, #12–#15, and #38 open until their own acceptance evidence is met.
+1. Complete physical-device acceptance for Issue #3 using the documented consented incoming/outgoing call matrix. Keep every untested device/build/carrier/SIM/route combination unknown.
+2. Provision production signing only through the protected `android-production-signing` Environment, verify the certificate fingerprint out of band, and keep private key material out of Git/chat/artifacts. Until then, do not distribute an app APK.
+3. Finish the full source diff audit and determine the remaining scope for #2/#7 and R&D issues #10/#12–#15; explicitly defer only with documented acceptance boundaries.
+4. After the physical/signing gates and source audit are complete, merge PR #65 with a merge commit to preserve existing history; then delete `bootstrap/native-android-foundation` and `temp-main-from-origin` after confirming no dependent PRs/workflows remain.
+5. Keep #3 and #38 open until their own acceptance evidence is met. Do not close milestones just to make the roadmap appear complete.
