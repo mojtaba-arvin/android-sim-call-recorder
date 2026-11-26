@@ -1,3 +1,62 @@
+# Live state refresh — 2026-11-26T15:04:00Z
+
+**Captured at:** `2026-11-26T15:04:00Z`  
+**Source branch:** `feat/agent-state-machine-ledger`  
+**Source HEAD:** `5538c4cef23bc87fc9e95bcd0458c00ca3d84d7c`
+
+## Current repository and active work
+
+- Main at capture: `d87189719215ef7ff696a667219573cb84f7e258` (PR #75 context/benchmark refresh merged). The current feature branch includes main via a normal two-parent merge commit `5538c4cef23bc87fc9e95bcd0458c00ca3d84d7c`; no force update or history rewrite was used.
+- PR #65 remains merged with merge commit `458c46f926667a8cce61998149f700ee8940d0e3`.
+- PRs #66, #67, #68, #69, #70, #72 and #73 are merged. PR #72 AGP 9.5.3 passed exact-head Android CI on retry attempt 3 (run #45822620656). PR #73 Shizuku start-time regression passed exact-head Android CI (run #45842689549).
+- Open implementation PRs:
+  - #71 — Compose BOM 2026.11.01 and compileSdk API 37.2 in app/SDK/consumer modules; stale minSdk docs corrected. CI on head `16bfb8d3f96e71c04266684e79d59ba214d0d915` was in progress; it began before PR #72 merged, so inspect its final exact-head status and rerun if needed.
+  - #74 — manual-only, main-only production-signed APK artifact workflow; latest head `3cc93273504319115321e94db1e97eb844971675`. Android CI run #45843692939 was in progress. Workflow uses environment-scoped secrets, ephemeral keystore, v2/v3 signature and SHA-256 fingerprint verification, and short-lived artifact upload only. No tag or release.
+  - #76 — this PR: A1.2 task state machine and A1.5 append-only execution ledger. The original implementation branch has now been merged with current main using a two-parent merge commit; fresh Android CI and Agent System Contracts on this merged head are required.
+- PR #75 is merged. Its initial stale benchmark provenance failure was corrected; the merged context snapshot and benchmark were validated on exact head `a7a34fd730c3afff89718dd71d0bd7ead15735d3` by Agent System Contracts and Android CI. The snapshot is refreshed again here to include A1.2/A1.5.
+- The stale `bootstrap/native-android-foundation` branch is absent. Current branches correspond to main and open PRs; do not delete any open-PR branch.
+
+## Product backlog disposition
+
+- #7 (API/minSdk compatibility audit) is closed as completed after exact integration CI evidence on PR #65. API 24 remains the intentional software installation floor; API 23 is not supported because Shizuku 13.1.5 and unguarded `TelephonyManager.createForSubscriptionId()` require API 24. This does not imply physical-device audio support.
+- #2 remains open. PR #73 adds coordinator-level arm-to-OFFHOOK revalidation and no-cross-backend fallback coverage, but the service-level behavior still needs independent validation. Physical two-way support remains a separate #3 gate.
+- #3 remains open and blocked on physical handset/SIM/carrier/consented participant evidence. There are zero physical handset acceptance records. Emulator and Robolectric results never prove near-end/far-end cellular intelligibility.
+- #38 remains open and blocked on owner-provided production keystore, passwords/alias, independently verified certificate SHA-256 fingerprint, and configured `production-signing` GitHub Environment. PR #74 adds an internal signed-artifact workflow but does not publish. No app APK tag or release may be created before #3 and #38 gates are satisfied.
+- R&D umbrella #10 and phase issues #12–#15 remain open. A0 artifacts and A1.1 tool capability inventory are on main. PR #76 implements A1.2/A1.5 local-only primitives; A1.3 GitHub issue/PR synchronization and A1.4 planner remain unimplemented.
+- PR #76 runtime behavior: task transitions are explicit and fail closed; blocked tasks retain a safe resume state and require refreshed context; failed validation requires a root-cause note and revised plan; done requires every acceptance criterion to have evidence. The ledger is JSONL, append-only, SHA-256 hash chained, serialized for concurrent writers, verified before append, and redacts sensitive-key values. These modules do not call GitHub or mutate issues/PRs.
+- Do not claim all milestones complete. Some GitHub milestones are incorrectly closed while their issues remain open (see governance section).
+
+## Milestone governance requiring owner CLI action
+
+The connector exposes issue updates but not milestone state mutation. These milestone IDs are closed despite open work:
+- #3 — P2 Capture Strategy and Diagnostics (Issue #2 remains open)
+- #4 — P3 Physical Device Acceptance (Issue #3 remains open)
+- #5 — P4 Beta Distribution and Signing (Issue #38 remains open)
+- #6 — R&D Agent System (Issues #10 and #12–#15 remain open)
+
+Reopen them with:
+```bash
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/3 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/4 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/5 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/6 -f state=open
+```
+P0 milestone #1 is complete after #7 closed. Do not reopen it.
+
+## Durable operating decisions
+
+- Preserve main protection and required checks; never bypass branch rules or simulate an independent reviewer.
+- Use merge commits and preserve history. Never force-push, reset, or squash existing work.
+- Merge only after all required checks pass on the exact PR head; classify transient dependency-rate-limit failures and retry only failed jobs.
+- Never claim a CI pass from queued, in-progress, skipped unexpectedly, cancelled, stale, or different-SHA evidence.
+- Keep API 24 as the software floor; keep API 23 out of scope unless both Shizuku and telephony paths are deliberately isolated/replaced.
+- Keep targetSdk 36 until Android 17 background-audio/foreground-service hardening is validated.
+- No APK publication, tag, or release until physical two-way evidence (#3), production signing (#38), and explicit owner approval are complete.
+- Do not upload call audio, personal identifiers, keystore files, or secret values to GitHub issues/PRs/artifacts.
+- When a user-owned secret/environment or physical-device action blocks progress, provide exact `gh` commands and preserve the safe resume point.
+
+---
+
 # Live state refresh — 2026-11-26T15:02:00Z
 
 **Captured at:** `2026-11-26T15:02:00Z`  
