@@ -83,8 +83,15 @@ class ExecutionLedger:
     def verify(self) -> str:
         if not self.path.exists():
             return ""
-        with self.path.open("rb") as stream:
-            return self._verify_bytes(stream.read())
+        descriptor = os.open(self.path, os.O_RDONLY)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_SH)
+            return self._verify_bytes(self._read_all(descriptor))
+        finally:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+            finally:
+                os.close(descriptor)
 
     @staticmethod
     def _read_all(descriptor: int) -> bytes:
