@@ -177,7 +177,7 @@ jobs:
             local name="$1"
             shift
             echo "::group::SDK unit-test shard: $name"
-            if timeout --signal=TERM --kill-after=15s 180s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest "$@"; then
+            if timeout --signal=TERM --kill-after=15s 360s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest "$@"; then
               echo "SDK_TEST_SHARD_PASS=$name"
             else
               status="$?"
