@@ -74,7 +74,7 @@ See [Android call-audio constraints](ANDROID_CALL_AUDIO_CONSTRAINTS.md), [the co
 
 ## Persistence and file lifecycle
 
-- Room stores recording metadata; diagnostics timelines are in-memory unless an explicit privacy-reviewed requirement changes that.
+- Room stores recording metadata, the runtime device/API/permission profile, a bounded timestamped capture-diagnostics timeline (up to 2,000 characters), and a separate nullable structured fallback reason. It never stores raw call audio or call content.
 - WAV data is written to app-private storage and finalized before the corresponding row is treated as completed/playable.
 - Recording details display the persisted sample rate, channel count, PCM payload length, peak/RMS levels, explicit silent/unavailable state, and any framework-reported `clientSilenced` status. A silenced client is never labelled as verified near-end speech; an unsilenced client is also not proof of remote-party audio. These are waveform-quality diagnostics only and never establish intelligible speech or two-way cellular audio.
 - Before starting a new capture backend, the service routes startup through `CaptureStartupBarrier`, which awaits `CallRecordRepository.prepareForCapture()` before evaluating the runtime profile or invoking the backend. A recovery failure therefore prevents backend startup. This forces first-open process recovery to finish before any new `.wav.part` file can be created.
@@ -101,7 +101,7 @@ Package names may evolve; verify the actual source tree before changing them.
 
 - Physical-device verification of both participant directions remains outstanding. Do not claim OEM/carrier/route compatibility without recorded evidence.
 - Dynamic subscription-change handling and per-SIM behavior require continued physical-device validation.
-- Runtime diagnostic persistence, crash-window fault injection, and the remaining roadmap acceptance tests must be checked against the current implementation before claiming completion.
+- Bounded diagnostic persistence and structured fallback-reason storage are implemented. Remaining acceptance is service-level lifecycle/API coverage, exact-head CI, and physical-device evidence; do not promote emulator or diagnostic results to two-way audio support.
 - API 26 is an experimental software compatibility floor, not a promise of cellular audio support.
 
 See [the engineering roadmap](ROADMAP.md) for prioritized unfinished work and [SDK integration](SDK_INTEGRATION.md) for the supported consumer API.

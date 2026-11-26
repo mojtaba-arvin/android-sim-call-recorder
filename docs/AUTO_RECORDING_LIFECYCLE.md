@@ -62,7 +62,7 @@ Shizuku capture is a privileged automatic candidate after explicit user arming, 
 
 ## Android platform constraints
 
-- The app currently declares minSdk 26 (Android 8.0) as an experimental compatibility floor; this is not a release-support claim until CI and physical-device validation pass. Shizuku UserService can be attempted on API 26+ only when Shizuku/Sui is already running (for example, started through root or computer ADB on Android 8–10). Wireless-debugging startup is available on Android 11+.
+- The app and SDK declare minSdk 24 (Android 7.0) as an experimental software compatibility floor; this is not a release-support claim until CI and physical-device validation pass. The Shizuku dependency declares a lower install floor, but the product selector intentionally gates privileged Shizuku capture to API 26+ and requires Shizuku/Sui to be already running (for example, started through root or computer ADB on Android 8–10). API 24–25 remain app/SDK install-floor targets for non-Shizuku paths. Wireless-debugging startup is available on Android 11+.
 - Android 10+ applies audio-input sharing priorities. An ordinary app may create an AudioRecord but receive silence while a cellular call owns the input.
 - Android documents that a voice call always receives audio; a normal app can capture call input only when it is an accessibility service or a privileged/system component with protected call-audio access (`CALL_AUDIO_INTERCEPTION` on current Android or legacy `CAPTURE_AUDIO_OUTPUT`). The Shizuku route is a separate shell/root experiment and remains device-dependent.
 - On Android 14+, microphone foreground services require `RECORD_AUDIO` and are subject to while-in-use restrictions. A microphone FGS generally cannot be created from the background. The design therefore arms the monitor while the app is visible and tests whether the already-running foreground service can continue into the call on each API/OEM.
@@ -86,7 +86,7 @@ For Standard mode only, evaluate a bounded microphone/acoustic chain. Do not mix
 - On API 29+, `AudioManager.registerAudioRecordingCallback()` observes the active configuration and correlates by audio session ID.
 - Live diagnostics report client-selected source, framework active source, input device, client/device formats and `isClientSilenced()`.
 - A silenced input is a clear failure signal for that moment. It is not proof that an unsilenced stream contains both participants.
-- The actual selected source and initialization fallback reason are written into the recording's source label. Persisting callback transitions and full diagnostics in Room remains outstanding.
+- The actual selected source and initialization fallback reason are written into the recording's source label. AudioRecordingCallback transitions and runtime capture diagnostics are persisted in a bounded timestamped Room history (up to 2,000 characters); the structured nullable `fallbackReason` is stored separately.
 - A non-zero waveform or non-silent WAV is not proof of two-way speech. Two-way support still requires separate known phrases from both participants in repeated real calls.
 
 ## Process-death recovery ordering
@@ -101,10 +101,11 @@ During first-open recovery, the callback marks stale rows `INTERRUPTED`, removes
 - Automatic mode now selects Shizuku `VOICE_CALL` when the live UserService, accepted UID and shell attribution are ready; otherwise it selects Speakerphone + MIC if RECORD_AUDIO is granted. The selected mode remains fixed until disarm.
 - Shizuku capture now exposes shell-attribution readiness over AIDL, clears the incoming Binder caller identity before AudioRecord operations, and attempts only full-duplex `VOICE_CALL`; one-sided UPLINK/DOWNLINK fallbacks are rejected.
 - The selector is wired into arm-time best-eligible selection. It does not switch modes after a capture failure.
-- AudioRecordingCallback / client-silenced diagnostics are visible live but are not yet persisted as a complete timeline in Room.
+- AudioRecordingCallback / client-silenced diagnostics are visible live and persisted as a bounded timestamped Room timeline (up to 2,000 characters). The structured fallback reason is stored separately from that event history.
 - No physical modem/OEM/carrier two-way result has been recorded.
 
 Tracked follow-up issues (all remain open for validation and hardening; the core flows described above are implemented):
-- Issue #2: prove exact selector-to-backend invocation, complete selection/fallback-reason presentation and persistence, and add service-level coverage for runtime gates.
-- Issue #4: finish adversarial service tests for permission/notification revocation, foreground-service denial/destruction, recovery, and call-waiting edge cases; physical-device validation remains separate.
+- Issue #2: complete service-level proof of exact selector-to-backend invocation and adversarial runtime-gate coverage. Arm-time selection, start-time revalidation, structured fallback-reason persistence and recording-detail presentation are implemented; exact-head CI remains required.
+- Issue #4: finish the service-level API 28–37 matrix for permission/notification revocation, foreground-service denial/destruction, recovery, call waiting, SIM concurrency and duplicate events; physical-device validation remains separate.
+- Issue #5: retain dedicated callback registration/session-correlation, silenced/unsilenced transition, cleanup and bounded-persistence tests; never treat an unsilenced microphone stream as two-way proof.
 - Issue #5: complete callback registration/session-filtering/silenced-transition/cleanup tests and evaluate any user-visible retry policy strictly within Standard acoustic mode.
