@@ -13,6 +13,65 @@
   - #71 — Compose BOM 2026.11.01 plus compileSdk API 37.2 in app/SDK/consumer modules; corrects stale minSdk docs. Android CI run #45842867477 was still in progress on head `16bfb8d3f96e71c04266684e79d59ba214d0d915`.
   - #72 — AGP 9.5.3. Exact-head Android CI passed on retry attempt 3 (run #45822620656, head `f19d7b2144e1a85bc71369094eab94b033a7dc61`); confirm the required context and mergeability before merge.
   - #74 — manual-only, main-only production-signed APK artifact workflow. CI run #45843692939 was pending on head `3cc93273504319115321e94db1e97eb844971675`. It uses environment-scoped secrets, ephemeral keystore materialization, v2/v3 and SHA-256 fingerprint verification, and artifact upload only. It cannot tag or publish a release.
+  - #75 — this context/benchmark refresh; first Agent System Contracts run correctly rejected stale benchmark provenance after PR #68 changed workflow files. The benchmark source SHA is repinned to this exact main SHA; fresh exact-head validation is required.
+  - #76 — local-only task state machine and append-only execution ledger. Android CI passed on head `a916bb6ebe9c2db9c3622667b3e77c334a2c5dcf`; Agent System Contracts rejected the stale snapshot because A1.2/A1.5 files were added. Keep this PR out of merge until a current context snapshot and benchmark pin are validated.
+- The stale `bootstrap/native-android-foundation` branch is absent. Current branches correspond to main and open PRs; do not delete any open-PR branch.
+
+## Product backlog disposition
+
+- #7 (API/minSdk compatibility audit) is closed as completed after exact integration CI evidence on PR #65. API 24 remains the intentional software installation floor; API 23 is not supported because Shizuku 13.1.5 and unguarded `TelephonyManager.createForSubscriptionId()` require API 24. This does not imply physical-device audio support.
+- #2 remains open. PR #73 adds coordinator-level arm-to-OFFHOOK revalidation and no-cross-backend fallback coverage, but the service-level behavior still needs independent validation. Physical two-way support remains a separate #3 gate.
+- #3 remains open and blocked on physical handset/SIM/carrier/consented participant evidence. There are zero physical handset acceptance records. Emulator and Robolectric results never prove near-end/far-end cellular intelligibility.
+- #38 remains open and blocked on owner-provided production keystore, passwords/alias, independently verified certificate SHA-256 fingerprint, and configured `production-signing` GitHub Environment. PR #74 adds an internal signed-artifact workflow but does not publish. No app APK tag or release may be created before #3 and #38 gates are satisfied.
+- R&D umbrella #10 and phase issues #12–#15 remain open. A0 artifacts (charter, task contract/schema, context pack, benchmark) are present on main; A0 issue #11 is closed. A1.1 tool capability inventory was merged through PR #24 and is on main. PR #76 implements A1.2 state machine + A1.5 append-only ledger as local-only primitives; A1.3 GitHub issue/PR synchronization and A1.4 planner remain unimplemented.
+- Do not claim all milestones complete. Some GitHub milestones are incorrectly closed while their issues remain open (see governance section).
+
+## Milestone governance requiring owner CLI action
+
+The connector exposes issue updates but not milestone state mutation. These milestone IDs are closed despite open work:
+- #3 — P2 Capture Strategy and Diagnostics (Issue #2 remains open)
+- #4 — P3 Physical Device Acceptance (Issue #3 remains open)
+- #5 — P4 Beta Distribution and Signing (Issue #38 remains open)
+- #6 — R&D Agent System (Issues #10 and #12–#15 remain open)
+
+Reopen them with:
+```bash
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/3 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/4 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/5 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/6 -f state=open
+```
+P0 milestone #1 is complete after #7 closed. Do not reopen it.
+
+## Durable operating decisions
+
+- Preserve main protection and required checks; never bypass branch rules or simulate an independent reviewer.
+- Use merge commits and preserve history. Never force-push, reset, or squash existing work.
+- Merge only after all required checks pass on the exact PR head; classify transient dependency-rate-limit failures and retry only failed jobs.
+- Never claim a CI pass from queued, in-progress, skipped unexpectedly, cancelled, stale, or different-SHA evidence.
+- Keep API 24 as the software floor; keep API 23 out of scope unless both Shizuku and telephony paths are deliberately isolated/replaced.
+- Keep targetSdk 36 until Android 17 background-audio/foreground-service hardening is validated.
+- No APK publication, tag, or release until physical two-way evidence (#3), production signing (#38), and explicit owner approval are complete.
+- Do not upload call audio, personal identifiers, keystore files, or secret values to GitHub issues/PRs/artifacts.
+- When a user-owned secret/environment or physical-device action blocks progress, provide exact `gh` commands and preserve the safe resume point.
+
+---
+
+# Live state refresh — 2026-11-26T15:00:00Z
+
+**Captured at:** `2026-11-26T15:00:00Z`  
+**Source branch:** `main`  
+**Source HEAD:** `e8b56aff0d100f7ae2e31b1f22c6851655d83e58`
+
+## Integration and CI
+
+- PR #65 remains merged with merge commit `458c46f926667a8cce61998149f700ee8940d0e3`.
+- PRs #66, #67, #69, #70, and #68 are merged. PR #68 exact-head Android CI retry passed all required jobs (run #45822463332, attempt 2).
+- PR #73 is merged with merge commit `e8b56aff0d100f7ae2e31b1f22c6851655d83e58`. Its exact head `9f70e3ad238f1e369501499ec8f38523f9ca3d42` passed SDK/app tests, lint, AAR/APK, API 24/26/35 emulator UI tests, and `Android CI / Required checks` (run #45842689549). The API 36 Shell probe was skipped by condition.
+- Open implementation PRs at capture time:
+  - #71 — Compose BOM 2026.11.01 plus compileSdk API 37.2 in app/SDK/consumer modules; corrects stale minSdk docs. Android CI run #45842867477 was still in progress on head `16bfb8d3f96e71c04266684e79d59ba214d0d915`.
+  - #72 — AGP 9.5.3. Exact-head Android CI passed on retry attempt 3 (run #45822620656, head `f19d7b2144e1a85bc71369094eab94b033a7dc61`); confirm the required context and mergeability before merge.
+  - #74 — manual-only, main-only production-signed APK artifact workflow. CI run #45843692939 was pending on head `3cc93273504319115321e94db1e97eb844971675`. It uses environment-scoped secrets, ephemeral keystore materialization, v2/v3 and SHA-256 fingerprint verification, and artifact upload only. It cannot tag or publish a release.
   - #75 — this context/benchmark refresh; first Agent System Contracts run correctly rejected stale benchmark provenance after PR #68 changed workflow files. The benchmark source SHA is being repinned to this exact main SHA; fresh exact-head validation is required.
   - #76 — local-only task state machine and append-only execution ledger. Android CI passed on head `a916bb6ebe9c2db9c3622667b3e77c334a2c5dcf`; Agent System Contracts correctly rejected the stale context snapshot because A1.2/A1.5 files were added. Refresh context to that code head before accepting the PR.
 - The stale `bootstrap/native-android-foundation` branch is absent. Current branches correspond to main and open PRs; do not delete any open-PR branch.
