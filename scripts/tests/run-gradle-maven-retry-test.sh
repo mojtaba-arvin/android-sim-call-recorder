@@ -54,6 +54,7 @@ fi
 # A non-dependency failure must not be retried.
 cat > "$tmp/bin/gradle" <<'MOCK'
 #!/usr/bin/env bash
+printf '%s\n' "$*" >> "$GRADLE_MOCK_CALLS"
 echo "Execution failed for task ':app:connectedDebugAndroidTest'."
 exit 1
 MOCK
