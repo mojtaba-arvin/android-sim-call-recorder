@@ -159,6 +159,12 @@ jobs:
       - name: Isolate recording repository Robolectric tests
         run: timeout 120s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.repository.DefaultCallRecordRepositoryRobolectricTest'
 
+      - name: Isolate Room DAO and migration Robolectric tests
+        run: timeout 180s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.local.CallRecordDaoRobolectricTest'
+
+      - name: Isolate AudioRecord HAL reliability tests
+        run: timeout 120s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.recording.shizuku.AndroidVoiceCallCaptureEngineTest'
+
       - name: Run SDK unit tests with bounded execution
         run: timeout 15m gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest
 
