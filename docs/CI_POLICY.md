@@ -81,15 +81,14 @@ The manual SDK release workflow creates a SHA-256 manifest for the single Releas
 Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects tampering, duplicate AARs, extra files, missing manifests, malformed manifest paths, empty AARs, and symlinked assets. The publish job cannot reach the release action unless post-download verification succeeds.
 
 
-## SDK unit-test localization and current acceptance run — 2026-11-26
+## Exact-head CI validation — 2026-11-26
 
-The final exact-head validation on PR #65 head `1fb6d694bed7ed51c79926d4f21dfafac55c7a08` is green:
+Current PR #65 source head: `8ca35979ef153e4e3d122fc7f8a0f0ab2b060ef0`.
 
-- Android CI [run #45806524184](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524184): all seven jobs successful — change detection, SDK/app tests + lint + AAR/debug APK, API 24, API 26, API 35, API 36 Shell permission probe, and Required checks.
-- Agent System Contracts [run #45806524167](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524167): success on the same exact head.
-- The SDK verification job passed the full SDK suite, app tests, lint, SDK Release AAR, consumer smoke build, and diagnostic debug APK assembly. The Gradle Maven retry regression test passed.
-- API 24/26/35 instrumentation passed. API 35 logs include both process-death windows, `RECOVERY_CAPTURE_RACE_PASSED`, and `PROCESS_DEATH_SUITE_PASSED`. API 36 Shell call-audio permission probe passed.
+- Android CI [run #45808314726](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45808314726): all seven jobs passed — SDK/app tests, lint, SDK Release AAR, consumer smoke, diagnostic debug APK assembly, API 24/26/35 emulator instrumentation, API 36 Shell permission probe, and `Android CI / Required checks`.
+- Agent System Contracts [run #45808314740](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45808314740): success on the same exact source head.
+- The Maven retry regression test and bounded dependency-resolution retry path passed. Application/test assertion failures are not retried.
+- The API 35 process-death/recovery markers and API 36 Shell permission probe are emulator/platform software evidence only; they do not prove physical cellular near/far audio.
+- The Protect main ruleset still requires approval of the most recent reviewable push. No bypass actors are configured. Do not weaken branch protection to force integration.
 
-The telephony Robolectric deadlock was diagnosed from a JVM thread dump and corrected with `LooperMode.INSTRUMENTATION_TEST`. ADB/logcat preflight uses bounded post-restart retries but still fails closed. Maven/UTP dependency-resolution retries are bounded, do not force-refresh cached plugin metadata, and do not retry application/test assertion failures.
-
-These results satisfy the software/CI gate only. Physical-device validation (#3) and production signing/governance (#38) remain separate P3/P4 acceptance gates. PR #65 remains Draft until those gates and the full source diff audit are complete.
+Issue #3 physical-device acceptance and Issue #38 production signing remain separate release/distribution gates. Merge of the source integration does not authorize APK distribution, tagging, or publication.

@@ -1,3 +1,23 @@
+## Live state refresh — 2026-11-26T11:38:00Z
+
+**Captured at:** `2026-11-26T11:38:00Z`  
+**Source branch:** `temp-main-from-origin`  
+**Source HEAD:** `8ca35979ef153e4e3d122fc7f8a0f0ab2b060ef0`
+
+- PR #65 is Ready for review and is the sole integration candidate to `main`. PR #1 is closed as superseded after file-set comparison: PR #65 contains all 164 files from #1 plus two CI retry helper/test files (166 total).
+- Android CI run #45808314726 passed all seven jobs on this exact source head; Agent System Contracts run #45808314740 also passed on this exact source head.
+- Required CI context is green; no unresolved review threads exist. The active Protect main ruleset #27531148 also requires approval of the most recent reviewable push. There is no independent approval, no bypass actor, and no permission to weaken branch protection. This is the current merge blocker.
+- The API 24/26/35 emulator runs and API 36 Shell permission probe establish software/platform test results only. They do not establish physical cellular two-way audio.
+- Issue #3 remains open with no physical handset evidence. Issue #38 remains open because production signing material, protected Environment, and independently verified certificate fingerprint are not configured. No APK distribution, tag, or release is authorized.
+- Issues #2/#7 and R&D #10/#12–#15 remain open; no milestone-completion claim is made.
+- Branches are `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. Keep integration branches until PR #65 merges; delete only after dependency checks.
+
+### Merge decision
+
+Do not self-approve or simulate review. Obtain an independent collaborator approval of the latest push; then merge PR #65 using a merge commit. Keep physical-device and production-signing gates separate from source integration, and do not publish an app APK.
+
+---
+
 ## Live state refresh — 2026-11-26T11:18:00Z
 
 **Captured at:** `2026-11-26T11:18:00Z`  

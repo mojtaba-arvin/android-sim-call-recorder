@@ -22,16 +22,15 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 ## Operational readiness snapshot — 2026-11-26
 
-- PR [#65](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/65) is the sole Draft integration candidate to `main`, exact head `1fb6d694bed7ed51c79926d4f21dfafac55c7a08`. PR #1 was closed as superseded after verifying PR #65 contains all 164 files from #1 plus two CI retry helper/test files (166 total). Its historical discussion is retained; `bootstrap/native-android-foundation` remains as ancestry until #65 is accepted and merged.
-- Android CI [run #45806524184](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524184) passed **all seven jobs** on the exact current PR head: full SDK/app tests, lint, SDK Release AAR, consumer smoke, diagnostic debug APK assembly, API 24/26/35 emulator instrumentation, API 36 Shell permission probe, and Required checks.
-- Agent System Contracts [run #45806524167](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524167) passed on the same exact PR head.
-- The API 35 emulator log contains `WINDOW1_READY`, `WINDOW1_RECOVERED`, `WINDOW2_STOP_REQUESTED`, `WINDOW2_KILL_AFTER_WAV_PROMOTION`, `RECOVERY_CAPTURE_RACE_PASSED`, and `PROCESS_DEATH_SUITE_PASSED`. These are emulator/software lifecycle results, not physical SIM or two-way cellular-audio evidence.
-- The telephony Robolectric deadlock was fixed using `LooperMode.INSTRUMENTATION_TEST`; the ADB/logcat recovery helper now uses bounded retries and remains fail-closed; the Maven retry helper has a passing shell regression test and retries dependency-resolution errors only.
-- PR #65 remains Draft/unmerged because product acceptance is incomplete, not because an independent reviewer is expected. The active Protect main ruleset requires the Required checks context and zero approving reviews; no bypass is configured. The owner has authorized the integration work, but the full source diff audit and P3/P4 gates remain.
-- Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Require at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route; assess near-end and far-end intelligibility separately. No `PASS_TWO_WAY` is claimed.
-- Issue #38 remains blocked on owner-provisioned production signing material, a protected GitHub Environment, and an independently verified certificate fingerprint. No debug-signed APK, production APK, tag, GitHub Release, or publication is authorized.
-- Issues #2 and #7 retain software/API acceptance work; #10 and #12–#15 retain unfinished R&D deliverables. Do not claim all milestones complete or close issues solely to make the merge appear complete.
-- Branches are `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. No branch has been deleted; keep the two integration branches until #65 is accepted and merged.
+- PR [#65](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/65) is the sole integration candidate to `main`, now **Ready for review** (not Draft), current source head `8ca35979ef153e4e3d122fc7f8a0f0ab2b060ef0`. PR #1 is closed as superseded after verifying PR #65 contains all 164 files from #1 plus two CI retry helper/test files (166 total); its discussion remains available.
+- Android CI [run #45808314726](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45808314726) passed all seven jobs on the exact current head: SDK/app tests, lint, SDK Release AAR, consumer smoke, diagnostic debug APK assembly, API 24/26/35 emulator instrumentation, API 36 Shell permission probe, and Required checks.
+- Agent System Contracts [run #45808314740](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45808314740) passed on the same exact current head.
+- API 35 emulator process-death and recovery-race markers are software lifecycle evidence only. They do not prove physical SIM or two-way cellular-audio capture.
+- The active Protect main ruleset #27531148 requires the `Android CI / Required checks` status, resolved review threads, and approval of the most recent reviewable push. Required checks are green and there are no unresolved review threads; no approving review exists. The last-push approval rule is the remaining merge blocker. No bypass actors are configured; do not weaken or bypass this rule.
+- Issue #3 remains open: no physical handset evidence is recorded. Keep device/build/carrier/SIM/route support unknown until consented incoming and outgoing calls demonstrate intelligible near-end and far-end speech independently.
+- Issue #38 remains open: production signing material, protected signing Environment, and independently verified certificate fingerprint are not configured. Do not distribute an app APK, create a tag, or publish a release. This is a distribution gate, not a reason to misrepresent emulator evidence.
+- Issues #2 and #7 retain product/API acceptance work; #10 and #12–#15 retain unfinished R&D deliverables. Do not close milestones or issues merely to make integration appear complete.
+- Branches remain `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. Keep both integration branches until PR #65 is merged; then verify no dependent PRs/workflows before deleting obsolete branches.
 
 ## Execution plan and acceptance gates
 
@@ -106,8 +105,8 @@ The agent platform is tracked separately from product implementation under umbre
 
 ## Immediate next actions
 
-1. Complete physical-device acceptance for Issue #3 using the documented consented incoming/outgoing call matrix. Keep every untested device/build/carrier/SIM/route combination unknown.
-2. Provision production signing only through the protected `android-production-signing` Environment, verify the certificate fingerprint out of band, and keep private key material out of Git/chat/artifacts. Until then, do not distribute an app APK.
-3. Finish the full source diff audit and determine the remaining scope for #2/#7 and R&D issues #10/#12–#15; explicitly defer only with documented acceptance boundaries.
-4. After the physical/signing gates and source audit are complete, merge PR #65 with a merge commit to preserve existing history; then delete `bootstrap/native-android-foundation` and `temp-main-from-origin` after confirming no dependent PRs/workflows remain.
-5. Keep #3 and #38 open until their own acceptance evidence is met. Do not close milestones just to make the roadmap appear complete.
+1. Obtain an independent approval of PR #65's latest push from a repository collaborator other than the last pusher. Do not self-approve or simulate a review.
+2. Once GitHub reports the branch protection requirements satisfied, merge PR #65 with a merge commit to preserve its existing history.
+3. After merge, verify `main` contains the exact merge result and Required checks pass; then delete `bootstrap/native-android-foundation` and `temp-main-from-origin` only after checking dependent PRs/workflows.
+4. Continue Issue #3 physical-device acceptance and Issue #38 production-signing governance as separate post-merge release gates. Keep both open until their own evidence is complete.
+5. Continue Issues #2/#7 and R&D #10/#12–#15 by their documented acceptance criteria; do not claim all milestones complete.
