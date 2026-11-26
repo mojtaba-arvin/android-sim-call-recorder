@@ -102,7 +102,7 @@ jobs:
           java-version: "21"
 
       - name: Set up Gradle 9.6.0
-        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
         with:
           gradle-version: "9.6.0"
           cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
@@ -354,7 +354,7 @@ jobs:
           java-version: "21"
 
       - name: Set up Gradle 9.6.0
-        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
         with:
           gradle-version: "9.6.0"
 
