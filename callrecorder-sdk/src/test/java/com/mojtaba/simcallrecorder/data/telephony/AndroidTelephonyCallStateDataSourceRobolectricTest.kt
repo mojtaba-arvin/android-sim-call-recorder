@@ -39,7 +39,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
     private val context: Context
         get() = RuntimeEnvironment.getApplication()
 
-    @Test
+    @Test(timeout = 30_000)
     @Config(sdk = [31, 32, 33, 34, 35])
     fun api31To35_emitsRingingOffhookAndIdleForTheCorrectSubscription() = runBlocking {
         grantPhoneStatePermission()
@@ -89,7 +89,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         assertTrue(events.all { it.observedAtEpochMillis > 0L })
     }
 
-    @Test
+    @Test(timeout = 30_000)
     @Config(sdk = [36, 37])
     fun api36Plus_emitsInitialSnapshotForCallAlreadyInProgress() = runBlocking {
         grantPhoneStatePermission()
@@ -119,7 +119,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         assertEquals(listOf(0), events.map { it.simSlotIndex })
     }
 
-    @Test
+    @Test(timeout = 30_000)
     @Config(sdk = [24, 25, 26, 27, 28, 29, 30])
     fun api26To30_legacyPhoneStateListener_emitsAllCallTransitions() = runBlocking {
         grantPhoneStatePermission()
@@ -227,7 +227,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         )
     }
 
-    @Test
+    @Test(timeout = 10_000)
     @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun activeSimSlots_exposeSlotLabelsButNotSubscriptionIdentifiers() = runBlocking {
         grantPhoneStatePermission()
@@ -242,22 +242,24 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
             .buildSubscriptionInfo()
         shadowOf(subscriptionManager).setActiveSubscriptionInfoList(listOf(first, second))
 
-        val slots = AndroidTelephonyCallStateDataSource(context).getActiveSimSlots()
+        val slots = withTimeout(5_000) { AndroidTelephonyCallStateDataSource(context).getActiveSimSlots() }
 
         assertEquals(listOf("SIM 1", "SIM 2"), slots.map { it.label })
         assertEquals(listOf(0, 1), slots.map { it.slotIndex })
     }
 
-    @Test
+    @Test(timeout = 10_000)
     @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun observer_withoutReadPhoneStatePermission_failsClosed() = runBlocking {
         (Shadow.extract(context) as ShadowApplication).denyPermissions(Manifest.permission.READ_PHONE_STATE)
 
-        val exception = try {
-            AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().collect { }
-            null
-        } catch (caught: SecurityException) {
-            caught
+        val exception = withTimeout(5_000) {
+            try {
+                AndroidTelephonyCallStateDataSource(context).observeCallStateEvents().collect { }
+                null
+            } catch (caught: SecurityException) {
+                caught
+            }
         }
 
         assertTrue(exception != null)
