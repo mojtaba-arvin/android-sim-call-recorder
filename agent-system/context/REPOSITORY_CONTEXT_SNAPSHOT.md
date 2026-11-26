@@ -1,4 +1,4 @@
-## Live state refresh — 2026-11-26T07:38:00+04:00
+## Live state refresh — 2026-11-26T07:42:00+04:00
 
 - PR #64 remains Draft/open against `bootstrap/native-android-foundation`; current code/workflow head is `a2483ad26e39dd6a81f22675072790aa5f54ddbf`. Foundation PR #1 remains Draft/open; `main` remains unchanged.
 - On exact prior head `77f4bc3`, Agent System Contracts passed but Android CI failed at the 15-minute full SDK unit-test timeout. All API 24/26/35 emulator lanes and API 36 Shell permission probe passed. Focused Multi-SIM, stale-recovery, repository and CI preflight steps passed.
@@ -118,7 +118,7 @@
 **Captured at:** 2026-11-25T14:30:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `a2483ad26e39dd6a81f22675072790aa5f54ddbf`  
+**Source HEAD:** `d45eabd2ce794f86ef12d3fb808325928197663b`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
