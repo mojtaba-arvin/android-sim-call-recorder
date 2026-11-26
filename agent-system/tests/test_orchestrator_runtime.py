@@ -1,10 +1,13 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from agent_system.orchestrator.execution_ledger import ExecutionLedger, LedgerIntegrityError
-from agent_system.orchestrator.state_machine import (
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from orchestrator.execution_ledger import ExecutionLedger, LedgerIntegrityError
+from orchestrator.state_machine import (
     RuntimeTaskState,
     StateTransitionError,
     TaskState,
@@ -40,6 +43,8 @@ class TaskStateMachineTests(unittest.TestCase):
         completed = self.machine.complete(task)
         self.assertEqual(TaskState.DONE, completed.state)
         self.assertEqual({"CAPABILITY", "START_GUARD"}, set(completed.met_criteria))
+        with self.assertRaises(StateTransitionError):
+            self.machine.transition(completed, TaskState.IN_PROGRESS)
 
     def test_illegal_skip_and_done_from_wrong_state_fail_closed(self):
         with self.assertRaises(StateTransitionError):
