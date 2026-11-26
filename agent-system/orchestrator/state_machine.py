@@ -142,6 +142,9 @@ class TaskStateMachine:
                 raise StateTransitionError("blocked tasks require a fresh repository context before resuming")
             return replace(current, state=target_state, blocker=None, resume_state=None)
 
+        if target_state is TaskState.DONE:
+            return self.complete(current)
+
         if target_state not in _ALLOWED_TRANSITIONS[current.state]:
             raise StateTransitionError(f"illegal transition: {current.state.value} -> {target_state.value}")
 
@@ -187,6 +190,7 @@ class TaskStateMachine:
     def complete(self, current: RuntimeTaskState) -> RuntimeTaskState:
         if current.state is not TaskState.PR_REVIEW:
             raise StateTransitionError("tasks may become done only from pr_review")
-        completed = replace(current, state=TaskState.DONE)
-        completed._validate_completion()
-        return completed
+        try:
+            return replace(current, state=TaskState.DONE)
+        except ValueError as error:
+            raise StateTransitionError(str(error)) from error
