@@ -16,7 +16,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 This debug build is for development and controlled testing only. It is not a signed public beta, does not establish device compatibility, and must not be redistributed as a production release. CI APK artifacts are likewise test outputs, not published releases.
 
-The current minSdk 26 is an experimental compatibility floor. Shizuku `VOICE_CALL` remains device/OEM/carrier dependent and is not a universal two-way recording guarantee. Speakerphone + MIC is acoustic capture and requires speakerphone; remote-party audibility is not guaranteed.
+The app and SDK currently declare `minSdk 24` (Android 7.0) as an experimental software-installation floor. Shizuku `VOICE_CALL` selection is separately gated to API 26+ and requires an already-running, authorized UserService; Wireless Debugging startup is available on Android 11+, while Android 8–10 require root or computer-based ADB setup. The API 24 floor is not yet a full compatibility sign-off. Shizuku capture remains device/OEM/carrier dependent and is not a universal two-way recording guarantee. Speakerphone + MIC is acoustic capture and requires speakerphone; remote-party audibility is not guaranteed.
 
 ## Shizuku setup for internal testing
 
