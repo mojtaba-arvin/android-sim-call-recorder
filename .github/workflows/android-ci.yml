@@ -131,6 +131,9 @@ jobs:
       - name: Test bounded ADB restart for logcat recovery
         run: bash scripts/tests/run-adb-logcat-restart-test.sh
 
+      - name: Test Gradle Maven rate-limit retry behavior
+        run: bash scripts/tests/run-gradle-maven-retry-test.sh
+
       - name: Test production APK signature verifier
         run: bash scripts/tests/test-apk-signature-verifier.sh
 
@@ -373,6 +376,8 @@ jobs:
       - name: Validate emulator harness shell syntax
         run: |
           bash -n scripts/ci/run-emulator-tests.sh
+          bash -n scripts/ci/gradle-maven-retry.sh
+          bash -n scripts/tests/run-gradle-maven-retry-test.sh
           bash -n scripts/run-process-death-emulator-tests.sh
 
       - name: Run Compose UI tests on Android emulator
