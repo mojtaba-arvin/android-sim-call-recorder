@@ -1,3 +1,23 @@
+## Live state refresh — 2026-11-26T11:44:00Z
+
+**Captured at:** `2026-11-26T11:44:00Z`  
+**Source branch:** `temp-main-from-origin`  
+**Source HEAD:** `3f13982749189ab8c7109a5131ebd2962f85545f`
+
+- PR #65 is Ready for review and is the sole integration candidate to `main`. PR #1 is closed as superseded after verifying PR #65 contains all 164 files from #1 plus two CI retry helper/test files (166 total).
+- Android CI and Agent System Contracts both passed on prior exact head `8ca35979ef153e4e3d122fc7f8a0f0ab2b060ef0` (runs #45808314726 and #45808314740). A documentation/context refresh is now at `3f13982749189ab8c7109a5131ebd2962f85545f`; fresh validation on this current head is required.
+- The active Protect main ruleset #27531148 requires `Android CI / Required checks`, resolved review threads, and approval of the most recent reviewable push. No review threads are unresolved. The latest-push approval is not satisfied; no bypass actors are configured. Do not weaken rules or self-approve.
+- Issue #3 remains open with no physical handset evidence. Emulator tests do not establish intelligible near-end and far-end audio on physical cellular calls.
+- Issue #38 remains open: production signing secrets, protected Environment, and independently verified certificate fingerprint are not configured. Do not distribute app APKs, create tags, or publish releases.
+- Issues #2/#7 and R&D #10/#12–#15 remain open; no all-milestones-complete claim is made.
+- Branches remain `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. Keep integration branches until PR #65 merges; then check dependents before deletion.
+
+### Merge decision
+
+Obtain an independent approval of the latest push from a repository collaborator other than the last pusher. After fresh current-head checks and approval, merge PR #65 using a merge commit. Keep physical-device and production-signing acceptance as separate post-merge distribution gates.
+
+---
+
 ## Live state refresh — 2026-11-26T11:38:00Z
 
 **Captured at:** `2026-11-26T11:38:00Z`  
