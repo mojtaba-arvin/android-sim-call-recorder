@@ -131,6 +131,15 @@ def validate_tool_inventory(root: Path) -> list[str]:
     return errors
 
 
+def parse_changed_paths(stdout: bytes) -> list[str]:
+    """Parse git diff --name-only -z output without splitting filenames on whitespace."""
+    return [
+        item.decode("utf-8", errors="replace")
+        for item in stdout.split(b"\x00")
+        if item
+    ]
+
+
 def validate_benchmark(root: Path) -> list[str]:
     errors: list[str] = []
     path = root / "agent-system/benchmarks/v1/tasks.json"
@@ -212,7 +221,7 @@ def validate_benchmark(root: Path) -> list[str]:
             if changed.returncode != 0:
                 errors.append("could not compare the checked-out tree with benchmark source_head_sha")
             else:
-                paths = [item.decode("utf-8", errors="replace") for item in changed.stdout.split(b"\\x00") if item]
+                paths = parse_changed_paths(changed.stdout)
                 unexpected = [
                     item for item in paths
                     if not item.startswith(("agent-system/context/", "agent-system/benchmarks/"))
