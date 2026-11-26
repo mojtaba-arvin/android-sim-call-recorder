@@ -2,10 +2,15 @@
 set -euo pipefail
 
 # Clear the logcat buffers only after the caller has established emulator readiness.
-# ADB can lose its daemon during emulator startup; restart it once, re-verify the device,
-# and retry. If diagnostics still cannot be isolated, fail closed.
+# ADB/logd can transiently reject a clear immediately after boot or an ADB restart.
+# Restart the ADB server once, then use a bounded retry window; fail closed if the
+# diagnostic boundary still cannot be established.
+clear_logcat_buffers() {
+  timeout 10 adb logcat -c || timeout 10 adb logcat -b all -c
+}
+
 clear_logcat_fail_closed() {
-  if adb logcat -c || adb logcat -b all -c; then
+  if clear_logcat_buffers; then
     return 0
   fi
 
@@ -28,11 +33,17 @@ clear_logcat_fail_closed() {
     return 1
   fi
 
-  if adb logcat -c || adb logcat -b all -c; then
-    echo "Logcat buffers cleared after the one-time ADB server restart." >&2
-    return 0
-  fi
+  for attempt in 1 2 3; do
+    if clear_logcat_buffers; then
+      echo "Logcat buffers cleared after the one-time ADB server restart (attempt $attempt)." >&2
+      return 0
+    fi
+    if [[ "$attempt" -lt 3 ]]; then
+      echo "Logcat clear still unavailable after ADB restart (attempt $attempt/3); waiting 2 seconds." >&2
+      sleep 2
+    fi
+  done
 
-  echo "Unable to clear logcat after the bounded ADB server restart; refusing to continue." >&2
+  echo "Unable to clear logcat after the bounded ADB server restart and retries; refusing to continue." >&2
   return 1
 }

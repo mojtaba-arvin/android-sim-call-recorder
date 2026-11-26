@@ -11,7 +11,12 @@ cat > "$tmp/bin/adb" <<'ADB'
 set -euo pipefail
 case "$*" in
   "logcat -c"|"logcat -b all -c")
-    [[ -e "${ADB_RESTARTED:?}" ]] && exit 0
+    attempts_file="${ADB_LOGCAT_ATTEMPTS:?}"
+    attempts=0
+    [[ -f "$attempts_file" ]] && attempts="$(cat "$attempts_file")"
+    attempts=$((attempts + 1))
+    printf '%s' "$attempts" > "$attempts_file"
+    [[ -e "${ADB_RESTARTED:?}" && "$attempts" -ge 5 ]] && exit 0
     exit 23
     ;;
   "kill-server") touch "$ADB_RESTARTED" ;;
@@ -25,12 +30,16 @@ chmod +x "$tmp/bin/adb"
 
 (
   cd "$tmp"
-  PATH="$tmp/bin:$PATH" ADB_RESTARTED="$tmp/adb-restarted" \
+  PATH="$tmp/bin:$PATH" ADB_RESTARTED="$tmp/adb-restarted" ADB_LOGCAT_ATTEMPTS="$tmp/adb-logcat-attempts" \
     bash -c 'source "'"$repo_root"'/scripts/ci/clear-logcat-fail-closed.sh"; clear_logcat_fail_closed'
 )
 
 [[ -e "$tmp/adb-restarted" ]] || {
   echo "FAIL: helper did not restart the ADB server after logcat clear failure." >&2
+  exit 1
+}
+[[ "$(cat "$tmp/adb-logcat-attempts")" -ge 5 ]] || {
+  echo "FAIL: helper did not retry logcat clearing after the ADB restart." >&2
   exit 1
 }
 
