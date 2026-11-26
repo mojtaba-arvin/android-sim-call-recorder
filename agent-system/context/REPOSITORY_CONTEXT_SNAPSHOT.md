@@ -1,3 +1,13 @@
+## Live state refresh — 2026-11-26T07:31:00+04:00
+
+- PR #64 remains Draft/open against `bootstrap/native-android-foundation`; current code/workflow head is `8d6214b6cb9fdc9185a7815ddd4cc8d94ac2ef53`. Foundation PR #1 remains Draft/open at `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged.
+- On exact prior head `77f4bc33e96c4e3bf6e20687e172fa7626b434db`, Agent System Contracts run #45641868665 passed; Android CI run #45641868747 failed only in the SDK/app verify job. API 24/26/35 emulator jobs and API 36 Shell permission probe passed.
+- Verify job completed all preflight, AAR metadata/manifest, SDK boundary, checksum, physical evidence validator, logcat fail-closed, APK signing fail-closed and focused Multi-SIM/recovery/repository steps. The full SDK unit test task then timed out after 15 minutes (exit 124); app tests/lint/AAR/APK build were skipped as downstream steps. The test worker process started but emitted no JUnit STARTED/PASSED/FAILED events. Artifact upload also reported missing in-progress test result files. This does not identify a failing test or prove an individual test hang.
+- Added bounded isolated steps for `CallRecordDaoRobolectricTest` (180s) and `AndroidVoiceCallCaptureEngineTest` (120s) before the full SDK suite. These target the Room migration/recovery tests and the newly added AudioRecord HAL lifecycle test; use their exact logs to localize the worker stall.
+- The integration CI's focused Multi-SIM, StaleRecordingRecoveryCallback, and DefaultCallRecordRepository suites have passed on prior heads. Do not treat the full SDK suite as green until it completes.
+- Agent System Contracts passed on `77f4bc3`; the new workflow-only commit requires fresh exact-head validation. PR #64 stays Draft until Android CI and Agent System Contracts pass on the same latest head and the full diff is reviewed.
+- Former PRs #41/#44/#47/#49/#50/#56 remain open pending successful integration. Do not close them early. No physical two-way SIM audio, `PASS_TWO_WAY`, production APK signing, independent review, tag, release or publication is claimed.
+
 ## Live state refresh — 2026-11-25T15:10:00Z
 
 - PR #64 remains Draft/open against Foundation; code/workflow baseline is `fae069f07f679ae7cbf5f9b2e94a933fe67af174`. Foundation PR #1 remains Draft/open at `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged.
@@ -98,7 +108,7 @@
 **Captured at:** 2026-11-25T14:30:00Z
 **Repository:** `mojtaba-arvin/android-sim-call-recorder`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `fae069f07f679ae7cbf5f9b2e94a933fe67af174`  
+**Source HEAD:** `8d6214b6cb9fdc9185a7815ddd4cc8d94ac2ef53`  
 **Active foundation PR:** [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) — Draft, open, base `main`  
 **A0 branch:** `rd/a0-context-benchmark-post-integration` (created directly from current Foundation HEAD; clean base, supersedes stale PR #22 branch)
 
