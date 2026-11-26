@@ -22,18 +22,16 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 ## Operational readiness snapshot — 2026-11-26
 
-- Integration PR [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64) remains Draft/open against `bootstrap/native-android-foundation`. It consolidates six workstreams: structured fallback metadata (#56), AudioRecord reliability (#44), fail-closed ADB/logcat preflight (#50), CI path classification (#41), Release AAR consumer smoke (#47), and AAR checksum verification (#49).
-- Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains Draft/open against `main`; `main` is unchanged. External Reviewer approval is not required: the active ruleset has zero required approving reviews, and the owner will perform the full diff review.
-- Android CI run #885 on prior integration head `23fff325` failed in the SDK full-suite step after its 15-minute cap (exit 124). The Gradle Test Executor started but emitted no JUnit lifecycle events; no complete full-suite report or assertion failure was identified. API 26/35 emulator lanes and the API 36 Shell permission probe passed; API 24 was still running at the last status check.
-- The next exact-head Android CI run includes bounded SDK package shards and a 90-second JVM thread-dump capture while the full-suite gate remains unchanged. A green run on the exact current PR head is still required.
-- Agent System Contracts passed on the previous context head after the snapshot/benchmark provenance refresh. The latest code/doc changes require a new snapshot refresh and exact-head validation before merge.
-- Do not merge #64 until Android CI and Agent System Contracts both pass on the same exact head and the full 39-file diff is reviewed. Then close former PRs #41/#44/#47/#49/#50/#56 as superseded.
-- Governance Issue #8 is complete. The live `Protect main` ruleset requires PRs and `Android CI / Required checks`, protects against deletion/non-fast-forward updates, and requires zero approving reviews. The owner performs the review; no external reviewer is a gate.
-- GitHub milestones are assigned: P0 (#7, #31), P1 (#4), P2 (#2, #5), P3 (#3), P4 (#38), and R&D (#10, #12–#15).
-- Issues #2/#5 are candidates for closure after PR #64 merges and their software acceptance evidence is verified. Issue #31 is also a closure candidate after the preflight changes merge and exact-head CI passes. Issue #4 remains open for the foreground-service lifecycle/API matrix; #7 remains open for the full API/dependency audit.
-- Issue #3 remains blocked on real, consented handset trials: at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route, with near-end and far-end intelligibility assessed separately. No `PASS_TWO_WAY` is claimed.
-- Issue #38 remains blocked on owner-provisioned production signing material and an owner-verified certificate fingerprint. No production APK signing, tag, GitHub Release, or publication is enabled.
-
+- Integration PR [#65](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/65) is the single Draft integration candidate against `main`. Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains Draft and proposes the same 164 changed files; do not merge both. PR #65 carries the consolidated tree plus CI/test diagnostics.
+- The active `Protect main` ruleset requires PRs and `Android CI / Required checks`, prevents deletion/non-fast-forward updates, and requires zero approving reviews. No bypass actors are configured. The owner performs the full diff review; no external reviewer is required.
+- Android CI run #45800526963 on code head `16ae6e27b35f919584dc79c127f424d2b7724700` failed in the broad telephony Robolectric matrix after 360 seconds with no JUnit lifecycle events (exit 124; no assertion failure). API 24/26/35 emulator process-death lanes and the API 36 Shell permission probe passed on that head.
+- The test matrix is now split by individual telephony method/API group, with explicit JUnit and shard timeouts plus a 60-second JVM thread-dump watchdog. No tests are removed or skipped; the 15-minute full SDK suite remains required. Per-shard dumps are included in the unit/lint artifact.
+- Agent System Contracts passed on current PR head `0714dc6b9e67d15d1dceb49be37e52aeb6f1fd12` (run #45802848696). Android CI run #45802848761 is in progress on that same head; a running job is not a pass.
+- Keep PR #65 Draft until exact-head Android CI, Agent System Contracts, full diff review, and all repository acceptance gates are satisfied.
+- Milestones/issues remain open where evidence is incomplete: #2/#7 software/API acceptance; #3 physical-device validation; #10/#12–#15 R&D deliverables; #38 production signing. Do not claim all milestones complete.
+- Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Require at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route, assess near-end and far-end intelligibility separately, and keep untested combinations unknown. No `PASS_TWO_WAY` is claimed.
+- Issue #38 remains blocked on owner-provisioned production signing material, a protected GitHub Environment, and an independently verified certificate fingerprint. No production APK, tag, GitHub Release, or publication is authorized.
+- Branches are `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. No branch has been deleted; preserve both integration branches until PR #65 is accepted and PR #1 is reconciled.
 
 ## Execution plan and acceptance gates
 
@@ -89,7 +87,7 @@ A recording is accepted as successful only when the file is finalized, persisted
 3. Clearly label debug signing and sideload-only status; do not imply Play Store readiness.
 4. Validate installation, upgrade, downgrade policy, data preservation, uninstall behavior, and APK checksum on at least one physical device.
 5. Document SDK integration, public API stability, permissions, lifecycle ownership, and supported Android floor.
-6. Keep the PR Draft until all required gates are met; merge via reviewed Squash Merge, never push directly to `main`.
+6. Keep the PR Draft until all required gates are met; merge via a reviewed merge commit that preserves the existing commit history, never push directly to `main`.
 
 **Exit criteria:** a reproducible beta release can be downloaded and verified; SDK consumer integration works; release notes disclose experimental audio support honestly.
 
@@ -108,8 +106,8 @@ The agent platform is tracked separately from product implementation under umbre
 
 ## Immediate next actions
 
-1. Inspect the exact-head CI run: identify the first failing SDK test shard or analyze the captured JVM thread dump. Do not increase timeouts or weaken tests without evidence.
-2. Require the full SDK suite, app tests, lint, AAR/consumer smoke build, API 24/26/35 emulator lanes, API 36 Shell probe, and Required checks to pass on one exact PR #64 head.
-3. After #64 merges into the Foundation branch, close only the superseded PRs #41/#44/#47/#49/#50/#56; delete their branches only after checking that no remaining PR or workflow depends on them.
-4. Close #2/#5/#31 only after the merged implementation and exact-SHA acceptance evidence satisfy their software criteria. Continue #4 lifecycle coverage and #7 dependency/API audit in parallel.
-5. Keep #3 physical acceptance and #38 production signing as explicit product gates; do not infer either from CI.
+1. Inspect the exact-head Android CI run #45802848761, especially the per-method telephony shards and uploaded JVM thread dumps. Diagnose the first failing method/API level; do not extend timeouts or weaken tests without evidence.
+2. Require the full SDK suite, app tests, lint, AAR/consumer smoke build, API 24/26/35 emulator lanes, API 36 Shell probe, Agent System Contracts, and Required checks to pass on the final PR #65 head.
+3. Keep PR #65 Draft while the P3 physical-device evidence and P4 production-signing/governance gates remain incomplete. Do not infer either from CI.
+4. After all explicit gates are satisfied, merge PR #65 with a merge commit to preserve the existing history; then close PR #1 as superseded and delete `bootstrap/native-android-foundation` and `temp-main-from-origin` only after confirming no dependent PRs/workflows remain.
+5. Keep #2, #3, #7, #10, #12–#15, and #38 open until their own acceptance evidence is met. Do not close milestones just to make the branch list or roadmap appear complete.

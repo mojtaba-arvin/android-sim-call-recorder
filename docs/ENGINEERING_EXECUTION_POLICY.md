@@ -1,6 +1,6 @@
 # Engineering Execution Policy
 
-Last reviewed: 2026-11-19
+Last reviewed: 2026-11-26
 
 This policy captures workflow lessons from reviewing the complete 345-commit history reachable from `bootstrap/native-android-foundation` (344 commits beyond the initial repository commit). It is intended for maintainers and coding agents continuing this repository.
 
@@ -80,7 +80,7 @@ Preserve the original test exit code while collecting best-effort diagnostics. D
 
 - Work on the feature branch and through the Draft PR; do not push directly to `main`.
 - Do not create a release tag or publish a beta until required CI, artifact verification, and physical-device release gates are met.
-- Keep the final PR history reviewable; use the repository's intended Squash Merge policy when accepted.
+- Keep the final PR history reviewable. Use a merge commit to preserve existing commit history; do not squash, reset, or rewrite existing work unless the owner explicitly requests it.
 
 ## Checklist for every future engineering task
 

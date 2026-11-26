@@ -85,10 +85,10 @@ Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects
 
 ## SDK unit-test localization and current acceptance run — 2026-11-26
 
-On integration head `23fff325e9353d05329e8cd5e7abcd125ce4b3ae`, the full SDK unit-test task exceeded its 15-minute bound (exit 124). Gradle reported that Test Executor 1 started, but no JUnit STARTED/PASSED/FAILED lifecycle events or complete full-suite report were produced. No individual assertion failure has been identified.
+The earlier broad SDK telephony package shard exceeded its 360-second cap (exit 124) without JUnit lifecycle events. This was not an assertion failure. API 24/26/35 emulator process-death lanes and the API 36 Shell permission probe passed on the preceding code head.
 
-The focused Multi-SIM, stale-recovery, repository, DAO/migration, and AudioRecord HAL tests passed. API 26 and API 35 emulator lanes and the API 36 Shell permission probe passed; the API 24 emulator lane was still running at the last status check. These results are from a prior head and do not satisfy the current exact-head gate.
+The workflow now isolates each telephony test method/API group instead of running the entire telephony package as one opaque shard. Previously unbounded active-SIM and permission-denied tests have explicit timeouts. Every isolated SDK shard has a bounded timeout (120–240 seconds) and a JVM thread-dump watchdog at 60 seconds; per-shard dumps are uploaded with the unit/lint artifact. No tests were removed, skipped, or weakened. The full SDK suite retains its 15-minute bound and its own 90-second worker-thread diagnostic.
 
-The current integration branch adds bounded package-level SDK test shards (180 seconds per shard) and captures a JVM thread dump 90 seconds into the full-suite run if a worker remains alive. The 15-minute full-suite requirement is unchanged. This is diagnostic instrumentation, not a timeout increase or test exclusion.
+Android CI run #45802848761 is executing this method-level matrix on PR #65 head `0714dc6b9e67d15d1dceb49be37e52aeb6f1fd12`. Agent System Contracts passed on the same head (run #45802848696). The Android CI run is still in progress; no full green result is claimed.
 
-Do not merge PR #64 until Android CI and Agent System Contracts pass on the same exact PR head. A canceled or superseded run is not a pass, and an API lane that is still running is not a pass.
+Do not merge PR #65 until Android CI and Agent System Contracts pass on the same exact PR head and the full diff is reviewed. Physical-device validation (#3) and production signing/governance (#38) remain separate P3/P4 acceptance gates. A canceled or superseded run is not a pass, and an API lane that is still running is not a pass.
