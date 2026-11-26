@@ -1,6 +1,6 @@
 # Engineering Roadmap
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-26
 
 ## Product outcome
 
@@ -19,6 +19,21 @@ A recording is accepted as successful only when the file is finalized, persisted
 - APK/AAR release automation exists, but no first public beta release is accepted until the required CI gate and physical-device validation policy are satisfied.
 - API 24 is an experimental software compatibility floor, not a promise of cellular audio compatibility.
 - The agent workflow is governed by the repository-root `AGENTS.md`; detailed history-derived process lessons are in [Engineering Execution Policy](ENGINEERING_EXECUTION_POLICY.md).
+
+## Operational readiness snapshot — 2026-11-26
+
+- Integration PR [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64) remains Draft/open against `bootstrap/native-android-foundation`. It consolidates six workstreams: structured fallback metadata (#56), AudioRecord reliability (#44), fail-closed ADB/logcat preflight (#50), CI path classification (#41), Release AAR consumer smoke (#47), and AAR checksum verification (#49).
+- Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains Draft/open against `main`; `main` is unchanged. External Reviewer approval is not required: the active ruleset has zero required approving reviews, and the owner will perform the full diff review.
+- Android CI run #885 on prior integration head `23fff325` failed in the SDK full-suite step after its 15-minute cap (exit 124). The Gradle Test Executor started but emitted no JUnit lifecycle events; no complete full-suite report or assertion failure was identified. API 26/35 emulator lanes and the API 36 Shell permission probe passed; API 24 was still running at the last status check.
+- The next exact-head Android CI run includes bounded SDK package shards and a 90-second JVM thread-dump capture while the full-suite gate remains unchanged. A green run on the exact current PR head is still required.
+- Agent System Contracts passed on the previous context head after the snapshot/benchmark provenance refresh. The latest code/doc changes require a new snapshot refresh and exact-head validation before merge.
+- Do not merge #64 until Android CI and Agent System Contracts both pass on the same exact head and the full 39-file diff is reviewed. Then close former PRs #41/#44/#47/#49/#50/#56 as superseded.
+- Governance Issue #8 is complete. The live `Protect main` ruleset requires PRs and `Android CI / Required checks`, protects against deletion/non-fast-forward updates, and requires zero approving reviews. The owner performs the review; no external reviewer is a gate.
+- GitHub milestones are assigned: P0 (#7, #31), P1 (#4), P2 (#2, #5), P3 (#3), P4 (#38), and R&D (#10, #12–#15).
+- Issues #2/#5 are candidates for closure after PR #64 merges and their software acceptance evidence is verified. Issue #31 is also a closure candidate after the preflight changes merge and exact-head CI passes. Issue #4 remains open for the foreground-service lifecycle/API matrix; #7 remains open for the full API/dependency audit.
+- Issue #3 remains blocked on real, consented handset trials: at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route, with near-end and far-end intelligibility assessed separately. No `PASS_TWO_WAY` is claimed.
+- Issue #38 remains blocked on owner-provisioned production signing material and an owner-verified certificate fingerprint. No production APK signing, tag, GitHub Release, or publication is enabled.
+
 
 ## Execution plan and acceptance gates
 
@@ -49,8 +64,8 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 1. Preserve the distinction between strategy capability, runtime eligibility, arm-time session selection, observed signal, and verified device support.
 2. **Implemented:** best-eligible selection snapshots live Shizuku UserService/UID/attribution readiness when the user arms monitoring, then fixes the selected mode until disarm. Remaining work is adversarial service-level coverage for stale/disconnected readiness and exact backend invocation.
-3. **Partially implemented:** actual source and bounded diagnostic history are persisted. PR #56 adds a first-class structured fallback-reason field and recording-detail presentation; retain the timestamped event timeline for runtime source/permission changes.
-4. **Implemented in current base:** `MicrophoneDiagnosticsPolicyTest` covers callback registration/session filtering/silenced transitions/cleanup/failure retry, and API 35 callback instrumentation covers platform delivery. PR #56 adds structured fallback-reason persistence and UI coverage. Keep these checks required; physical two-way evidence remains separate.
+3. **Partially implemented:** actual source and bounded diagnostic history are persisted. Structured fallback reasons are persisted as a first-class nullable field and shown in recording details; retain the timestamped event timeline for runtime source/permission changes.
+4. **Implemented in current base:** `MicrophoneDiagnosticsPolicyTest` covers callback registration/session filtering/silenced transitions/cleanup/failure retry, and API 35 callback instrumentation covers platform delivery. Structured fallback-reason persistence and UI coverage are implemented. Keep these checks required; physical two-way evidence remains separate.
 5. Preserve the fail-closed contract: no implicit cross-mode substitution, no one-sided VOICE_UPLINK/DOWNLINK success path, and no Shizuku-to-MIC fallback.
 6. Ensure observability never logs phone numbers, ICCIDs, subscription IDs, call content, or audio samples.
 
@@ -93,8 +108,8 @@ The agent platform is tracked separately from product implementation under umbre
 
 ## Immediate next actions
 
-1. Finish the API 26/API 35 run on the current PR head and inspect the required-check aggregator.
-2. Resolve any real emulator failures without weakening the required gate.
-3. Audit the service lifecycle and WAV/Room recovery paths against P1, adding fault injection for process death during PCM write and after atomic WAV promotion but before Room commit.
-4. Verify the public SDK snapshot reflects build-enabled and actually installed backends, and that diagnostics preserve privacy-safe failure reason codes.
-5. Prepare the physical-device test protocol and begin evidence collection before any beta-support claims.
+1. Inspect the exact-head CI run: identify the first failing SDK test shard or analyze the captured JVM thread dump. Do not increase timeouts or weaken tests without evidence.
+2. Require the full SDK suite, app tests, lint, AAR/consumer smoke build, API 24/26/35 emulator lanes, API 36 Shell probe, and Required checks to pass on one exact PR #64 head.
+3. After #64 merges into the Foundation branch, close only the superseded PRs #41/#44/#47/#49/#50/#56; delete their branches only after checking that no remaining PR or workflow depends on them.
+4. Close #2/#5/#31 only after the merged implementation and exact-SHA acceptance evidence satisfy their software criteria. Continue #4 lifecycle coverage and #7 dependency/API audit in parallel.
+5. Keep #3 physical acceptance and #38 production signing as explicit product gates; do not infer either from CI.

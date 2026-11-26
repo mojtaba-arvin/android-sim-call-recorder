@@ -6,12 +6,15 @@ import android.os.Looper
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import com.mojtaba.simcallrecorder.domain.model.CallState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.yield
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -54,11 +57,19 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
             .setTelephonyManagerForSubscriptionId(subscriptionId, perSubscriptionManager)
 
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
+        val initialSnapshot = CompletableDeferred<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val dataSource = AndroidTelephonyCallStateDataSource(context)
         val collector = launch(Dispatchers.IO) {
-            dataSource.observeCallStateEvents().take(4).toList(events)
+            dataSource.observeCallStateEvents()
+                .onEach { initialSnapshot.complete(it) }
+                .take(4)
+                .toList(events)
         }
 
+        // Wait for the initial IDLE snapshot itself, not merely callback registration. This
+        // removes a race where the test could inject RINGING before the snapshot was captured.
+        val initial = withTimeout(10_000) { initialSnapshot.await() }
+        assertEquals(CallState.IDLE, initial.state)
         awaitModernRegistration(perSubscriptionManager)
         val telephonyShadow = shadowOf(perSubscriptionManager)
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_RINGING)
@@ -68,6 +79,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
         withTimeout(10_000) { collector.join() }
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
@@ -101,6 +113,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
         awaitModernRegistration(perSubscriptionManager)
         withTimeout(10_000) { collector.join() }
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertEquals(listOf(CallState.OFFHOOK), events.map { it.state })
         assertEquals(listOf(0), events.map { it.simSlotIndex })
@@ -138,6 +151,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         telephonyShadow.setCallState(TelephonyManager.CALL_STATE_IDLE)
         shadowOf(Looper.getMainLooper()).idle()
         withTimeout(10_000) { collector.join() }
+        shadowOf(Looper.getMainLooper()).idle()
 
         assertEquals(
             listOf(CallState.IDLE, CallState.RINGING, CallState.OFFHOOK, CallState.IDLE),
@@ -146,7 +160,7 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         assertTrue(events.all { it.simSlotIndex == 0 })
     }
 
-    @Test
+    @Test(timeout = 30_000)
     @Config(sdk = [31, 32, 33, 34, 35, 36, 37])
     fun multipleSubscriptions_keepTheirOwnSlotAssociation() = runBlocking {
         grantPhoneStatePermission()
@@ -169,6 +183,12 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
         shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(firstSubscriptionId, firstManager)
         shadowOf(defaultManager).setTelephonyManagerForSubscriptionId(secondSubscriptionId, secondManager)
 
+        // Seed each subscription before observation. The data source emits a snapshot after
+        // callback registration, so this deterministically verifies slot association without
+        // depending on interleaved asynchronous callback delivery from two Robolectric shadows.
+        shadowOf(firstManager).setCallState(TelephonyManager.CALL_STATE_RINGING)
+        shadowOf(secondManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
+
         val events = mutableListOf<com.mojtaba.simcallrecorder.domain.model.CallStateEvent>()
         val collector = launch(Dispatchers.IO) {
             AndroidTelephonyCallStateDataSource(context)
@@ -178,13 +198,27 @@ class AndroidTelephonyCallStateDataSourceRobolectricTest {
                 .toList(events)
         }
 
-        awaitModernRegistration(firstManager)
-        awaitModernRegistration(secondManager)
-        shadowOf(firstManager).setCallState(TelephonyManager.CALL_STATE_RINGING)
+        try {
+            // The data source creates its subscription listener on Dispatchers.Main.immediate.
+            // Robolectric's paused main looper must be pumped while both callbacks register.
+            val firstShadow = shadowOf(firstManager)
+            val secondShadow = shadowOf(secondManager)
+            withTimeout(5_000) {
+                while (
+                    firstShadow.getLastTelephonyCallback() == null ||
+                    secondShadow.getLastTelephonyCallback() == null
+                ) {
+                    shadowOf(Looper.getMainLooper()).idle()
+                    yield()
+                }
+            }
+            shadowOf(Looper.getMainLooper()).idle()
+            withTimeout(10_000) { collector.join() }
         shadowOf(Looper.getMainLooper()).idle()
-        shadowOf(secondManager).setCallState(TelephonyManager.CALL_STATE_OFFHOOK)
-        shadowOf(Looper.getMainLooper()).idle()
-        withTimeout(10_000) { collector.join() }
+        } finally {
+            collector.cancelAndJoin()
+            shadowOf(Looper.getMainLooper()).idle()
+        }
 
         assertEquals(2, events.size)
         assertEquals(

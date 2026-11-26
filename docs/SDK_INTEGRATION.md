@@ -5,7 +5,7 @@ The reusable recording engine is the `:callrecorder-sdk` Android Library module.
 ## Requirements
 
 - JDK 21 and Android SDK Platform 37
-- minSdk 26 (experimental compatibility floor; validate on target OEM devices)
+- minSdk 24 (experimental software compatibility floor; validate on target OEM devices)
 - Hilt in the host app and an `@HiltAndroidApp` Application
 
 ## Gradle
@@ -72,3 +72,14 @@ The SDK stores no phone number or SIM subscription identifier in new recording r
 
 
 For public API compatibility and release-tag semantics, see [SDK API and versioning policy](SDK_API_VERSIONING.md).
+
+
+## External consumer smoke test
+
+The `:sdk-consumer-smoke` application is a separate host-app module that consumes the generated Release AAR through a file dependency; it does not use `project(":callrecorder-sdk")` or import implementation packages. It compiles Hilt injection of `SimCallRecorderSdk`, public StateFlow/Flow streams, permission helpers, public recording modes, domain recording models, and service-intent factories. Android CI builds the AAR first and then assembles this consumer app.
+
+This is an in-repository clean-consumer compile gate. A third-party application in a separately maintained repository remains a useful additional compatibility check.
+
+## Consumer smoke acceptance boundary
+
+Definition of Done: the independent host module must compile against the generated Release AAR, use only public SDK/domain packages, and pass Hilt annotation processing. This is a compile-time compatibility gate only; it must not start capture or be cited as evidence of physical SIM audio, two-way near-end/far-end intelligibility, or `PASS_TWO_WAY`.

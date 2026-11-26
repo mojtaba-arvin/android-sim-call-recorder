@@ -37,6 +37,16 @@ android {
         unitTests.all {
             it.maxHeapSize = "2g"
             it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+            // Keep test-level progress in CI logs so a bounded timeout identifies the
+            // exact in-flight test instead of only reporting the Gradle task.
+            it.testLogging.events = setOf(
+                org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED,
+                org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED,
+                org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED,
+                org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED,
+            )
+            it.testLogging.exceptionFormat =
+                org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
         }
     }
 }

@@ -39,6 +39,20 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Test Android CI path classifier
+        run: python -m unittest discover -s scripts/tests -p 'test_classify_android_ci_changes.py' -v
+
+      - name: Verify multi-path classifier stdin handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(printf '%s\n' \
+            'README.md' \
+            'callrecorder-sdk/src/main/java/com/mojtaba/simcallrecorder/recording/shizuku/PrivilegedVoiceCallCaptureEngine.kt' \
+            | python scripts/classify_android_ci_changes.py)"
+          grep -Fxq 'code=true' <<< "$output"
+          grep -Fxq 'audio=true' <<< "$output"
+
       - name: Classify changed files
         id: filter
         env:
@@ -62,23 +76,9 @@ jobs:
             exit 0
           fi
 
-          code_changed=false
-          audio_changed=false
-          while IFS= read -r file; do
-            [[ -z "$file" ]] && continue
-            case "$file" in
-              *.md|docs/*|agent-system/*) ;;
-              *) code_changed=true ;;
-            esac
-            case "$file" in
-              callrecorder-sdk/src/main/java/com/mojtaba/simcallrecorder/recording/shizuku/*|callrecorder-sdk/src/test/java/com/mojtaba/simcallrecorder/recording/shizuku/*)
-                audio_changed=true
-                ;;
-            esac
-          done <<< "$changed_files"
-
-          echo "code=$code_changed" >> "$GITHUB_OUTPUT"
-          echo "audio=$audio_changed" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$changed_files" | python scripts/classify_android_ci_changes.py >> "$GITHUB_OUTPUT"
+          code_changed="$(grep '^code=' "$GITHUB_OUTPUT" | tail -n 1 | cut -d= -f2)"
+          audio_changed="$(grep '^audio=' "$GITHUB_OUTPUT" | tail -n 1 | cut -d= -f2)"
           echo "Code/build changes: $code_changed"
           echo "Shizuku call-audio changes: $audio_changed"
 
@@ -113,11 +113,23 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-37.2" "build-tools;37.0.0"
 
+      - name: Verify resolved AAR metadata and manifest merge
+        run: gradle --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata
+
       - name: Verify sample app consumes only the SDK public boundary
         run: bash scripts/verify-sdk-boundary.sh
 
+      - name: Test SDK release asset checksum verifier
+        run: bash scripts/tests/verify-sdk-release-assets-test.sh
+
       - name: Test fail-closed physical two-way evidence validator
         run: python3 -m unittest discover -s scripts/tests -p 'test_physical_device_evidence_validator.py' -v
+
+      - name: Test emulator logcat preflight fail-closed behavior
+        run: bash scripts/tests/run-emulator-logcat-preflight-test.sh
+
+      - name: Test bounded ADB restart for logcat recovery
+        run: bash scripts/tests/run-adb-logcat-restart-test.sh
 
       - name: Test production APK signature verifier
         run: bash scripts/tests/test-apk-signature-verifier.sh
@@ -135,8 +147,101 @@ jobs:
           fi
           grep -F "APP_RELEASE_SIGNING_INPUTS_MISSING" "$output"
 
-      - name: Run unit tests, lint, and assemble debug APK
-        run: gradle --continue --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata :callrecorder-sdk:testDebugUnitTest :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug
+      - name: Run focused multi-SIM snapshot regression
+        run: timeout 180s gradle --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.telephony.AndroidTelephonyCallStateDataSourceRobolectricTest.multipleSubscriptions_keepTheirOwnSlotAssociation'
+
+      # The full SDK suite previously stopped after the DAO tests with no completed
+      # report for stale-recovery or repository tests. Isolate these high-risk classes
+      # first so the CI log identifies the exact test if a worker blocks again.
+      - name: Isolate stale-recording recovery Robolectric tests
+        run: timeout 120s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.local.StaleRecordingRecoveryCallbackRobolectricTest'
+
+      - name: Isolate recording repository Robolectric tests
+        run: timeout 120s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.repository.DefaultCallRecordRepositoryRobolectricTest'
+
+      - name: Isolate Room DAO and migration Robolectric tests
+        run: timeout 180s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.data.local.CallRecordDaoRobolectricTest'
+
+      - name: Isolate AudioRecord HAL reliability tests
+        run: timeout 120s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest --tests 'com.mojtaba.simcallrecorder.recording.shizuku.AndroidVoiceCallCaptureEngineTest'
+
+      # The full SDK suite currently starts its test worker but emits no JUnit events
+      # before the 15-minute timeout. Run the remaining packages in bounded shards first;
+      # this identifies a class/package-level hang without weakening the full-suite gate.
+      - name: Isolate remaining SDK unit-test packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_shard() {
+            local name="$1"
+            shift
+            echo "::group::SDK unit-test shard: $name"
+            if timeout --signal=TERM --kill-after=15s 180s gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest "$@"; then
+              echo "SDK_TEST_SHARD_PASS=$name"
+            else
+              status="$?"
+              echo "::error::SDK_TEST_SHARD_FAIL=$name exit=$status"
+              exit "$status"
+            fi
+            echo "::endgroup::"
+          }
+
+          run_shard "core-and-audio" \
+            --tests 'com.mojtaba.simcallrecorder.core.permissions.CallPermissionManagerRobolectricTest' \
+            --tests 'com.mojtaba.simcallrecorder.data.audio.AndroidAudioRouteDataSourceRobolectricTest'
+
+          run_shard "telephony" \
+            --tests 'com.mojtaba.simcallrecorder.data.telephony.*'
+
+          run_shard "recording" \
+            --tests 'com.mojtaba.simcallrecorder.recording.AutomaticCallRecordingPolicyTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.CallCaptureManagerTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.CaptureStartupBarrierTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.MicrophoneDiagnosticsPolicyTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.NonCancellableCleanupTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.RecordingCoordinatorTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.RecordingFileFactoryTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.RecordingServiceStateMachineTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.WavPcmFileWriterTest'
+
+          run_shard "shizuku-controller-and-abort" \
+            --tests 'com.mojtaba.simcallrecorder.recording.shizuku.RecorderServiceControllerTest' \
+            --tests 'com.mojtaba.simcallrecorder.recording.shizuku.ShizukuCaptureAbortTest'
+
+      - name: Run SDK unit tests with bounded execution
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          timeout 15m gradle --info --console=plain :callrecorder-sdk:testDebugUnitTest &
+          gradle_timeout_pid="$!"
+
+          # Capture the worker's live stacks while the full suite is still blocked.
+          (
+            sleep 90
+            worker_pid="$(ps -eo pid=,comm=,args= | awk '$2 == "java" && /GradleWorkerMain/ && /Gradle Test Executor/ { print $1; exit }')"
+            if [[ -n "$worker_pid" ]]; then
+              echo "Capturing SDK test worker thread dump (pid=$worker_pid)."
+              "$JAVA_HOME/bin/jstack" "$worker_pid" > "$RUNNER_TEMP/sdk-test-worker-thread-dump.txt" || true
+            else
+              echo "No live Gradle test worker remained at the diagnostic checkpoint."
+            fi
+          ) &
+          watchdog_pid="$!"
+
+          if wait "$gradle_timeout_pid"; then
+            status=0
+          else
+            status="$?"
+          fi
+
+          kill "$watchdog_pid" 2>/dev/null || true
+          wait "$watchdog_pid" 2>/dev/null || true
+          exit "$status"
+
+      - name: Run app unit tests, lint, and assemble artifacts
+        run: gradle --continue --console=plain :callrecorder-sdk:checkDebugAarMetadata :app:checkDebugAarMetadata :app:testDebugUnitTest :callrecorder-sdk:lintDebug :app:lintDebug :callrecorder-sdk:assembleRelease :app:assembleDebug :sdk-consumer-smoke:assembleDebug
 
       - name: Upload unit test and lint reports
         if: always()
@@ -151,6 +256,7 @@ jobs:
             app/build/reports/lint-results-debug.*
             callrecorder-sdk/build/reports/lint-results-debug.*
             app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/**
+            ${{ runner.temp }}/sdk-test-worker-thread-dump.txt
           if-no-files-found: warn
           retention-days: 14
 
