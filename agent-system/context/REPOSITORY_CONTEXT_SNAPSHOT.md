@@ -1,22 +1,21 @@
-## Live state refresh — 2026-11-26T10:40:00Z
+## Live state refresh — 2026-11-26T10:45:00Z
 
-**Captured at:** `2026-11-26T10:40:00Z`  
+**Captured at:** `2026-11-26T10:45:00Z`  
 **Source branch:** `temp-main-from-origin`  
-**Source HEAD:** `22687031e2a7e73acb9947023433c86b4c4356ce`
+**Source HEAD:** `7a6acefc0033dc455792a36ad8dd6c9dc351cb23`
 
 - PR #65 is the sole integration candidate to `main` and remains **Draft**. PR #1 is the original Draft foundation PR. Both propose the same 164 changed files; do not merge them separately or in parallel.
-- At source head `22687031e2a7e73acb9947023433c86b4c4356ce`, the integration branch is 15 commits ahead of `bootstrap/native-android-foundation`. Its seven changed paths relative to that branch are limited to Android CI workflow/test diagnostics, agent context/benchmark refresh, and roadmap/CI/engineering-policy updates.
-- Android CI run #45800526963 on code head `16ae6e27b35f919584dc79c127f424d2b7724700` failed at the broad telephony Robolectric matrix after 360 seconds (exit 124), with no JUnit lifecycle events. This was not an assertion failure. API 24/26/35 emulator process-death lanes and the API 36 Shell permission probe passed on that head.
-- Commit `0f097a736aa61181d5ce466d62ea69aea969bb38` replaced the broad telephony shard with per-method/API bounded shards, added explicit timeouts to previously unbounded tests, and captures a JVM thread dump after 60 seconds for each stalled shard. No tests were removed, skipped, or weakened.
-- Commit `e9cb03f915507cf1650161706f35729346bfd4bb` fixed the artifact glob so per-shard thread dumps are included in the unit/lint artifact.
-- Android CI run #45802280980 on code head `0f097a736aa61181d5ce466d62ea69aea969bb38` passed the API 24/26/35 emulator lanes and API 36 Shell probe, but its SDK verification shard failed at `telephony-api31-35` after 180 seconds (exit 124). The watchdog captured a JVM thread dump; that run predated the artifact-path fix, so the dump was not included in its artifact.
-- Android CI run #45802848761 on head `0714dc6b9e67d15d1dceb49be37e52aeb6f1fd12` is running with the corrected artifact path. Run #45803466952 was queued on source head `22687031e2a7e73acb9947023433c86b4c4356ce`; this context/benchmark refresh follows it and requires another exact-head run. No full green result is claimed.
-- Agent System Contracts passed on prior context head `0714dc6b9e67d15d1dceb49be37e52aeb6f1fd12` (run #45802848696). Run #45803465625 was queued on the docs-updated source head; this refresh advances the snapshot/benchmark baseline to `22687031e2a7e73acb9947023433c86b4c4356ce` so the final exact-head validation can pass.
+- At source head `7a6acefc0033dc455792a36ad8dd6c9dc351cb23`, the integration branch is 17 commits ahead of `bootstrap/native-android-foundation`. Its seven changed paths relative to that branch are limited to Android CI workflow/test diagnostics, agent context/benchmark refresh, and roadmap/CI/engineering-policy updates.
+- Android CI run #45802848761 on head `0714dc6b9e67d15d1dceb49be37e52aeb6f1fd12` passed API 24/26/35 emulator process-death lanes and the API 36 Shell permission probe, but SDK verification failed at `telephony-api31-35`. The per-shard artifact contains a JVM thread dump.
+- The thread dump identifies the failure: Robolectric `LooperMode.PAUSED` runs the test body on the SDK main-looper thread. The test's `runBlocking` blocks that same thread while the observer needs `Dispatchers.Main.immediate` to register the telephony callback; the test worker waits in `Sandbox.runOnMainThread`. This is a test-thread deadlock, not a product assertion failure.
+- Commit `7a6acefc0033dc455792a36ad8dd6c9dc351cb23` switches only `AndroidTelephonyCallStateDataSourceRobolectricTest` to Robolectric 4.18.1 `LooperMode.INSTRUMENTATION_TEST`, which keeps the test thread distinct from the main Looper. The production implementation is unchanged. The method-level shards, bounded timeouts, 60-second jstack watchdog, and artifact upload remain in place.
+- Android CI run #45802848761 is complete with the SDK verification failure described above. A new full Android CI run is required on the updated exact head; no green code pipeline is claimed.
+- Agent System Contracts passed on prior context head `114d6b1d2e24cd384a7ac6a4c3034ca08a05a94e` (run #45803567525). This refresh advances the benchmark/snapshot baseline to `7a6acefc0033dc455792a36ad8dd6c9dc351cb23`; require another Agent System Contracts pass on the resulting exact PR head.
 - Active Protect main ruleset #27531148 requires the `Android CI / Required checks` context, a PR, and resolved review threads; it requires zero approving reviews and has no bypass actors. PR #65 currently has no review threads. Do not bypass these rules.
 - The physical-device gate remains unmet: Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Keep device/route support unknown; do not claim `PASS_TWO_WAY`.
 - Production APK signing is not configured: no protected signing Environment, keystore, or independently verified certificate fingerprint. Issue #38 remains open; no APK, tag, release, or publication is authorized.
 - Issues #2 and #7 retain software/API acceptance work; #10 and #12–#15 retain unfinished R&D deliverables. Do not claim all milestones complete or close issues solely to make the merge appear complete.
-- PR #65 metadata and the roadmap now describe code integration only and explicitly retain physical-device, production-signing, compatibility, and R&D gates. PR #65 remains Draft until those gates and the full diff review are complete.
+- PR #65 metadata and the roadmap describe code integration only and explicitly retain physical-device, production-signing, compatibility, and R&D gates. PR #65 remains Draft until those gates and the full diff review are complete.
 - Branches remain `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. No branch has been deleted.
 
 ### Merge decision
