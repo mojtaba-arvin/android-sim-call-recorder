@@ -71,11 +71,9 @@ The change classifier emits an `audio` flag for Shizuku UserService and its test
 
 ## Emulator ADB/logcat preflight
 
-Each emulator lane starts and verifies the ADB server, waits for exactly one online emulator and Android boot completion, and only then clears logcat. If the default logcat clear fails, the harness retries with an explicit all-buffer clear. If both fail, it restarts the ADB server once, re-verifies the online emulator, and retries both clears; if that bounded recovery also fails, it stops before Gradle instrumentation and does not continue with ambiguous pre-test logs. The process-death phase repeats the same fail-closed rule after its own ADB wait, so it cannot launch phase markers after a failed log reset. Stubbed shell regression tests prove neither harness starts instrumentation after this failure.
+Each emulator lane starts and verifies the ADB server, waits for exactly one online emulator and Android boot completion, and only then clears logcat. If the default clear fails, the harness retries with an explicit all-buffer clear. If both fail, it restarts the ADB server once, re-verifies the online emulator, then performs up to three bounded clear attempts (10-second command timeout, two-second backoff). If logcat still cannot be cleared, it stops before Gradle instrumentation and does not continue with ambiguous pre-test logs. The process-death phase repeats the same fail-closed rule after its own ADB wait. Stubbed shell regression tests cover both delayed recovery and persistent failure.
 
-Definition of Done: ADB server/device/boot checks are explicit and bounded; failure of both logcat clears after one bounded ADB restart emits ADB diagnostics and exits non-zero; instrumentation is never run after a failed preflight; the existing API 26/API 35 test lanes remain unchanged after successful preflight.
-
-
+Definition of Done: ADB server/device/boot checks are explicit and bounded; transient post-restart logcat failures receive only the bounded retries; persistent failure emits diagnostics and exits non-zero; instrumentation is never run after a failed preflight.
 ## SDK release asset integrity
 
 The manual SDK release workflow creates a SHA-256 manifest for the single Release AAR and verifies the manifest before uploading the build artifact. The isolated publish job verifies the downloaded AAR and manifest again before invoking the GitHub Release action. The verifier rejects missing or multiple AARs, empty or symlinked AARs, symlinked manifests, mismatched or malformed checksum entries, and unexpected top-level files. Its shell regression suite runs in Android CI; it validates packaging integrity only and does not sign an APK or publish a release.
@@ -85,10 +83,10 @@ Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects
 
 ## SDK unit-test localization and current acceptance run — 2026-11-26
 
-The earlier broad SDK telephony package shard exceeded its 360-second cap (exit 124) without JUnit lifecycle events. This was not an assertion failure. API 24/26/35 emulator process-death lanes and the API 36 Shell permission probe passed on the preceding code head.
+The broad SDK telephony package shard exceeded 360 seconds without JUnit lifecycle events. A per-shard JVM thread dump identified a Robolectric test-thread deadlock: `LooperMode.PAUSED` ran the test body on the SDK main Looper thread, while `runBlocking` blocked that thread and telephony observer registration needed `Dispatchers.Main.immediate`. The test class now uses Robolectric 4.18.1 `LooperMode.INSTRUMENTATION_TEST`, which keeps the test thread separate from the main Looper. The method-level telephony/API shards then passed on run #45804124155.
 
-The workflow now isolates each telephony test method/API group instead of running the entire telephony package as one opaque shard. Previously unbounded active-SIM and permission-denied tests have explicit timeouts. Every isolated SDK shard has a bounded timeout (120–240 seconds) and a JVM thread-dump watchdog at 60 seconds; per-shard dumps are uploaded with the unit/lint artifact. No tests were removed, skipped, or weakened. The full SDK suite retains its 15-minute bound and its own 90-second worker-thread diagnostic.
+The same run passed API 24 and API 35 emulator process-death lanes and the API 36 Shell permission probe, but API 26 failed its logcat preflight after the one-time ADB restart. Commit `2199bdc431d2e0d593c129b96d13ae6bf9668326` adds bounded post-restart retries and a regression test for delayed recovery; it does not weaken the fail-closed behavior.
 
-Android CI run #45802848761 is executing this method-level matrix on PR #65 head `0714dc6b9e67d15d1dceb49be37e52aeb6f1fd12`. Agent System Contracts passed on the same head (run #45802848696). The Android CI run is still in progress; no full green result is claimed.
+Android CI run #45804872586 is pending on the updated logcat-retry source head. No full green result is claimed. Agent System Contracts must pass on the final exact PR head after the context/benchmark baseline is refreshed.
 
 Do not merge PR #65 until Android CI and Agent System Contracts pass on the same exact PR head and the full diff is reviewed. Physical-device validation (#3) and production signing/governance (#38) remain separate P3/P4 acceptance gates. A canceled or superseded run is not a pass, and an API lane that is still running is not a pass.

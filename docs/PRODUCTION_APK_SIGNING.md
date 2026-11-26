@@ -22,15 +22,15 @@ Store the following as Environment secrets, never repository files, Gradle prope
 | `ANDROID_RELEASE_KEY_ALIAS` | Signing key alias |
 | `ANDROID_RELEASE_KEY_PASSWORD` | Private-key password |
 
-Store `ANDROID_RELEASE_CERT_SHA256` as an Environment variable (not a secret): the independently recorded SHA-256 fingerprint of the expected signing certificate. The fingerprint is public identity metadata, not key material.
+Store `ANDROID_RELEASE_CERT_SHA256` as an Environment variable (not a secret): the independently recorded SHA-256 fingerprint of the expected signing certificate. The fingerprint is public identity metadata, not key material. The workflow maps these Environment values to Gradle's `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and `EXPECTED_SIGNING_CERT_SHA256` inputs; the keystore path is a temporary runner-local path, not a secret.
 
 ## Required job separation
 
-1. **Build/test job:** runs tests, lint, and unsigned release APK assembly with read-only repository permissions. It has no access to signing secrets.
-2. **Sign/verify job:** runs only after the build succeeds, references the protected `android-production-signing` Environment, and has no publication permission. It must:
+1. **Build/test job:** runs unit/instrumentation tests, lint, SDK AAR and debug APK assembly with read-only repository permissions. It has no access to signing secrets and does not assemble or upload an unsigned release APK. The current Gradle release tasks intentionally fail closed without signing inputs.
+2. **Sign/verify job:** runs only after the build succeeds, references the protected `android-production-signing` Environment, and has no publication permission. It builds the release APK with protected signing inputs in that job, then verifies it. It must:
    - Fail immediately if any required secret or the expected fingerprint is missing/blank.
    - Decode the keystore into a unique runner-temporary directory with restrictive file permissions; never print secret values or keytool passwords.
-   - Sign the exact unsigned APK from the successful build artifact using the configured alias.
+   - Build and sign the release APK within the protected job using the configured alias; do not create or upload an unsigned release APK artifact.
    - Run `apksigner verify --verbose --print-certs` and reject invalid signatures, unexpected package/version metadata, or a certificate SHA-256 fingerprint that differs from `ANDROID_RELEASE_CERT_SHA256`.
    - Upload only the verified signed APK and its checksum. Never upload the keystore, intermediate files, or unsigned APK as a release asset.
    - Remove temporary key material on exit, including failure paths.

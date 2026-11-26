@@ -22,15 +22,16 @@ A recording is accepted as successful only when the file is finalized, persisted
 
 ## Operational readiness snapshot — 2026-11-26
 
-- Integration PR [#65](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/65) is the single Draft integration candidate against `main`. Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains Draft and proposes the same 164 changed files; do not merge both. PR #65 carries the consolidated tree plus CI/test diagnostics.
+- Integration PR [#65](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/65) is the single Draft integration candidate against `main`. Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains Draft and proposes the same 164 changed files; do not merge both.
 - The active `Protect main` ruleset requires PRs and `Android CI / Required checks`, prevents deletion/non-fast-forward updates, and requires zero approving reviews. No bypass actors are configured. The owner performs the full diff review; no external reviewer is required.
-- Android CI run #45800526963 on code head `16ae6e27b35f919584dc79c127f424d2b7724700` failed in the broad telephony Robolectric matrix after 360 seconds with no JUnit lifecycle events (exit 124; no assertion failure). API 24/26/35 emulator process-death lanes and the API 36 Shell permission probe passed on that head.
-- The test matrix is now split by individual telephony method/API group, with explicit JUnit and shard timeouts plus a 60-second JVM thread-dump watchdog. No tests are removed or skipped; the 15-minute full SDK suite remains required. Per-shard dumps are included in the unit/lint artifact.
-- Agent System Contracts passed on current PR head `0714dc6b9e67d15d1dceb49be37e52aeb6f1fd12` (run #45802848696). Android CI run #45802848761 is in progress on that same head; a running job is not a pass.
+- Android CI run #45804124155 on code head `7a6acefc0033dc455792a36ad8dd6c9dc351cb23` passed API 24 and API 35 emulator process-death lanes, the API 36 Shell permission probe, and the per-method SDK unit-test shards. The SDK/app verification job was still running app unit tests, lint, and artifact assembly at the time of this snapshot.
+- API 26 in run #45804124155 failed before instrumentation because logcat clearing still failed after the one-time ADB restart. This is an emulator diagnostics-boundary failure, not an app test assertion. Commit `2199bdc431d2e0d593c129b96d13ae6bf9668326` adds three bounded post-restart retries (10-second command timeout, two-second backoff) and a regression test for delayed recovery; it still fails closed if logcat cannot be cleared.
+- The earlier telephony Robolectric timeout was diagnosed from a JVM thread dump: `LooperMode.PAUSED` ran the test body on the SDK main Looper thread while `runBlocking` blocked it and the observer needed `Dispatchers.Main.immediate`. `LooperMode.INSTRUMENTATION_TEST` now separates the test thread from the main Looper. The method-level SDK shards passed on run #45804124155.
+- Android CI run #45804872586 is pending on the updated logcat-retry source head. Agent System Contracts must also pass on the final exact PR head after the context baseline refresh. No full green code pipeline is claimed.
 - Keep PR #65 Draft until exact-head Android CI, Agent System Contracts, full diff review, and all repository acceptance gates are satisfied.
-- Milestones/issues remain open where evidence is incomplete: #2/#7 software/API acceptance; #3 physical-device validation; #10/#12–#15 R&D deliverables; #38 production signing. Do not claim all milestones complete.
-- Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Require at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route, assess near-end and far-end intelligibility separately, and keep untested combinations unknown. No `PASS_TWO_WAY` is claimed.
-- Issue #38 remains blocked on owner-provisioned production signing material, a protected GitHub Environment, and an independently verified certificate fingerprint. No production APK, tag, GitHub Release, or publication is authorized.
+- Milestones/issues remain open where evidence is incomplete: #2/#7 software/API acceptance; #3 physical-device validation; #10/#12–#15 R&D deliverables; #38 production signing.
+- Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Require at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route; assess near-end and far-end intelligibility separately. No `PASS_TWO_WAY` is claimed.
+- Issue #38 remains blocked on owner-provisioned production signing material, a protected GitHub Environment, and an independently verified certificate fingerprint. No debug-signed APK, production APK, tag, GitHub Release, or publication is authorized.
 - Branches are `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. No branch has been deleted; preserve both integration branches until PR #65 is accepted and PR #1 is reconciled.
 
 ## Execution plan and acceptance gates
@@ -40,7 +41,7 @@ A recording is accepted as successful only when the file is finalized, persisted
 1. **Implemented, awaiting proof on the current head:** emulator-runner command now preserves the Gradle exit code while collecting best-effort diagnostics in one physical shell command.
 2. **In progress:** complete API 24, API 26 and API 35 instrumentation on the current PR head; classify test failures separately from runner/bootstrap failures. A running job is not a pass.
 3. Keep a single required-check aggregator. Documentation-only changes may skip expensive Android jobs, but every code/build/workflow change must execute the full required pipeline.
-4. Keep PR concurrency cancellation for superseded commits, but do not interpret cancellation as a code failure.
+4. Let active emulator runs finish (`cancel-in-progress: false`); GitHub retains the newest pending run for the concurrency group. A canceled or superseded run is not a pass.
 5. Upload unit, lint, instrumentation, and emulator diagnostics even when tests fail.
 6. Keep dependency and action versions pinned or managed by Dependabot; review action runtime deprecation warnings.
 7. Add the Gradle Wrapper only after validating the pinned Gradle distribution and wrapper checksum policy.
@@ -83,13 +84,13 @@ A recording is accepted as successful only when the file is finalized, persisted
 ### P4 — Beta distribution and SDK quality
 
 1. Complete CI and release asset verification before creating a beta tag.
-2. Publish a versioned debug-signed sideload APK, SDK AAR, and SHA-256 checksums through GitHub Releases.
-3. Clearly label debug signing and sideload-only status; do not imply Play Store readiness.
+2. Publish the SDK AAR and SHA-256 checksum only after explicit manual approval. Do not publish an app APK until production signing is configured, its certificate fingerprint is independently verified, and physical-device acceptance is complete.
+3. Never use a debug-signed APK as a release asset. Clearly label any approved production-signed APK as sideload-only; do not imply Play Store readiness.
 4. Validate installation, upgrade, downgrade policy, data preservation, uninstall behavior, and APK checksum on at least one physical device.
 5. Document SDK integration, public API stability, permissions, lifecycle ownership, and supported Android floor.
 6. Keep the PR Draft until all required gates are met; merge via a reviewed merge commit that preserves the existing commit history, never push directly to `main`.
 
-**Exit criteria:** a reproducible beta release can be downloaded and verified; SDK consumer integration works; release notes disclose experimental audio support honestly.
+**Exit criteria:** the SDK AAR release is reproducible and verifiable after manual approval; any app APK is production-signed, fingerprint-verified, and accepted on the documented physical-device matrix. Release notes disclose experimental audio support honestly.
 
 ## R&D agent system
 
@@ -106,8 +107,8 @@ The agent platform is tracked separately from product implementation under umbre
 
 ## Immediate next actions
 
-1. Inspect the exact-head Android CI run #45802848761, especially the per-method telephony shards and uploaded JVM thread dumps. Diagnose the first failing method/API level; do not extend timeouts or weaken tests without evidence.
+1. Inspect Android CI run #45804872586 on the updated source, especially the bounded ADB/logcat retries and the telephony method-level shards. Fail closed if a clean logcat boundary cannot be established.
 2. Require the full SDK suite, app tests, lint, AAR/consumer smoke build, API 24/26/35 emulator lanes, API 36 Shell probe, Agent System Contracts, and Required checks to pass on the final PR #65 head.
 3. Keep PR #65 Draft while the P3 physical-device evidence and P4 production-signing/governance gates remain incomplete. Do not infer either from CI.
-4. After all explicit gates are satisfied, merge PR #65 with a merge commit to preserve the existing history; then close PR #1 as superseded and delete `bootstrap/native-android-foundation` and `temp-main-from-origin` only after confirming no dependent PRs/workflows remain.
-5. Keep #2, #3, #7, #10, #12–#15, and #38 open until their own acceptance evidence is met. Do not close milestones just to make the branch list or roadmap appear complete.
+4. After all explicit gates are satisfied, merge PR #65 with a merge commit to preserve existing history; then close PR #1 as superseded and delete `bootstrap/native-android-foundation` and `temp-main-from-origin` only after confirming no dependent PRs/workflows remain.
+5. Keep #2, #3, #7, #10, #12–#15, and #38 open until their own acceptance evidence is met.
