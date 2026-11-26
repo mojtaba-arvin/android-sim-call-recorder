@@ -2,6 +2,7 @@ import json
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -114,6 +115,21 @@ class ExecutionLedgerTests(unittest.TestCase):
             self.assertNotIn("Bearer do-not-store", stored)
             self.assertNotIn("+000000000", stored)
             self.assertIn("[REDACTED]", stored)
+
+    def test_concurrent_writers_preserve_a_single_valid_hash_chain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "execution.jsonl"
+            ledger = ExecutionLedger(path)
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                list(executor.map(
+                    lambda index: ledger.append({"task_id": "issue-2", "action": f"event-{index}"}),
+                    range(32),
+                ))
+
+            entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(32, len(entries))
+            self.assertEqual(ledger.verify(), entries[-1]["entry_hash"])
+            self.assertEqual(32, len({entry["entry_hash"] for entry in entries}))
 
     def test_tampering_is_detected_before_a_later_append(self):
         with tempfile.TemporaryDirectory() as directory:
