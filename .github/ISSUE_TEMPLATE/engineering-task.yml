@@ -1,0 +1,60 @@
+name: Engineering task
+description: Track one atomic, evidence-verifiable engineering or R&D task.
+title: ""
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep this issue focused on one outcome. Search existing issues before opening a duplicate.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and current behavior
+      description: Link relevant code, docs, issues, PRs, and evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: State one observable result and explicit non-goals.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Use checkable criteria; distinguish automated checks from physical-device evidence.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and blockers
+      description: Link blocking/related issues and identify required human or device access.
+  - type: textarea
+    id: verification
+    attributes:
+      label: Test and evidence plan
+      description: Include positive, negative, failure, race, and privacy cases as applicable.
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Primary risk area
+      options:
+        - Product correctness / lifecycle
+        - Android platform / OEM compatibility
+        - Audio capture / device evidence
+        - Security / privacy / consent
+        - Licensing / dependency provenance
+        - CI / repository governance
+        - R&D agent infrastructure
+    validations:
+      required: true
