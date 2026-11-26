@@ -50,3 +50,6 @@ jobs:
 
       - name: Validate agent instructions, tool grants, and benchmark provenance
         run: python scripts/validate_agent_system.py
+
+      - name: Test orchestrator state machine and execution ledger
+        run: python -m unittest discover -s agent-system/tests -p 'test_*.py' -v
