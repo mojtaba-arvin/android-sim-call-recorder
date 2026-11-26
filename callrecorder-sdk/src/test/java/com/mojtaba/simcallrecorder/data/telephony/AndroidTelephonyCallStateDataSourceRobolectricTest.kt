@@ -33,7 +33,10 @@ import org.robolectric.shadows.ShadowSubscriptionManager
 import org.robolectric.util.ReflectionHelpers
 
 @RunWith(RobolectricTestRunner::class)
-@LooperMode(LooperMode.Mode.PAUSED)
+// The observer registers Telephony callbacks through Dispatchers.Main.immediate. Robolectric's
+// PAUSED mode runs the test body on that same main thread, so runBlocking deadlocks registration.
+// INSTRUMENTATION_TEST keeps the test thread distinct from the main Looper thread.
+@LooperMode(LooperMode.Mode.INSTRUMENTATION_TEST)
 class AndroidTelephonyCallStateDataSourceRobolectricTest {
 
     private val context: Context
