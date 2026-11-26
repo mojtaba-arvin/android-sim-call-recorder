@@ -1,3 +1,24 @@
+## Live state refresh — 2026-11-26T12:10:00Z
+
+**Captured at:** `2026-11-26T12:10:00Z`  
+**Source branch:** `temp-main-from-origin`  
+**Source HEAD:** `21d637006a0a5a574e3895452739ff867424b5b1`
+
+- PR #65 remains the sole integration candidate to `main`; PR #1 remains closed as superseded.
+- The Protect main ruleset no longer requires approval or approval of the last push. Required review-thread resolution remains enabled; no unresolved threads were found.
+- The ruleset expects the check context `Android CI / Required checks`. The Android CI workflow aggregator job was renamed to that exact context in commit `21d637006a0a5a574e3895452739ff867424b5b1`; fresh CI is running on the new head.
+- Android CI on preceding head `cb0d38e88830579f371dcc141692026869e6ee41` passed all seven jobs (run #45813155920). Agent System Contracts also passed on that preceding head (run #45813156157). These results are not evidence for the new workflow-name change.
+- Issue #3 remains open: no physical handset evidence yet. Emulator/API permission tests do not establish intelligible near-end and far-end audio on real cellular calls.
+- Issue #38 remains open: production signing Environment, secrets, and independently verified certificate fingerprint are not configured. Do not distribute APKs, tag, or publish a release.
+- Issues #2/#7 and R&D #10/#12–#15 remain open; do not claim all milestones complete.
+- Keep integration branches until PR #65 merges; inspect dependents before deleting obsolete branches.
+
+### Merge decision
+
+After the current exact-head Android CI and Agent System Contracts checks pass, verify that GitHub recognizes the exact required check context and merge PR #65 with a merge commit. Keep physical-device and production-signing acceptance as separate post-merge release gates.
+
+---
+
 ## Live state refresh — 2026-11-26T11:44:00Z
 
 **Captured at:** `2026-11-26T11:44:00Z`  
