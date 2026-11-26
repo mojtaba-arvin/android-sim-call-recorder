@@ -1,16 +1,17 @@
-## Live state refresh — 2026-11-26T04:15:18.685Z
+## Live state refresh — 2026-11-26T04:19:18.108Z
 
-**Captured at:** `2026-11-26T04:15:18.685Z`  
+**Captured at:** `2026-11-26T04:19:18.108Z`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `3660c4a2e95a03c5708a13b64b1aec65da21c20e`
+**Source HEAD:** `cd4182f524af803dbfe575a2add6c2a66bfdabc5`
 
-- PR #64 is Draft/open, base `bootstrap/native-android-foundation`, head `3660c4a2e95a03c5708a13b64b1aec65da21c20e`. PR #1 is Draft/open, base `main`, head `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged.
-- Android CI run #885 on prior head `23fff325e9353d05329e8cd5e7abcd125ce4b3ae`: SDK full-suite step failed after 15 minutes (exit 124); Gradle Test Executor started but no JUnit lifecycle events or complete full-suite report were produced. API 26 and API 35 emulator jobs and API 36 Shell permission probe passed; API 24 was still running at this capture.
-- The focused Multi-SIM, stale-recovery, repository, DAO/migration, and AudioRecord tests passed on the prior run. This is not proof that the full SDK suite passes.
-- Android CI run #886 is pending on this source head. It adds bounded package-level SDK test shards and captures a JVM thread dump after 90 seconds if the full suite stalls; the 15-minute full-suite gate remains intact.
-- Agent System Contracts run #154 failed only because the benchmark snapshot still referenced `d45eabd` after this CI workflow changed. This refresh pins both the snapshot and benchmark to `3660c4a2e95a03c5708a13b64b1aec65da21c20e`; the next exact-head Agent System Contracts run must pass before merge.
-- No external Reviewer is required: the owner explicitly removed that prerequisite, and the active main ruleset requires zero approving reviews. PR #1 remains Draft pending physical-device acceptance and production signing/governance gates.
-- GitHub milestones and issue assignments are in place: P0 (#7, #31), P1 (#4), P2 (#2, #5), P3 (#3), P4 (#38), R&D (#10, #12–#15). The milestone setup mapped these to milestone IDs 1–6 respectively.
+- PR #64 is Draft/open, base `bootstrap/native-android-foundation`, head `cd4182f524af803dbfe575a2add6c2a66bfdabc5`. PR #1 is Draft/open against `main`, head `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged.
+- Android CI run #885 on prior head `23fff325e9353d05329e8cd5e7abcd125ce4b3ae`: SDK full-suite step failed after 15 minutes (exit 124); the Gradle Test Executor started but no JUnit lifecycle events or complete full-suite report were produced. API 26/35 emulator lanes and API 36 Shell permission probe passed; API 24 was still running at the last status check.
+- Focused Multi-SIM, stale-recovery, repository, DAO/migration and AudioRecord tests passed on the prior run. This is not evidence that the full SDK suite passes.
+- The latest observed Android CI run was queued on the previous head. The current head adds bounded SDK package shards and a 90-second JVM thread-dump capture while preserving the 15-minute full-suite gate. Recheck the new exact-head run before merge.
+- The consumer smoke app now uses Hilt-supported `ComponentActivity` and declares the AndroidX Activity dependency. Documentation now agrees on minSdk 24 and the API 24–30 legacy telephony path.
+- Agent System Contracts passed on the previous context head; this refresh pins the benchmark and context to `cd4182f524af803dbfe575a2add6c2a66bfdabc5`. The new exact-head Agent System Contracts run must pass before merge.
+- No external Reviewer is required: the owner explicitly removed that prerequisite, and the active main ruleset requires zero approving reviews. The owner performs the full diff review. PR #1 remains Draft pending physical-device acceptance and production signing/governance gates.
+- GitHub milestones and issue assignments are in place: P0 (#7, #31), P1 (#4), P2 (#2, #5), P3 (#3), P4 (#38), R&D (#10, #12–#15). The milestone setup mapped these to IDs 1–6 respectively.
 - PRs #41, #44, #47, #49, #50, and #56 remain open until PR #64 merges. Do not delete their branches before that merge and a fresh dependency check.
 - Product acceptance remains separate from CI: no physical two-way SIM audio, `PASS_TWO_WAY`, production APK signing, tag, GitHub Release, or publication is claimed.
 
