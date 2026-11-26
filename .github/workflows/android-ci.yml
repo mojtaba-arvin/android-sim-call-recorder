@@ -444,7 +444,7 @@ jobs:
             bash -c 'set -euo pipefail; shell_uid="$(adb shell id -u | tr -d "\\r")"; echo "adb shell uid=$shell_uid"; test "$shell_uid" = "2000"; package_dump="$(adb shell dumpsys package com.android.shell | tr -d "\\r")"; echo "$package_dump" | grep -F "android.permission.CALL_AUDIO_INTERCEPTION: granted=true"; echo "$package_dump" | grep -F "android.permission.CAPTURE_AUDIO_OUTPUT: granted=true"'
 
   required:
-    name: Required checks
+    name: Android CI / Required checks
     if: always()
     needs: [changes, verify, instrumented, android16-permission-probe]
     runs-on: ubuntu-24.04
