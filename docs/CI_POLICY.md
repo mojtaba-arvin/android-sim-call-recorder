@@ -83,17 +83,12 @@ The manual SDK release workflow creates a SHA-256 manifest for the single Releas
 Definition of Done: the verifier accepts an unchanged one-AAR bundle and rejects tampering, duplicate AARs, extra files, missing manifests, malformed manifest paths, empty AARs, and symlinked assets. The publish job cannot reach the release action unless post-download verification succeeds.
 
 
-## SDK unit-test localization and current acceptance run — 2026-11-25
+## SDK unit-test localization and current acceptance run — 2026-11-26
 
-The full SDK Robolectric suite previously exceeded its 15-minute bound after only three class reports were written. Do not treat that as a test assertion failure, and do not raise the timeout blindly.
+On integration head `23fff325e9353d05329e8cd5e7abcd125ce4b3ae`, the full SDK unit-test task exceeded its 15-minute bound (exit 124). Gradle reported that Test Executor 1 started, but no JUnit STARTED/PASSED/FAILED lifecycle events or complete full-suite report were produced. No individual assertion failure has been identified.
 
-The workflow now runs, in order:
-1. The focused Multi-SIM callback/snapshot regression.
-2. The complete `StaleRecordingRecoveryCallbackRobolectricTest` class under a 120-second bound.
-3. The complete `DefaultCallRecordRepositoryRobolectricTest` class under a 120-second bound.
-4. The full SDK unit suite with Gradle `--info` logging and a 15-minute bound, so the last started/completed test is visible in logs.
-5. App unit tests, lint, Release AAR, debug APK and the external SDK consumer smoke build.
+The focused Multi-SIM, stale-recovery, repository, DAO/migration, and AudioRecord HAL tests passed. API 26 and API 35 emulator lanes and the API 36 Shell permission probe passed; the API 24 emulator lane was still running at the last status check. These results are from a prior head and do not satisfy the current exact-head gate.
 
-On exact head `aa5a2845446d400d171b29e83201413de5878738`, the first three focused checks have passed; the full suite and API 24/26/35 emulator lanes are still running in [run #45632360523](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45632360523). API 36 Shell permission probe has passed. No merge decision is made until all required jobs and the aggregator pass on the latest head.
+The current integration branch adds bounded package-level SDK test shards (180 seconds per shard) and captures a JVM thread dump 90 seconds into the full-suite run if a worker remains alive. The 15-minute full-suite requirement is unchanged. This is diagnostic instrumentation, not a timeout increase or test exclusion.
 
-Efficiency rule: do not rerun successful emulator jobs for a unit-only failure. Retry only transient failed jobs when the source SHA is unchanged; after any source/workflow change, require a new exact-head run.
+Do not merge PR #64 until Android CI and Agent System Contracts pass on the same exact PR head. A canceled or superseded run is not a pass, and an API lane that is still running is not a pass.

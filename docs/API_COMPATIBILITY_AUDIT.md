@@ -8,7 +8,7 @@ This is a software/API compatibility audit. It does not claim cellular call-audi
 ## Declared floor and dependency metadata
 
 - App and SDK `minSdk`: API 24 (Android 7.0), pending the exact-head API 24 emulator gate.
-- Shizuku API/provider dependency: 13.1.5. The upstream Shizuku build config declares minSdk 24; the API/provider AAR metadata is still checked by Gradle rather than inferred from the project source.
+- Shizuku API/provider dependency: 13.1.5. The upstream Shizuku build config declares minSdk 24; the product selector intentionally gates privileged Shizuku capture to API 26+. API 24–25 remain app/SDK install-floor targets for non-Shizuku paths. The API/provider AAR metadata is still checked by Gradle rather than inferred from the project source.
 - The actual resolved AAR metadata remains authoritative. CI explicitly runs `:callrecorder-sdk:checkDebugAarMetadata` and `:app:checkDebugAarMetadata` with minSdk 24; any dependency declaring a higher minSdk fails the required gate.
 - AndroidX, Compose, Room, Media3, Hilt, DataStore, and test dependency constraints are checked from resolved Gradle metadata by those tasks, not guessed from artifact names.
 
