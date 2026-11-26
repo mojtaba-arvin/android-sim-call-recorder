@@ -1,17 +1,16 @@
-## Live state refresh — 2026-11-26T11:16:00Z
+## Live state refresh — 2026-11-26T11:18:00Z
 
-**Captured at:** `2026-11-26T11:16:00Z`  
+**Captured at:** `2026-11-26T11:18:00Z`  
 **Source branch:** `temp-main-from-origin`  
-**Source HEAD:** `1fb6d694bed7ed51c79926d4f21dfafac55c7a08`
+**Source HEAD:** `f4a2fe156935ffcf56572e3d01f3c748baeeace6`
 
-- PR #65 is the sole Draft integration candidate to `main`, and its exact source head passed all software gates. PR #1 was closed as superseded after verifying PR #65 contains all 164 files from #1 plus two CI retry helper/test files (166 total). Its historical discussion remains available.
-- At source head `1fb6d694bed7ed51c79926d4f21dfafac55c7a08`, the integration branch was 26 commits ahead of `bootstrap/native-android-foundation`. The current branch after the docs refresh is 27 commits ahead. Its 15 changed paths relative to the Foundation branch are limited to Android CI/test diagnostics, the agent context/benchmark, release/CI/device/engineering docs, and bounded ADB/Maven retry helpers/tests.
-- Android CI [run #45806524184](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524184) passed **all seven jobs** on exact source head `1fb6d694bed7ed51c79926d4f21dfafac55c7a08`: SDK/app tests, lint, SDK Release AAR, consumer smoke, diagnostic debug APK assembly, API 24/26/35 emulator instrumentation, API 36 Shell permission probe, and Required checks.
-- Agent System Contracts [run #45806524167](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524167) passed on the same exact source head.
-- API 35 logs contain `WINDOW1_READY`, `WINDOW1_RECOVERED`, `WINDOW2_STOP_REQUESTED`, `WINDOW2_KILL_AFTER_WAV_PROMOTION`, `RECOVERY_CAPTURE_RACE_PASSED`, and `PROCESS_DEATH_SUITE_PASSED`. These are emulator/software lifecycle results, not physical SIM or two-way cellular-audio evidence.
+- PR #65 is the sole Draft integration candidate to `main`. PR #1 is closed as superseded after verifying PR #65 contains all 164 files from #1 plus two CI retry helper/test files (166 total); its historical discussion remains available.
+- At source head `f4a2fe156935ffcf56572e3d01f3c748baeeace6`, the integration branch is 27 commits ahead of `bootstrap/native-android-foundation`. The current PR head `7968cd983bd023329f4a9a908ee094006cc55e6c` adds only the agent context/benchmark refresh after that source head.
+- Android CI [run #45806524184](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524184) passed all seven jobs on prior exact source head `1fb6d694bed7ed51c79926d4f21dfafac55c7a08`: SDK/app tests, lint, SDK Release AAR, consumer smoke, diagnostic debug APK assembly, API 24/26/35 emulator instrumentation, API 36 Shell permission probe, and Required checks.
+- Agent System Contracts [run #45806524167](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45806524167) passed on that same prior exact source head.
+- The API 35 emulator log contains `WINDOW1_READY`, `WINDOW1_RECOVERED`, `WINDOW2_STOP_REQUESTED`, `WINDOW2_KILL_AFTER_WAV_PROMOTION`, `RECOVERY_CAPTURE_RACE_PASSED`, and `PROCESS_DEATH_SUITE_PASSED`. These are emulator/software lifecycle results, not physical SIM or two-way cellular-audio evidence.
 - The telephony Robolectric deadlock was fixed with Robolectric 4.18.1 `LooperMode.INSTRUMENTATION_TEST`. ADB/logcat preflight uses bounded post-restart retries and remains fail-closed. The Maven retry helper uses bounded dependency-resolution retries without `--refresh-dependencies`; its shell regression test passed.
-- PR #1 is closed as superseded; `bootstrap/native-android-foundation` remains as ancestry until PR #65 is accepted and merged. PR #65 remains Draft/unmerged because product acceptance is incomplete, not because an independent reviewer is expected.
-- The active Protect main ruleset #27531148 requires the `Android CI / Required checks` context and resolved review threads, but zero approving reviews; no bypass actors are configured. The owner authorized the integration work; the full source diff audit and P3/P4 gates remain.
+- PR #65 remains Draft/unmerged because product acceptance is incomplete, not because an independent reviewer is expected. The active Protect main ruleset #27531148 requires the Required checks context and resolved review threads, but zero approving reviews; no bypass actors are configured.
 - The physical-device gate remains unmet: Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Require at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route; assess near-end and far-end intelligibility separately. No `PASS_TWO_WAY` is claimed.
 - Production APK signing is not configured: no protected signing Environment, keystore, or independently verified certificate fingerprint. Issue #38 remains open; no debug-signed APK, production APK, tag, release, or publication is authorized.
 - Issues #2 and #7 retain software/API acceptance work; #10 and #12–#15 retain unfinished R&D deliverables. Do not claim all milestones complete or close issues solely to make the merge appear complete.
@@ -20,9 +19,9 @@
 
 ### Merge decision
 
-- Do not merge while the P3 physical-device and P4 production-signing/governance acceptance gates are unmet, even though software CI and Agent System Contracts are green.
+- Do not merge while the P3 physical-device and P4 production-signing/governance acceptance gates are unmet, even though software CI and Agent System Contracts passed on the prior exact head.
 - Do not infer physical cellular audio support from emulator evidence or fabricate signing material.
-- After all explicit gates and the full source diff audit are satisfied, merge PR #65 using a merge commit to preserve existing history; then delete obsolete integration branches only after checking dependent PRs/workflows.
+- Require fresh Android CI and Agent System Contracts on current PR head `7968cd983bd023329f4a9a908ee094006cc55e6c`; then, after all explicit gates and the full source diff audit are satisfied, merge PR #65 using a merge commit and delete obsolete integration branches only after checking dependents.
 
 ---
 
