@@ -299,7 +299,8 @@ jobs:
             app/build/reports/lint-results-debug.*
             callrecorder-sdk/build/reports/lint-results-debug.*
             app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/**
-            ${{ runner.temp }}/sdk-test-worker-thread-dump.txt\n            ${{ runner.temp }}/sdk-shard-*-thread-dump.txt
+            ${{ runner.temp }}/sdk-test-worker-thread-dump.txt
+            ${{ runner.temp }}/sdk-shard-*-thread-dump.txt
           if-no-files-found: warn
           retention-days: 14
 
