@@ -4,7 +4,7 @@ The reusable recording engine is the `:callrecorder-sdk` Android Library module.
 
 ## Requirements
 
-- JDK 21 and Android SDK Platform 37
+- JDK 21 and Android SDK Platform 37.2 (compile SDK minor API level 2)
 - minSdk 24 (experimental software compatibility floor; validate on target OEM devices)
 - Hilt in the host app and an `@HiltAndroidApp` Application
 
