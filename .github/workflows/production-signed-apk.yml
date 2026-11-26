@@ -75,11 +75,18 @@ jobs:
           }
           echo "ANDROID_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
 
+      - name: Add Android build-tools to PATH
+        run: echo "$ANDROID_HOME/build-tools/37.0.0" >> "$GITHUB_PATH"
+
       - name: Build production-signed APK
         run: gradle --no-daemon --console=plain :app:assembleRelease
 
       - name: Verify APK signature and approved certificate fingerprint
         run: bash scripts/verify-apk-signature.sh app/build/outputs/apk/release/app-release.apk
+
+      - name: Remove ephemeral signing keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/production-signing.keystore"
 
       - name: Upload signed internal APK artifact (no GitHub Release)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
