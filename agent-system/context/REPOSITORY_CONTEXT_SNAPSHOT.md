@@ -1,3 +1,61 @@
+# Live state refresh — 2026-11-26T15:13:00Z
+
+**Captured at:** `2026-11-26T15:13:00Z`  
+**Source branch:** `feat/agent-state-machine-ledger`  
+**Source HEAD:** `dade127fd9982ead7debc2ba01a326e6a870a860`
+
+## Current repository and active work
+
+- Main at capture: `3dcb5e5d289ace18a5066621742cee5b72d9061b` (PR #74 signed-artifact workflow merged). The current feature branch includes this mainline through normal two-parent merge commit `dade127fd9982ead7debc2ba01a326e6a870a860`; no force-push/rebase was used.
+- PR #65 remains merged with merge commit `458c46f926667a8cce61998149f700ee8940d0e3`.
+- PRs #66, #67, #68, #69, #70, #71, #72, #73, #74, and #75 are merged. PR #71 added Compose BOM 2026.11.01 and API 37.2 compile SDK; PR #72 upgraded AGP to 9.5.3; PR #73 added Shizuku arm-to-OFFHOOK regression; PR #74 added manual-only production signing artifact workflow; PR #75 refreshed context/benchmark provenance.
+- Open implementation PRs:
+  - #76 — this PR: A1.2 task state machine and A1.5 append-only execution ledger. The branch now includes current main through merge commit `dade127fd9982ead7debc2ba01a326e6a870a860`; this context snapshot and benchmark are pinned to that source. Fresh exact-head Agent System Contracts and Android CI are pending.
+  - #77 — service-start adapter regression for #2; head `8d9eb29782a26417a8de8ed3c376b6b768cb762c`. Android CI run #45845997384 was in progress; it tests that the production service adapter snapshots capabilities at actual start time, uses the exact backend, and never starts microphone fallback after Shizuku readiness disappears.
+- PR #74's exact-head Android CI passed after retrying the API 26 ADB/logcat runner failure (run #45843692939, attempt 2). The signing workflow is present on main but has not been dispatched; no secrets were accessed and no APK/tag/release was published.
+- The stale `bootstrap/native-android-foundation` branch is absent. Current branches correspond to main and open PRs; do not delete any open-PR branch.
+
+## Product backlog disposition
+
+- #7 (API/minSdk compatibility audit) is closed as completed after exact integration CI evidence on PR #65. API 24 remains the intentional software installation floor; API 23 is not supported because Shizuku 13.1.5 and unguarded `TelephonyManager.createForSubscriptionId()` require API 24. This does not imply physical-device audio support.
+- #2 remains open pending PR #77's exact-head CI and acceptance review. PR #73 covers coordinator-level arm-to-OFFHOOK revalidation; PR #77 extracts and tests the exact service start adapter. Keep physical two-way support separate under #3.
+- #3 remains open and blocked on physical handset/SIM/carrier/consented participant evidence. There are zero physical handset acceptance records. Emulator and Robolectric results never prove near-end/far-end cellular intelligibility.
+- #38 remains open and blocked on owner-provided production keystore, passwords/alias, independently verified certificate SHA-256 fingerprint, and configured `production-signing` GitHub Environment. PR #74 adds an internal signed-artifact workflow but does not publish. No app APK tag or release may be created before #3 and #38 gates are satisfied.
+- R&D umbrella #10 and phase issues #12–#15 remain open. A0 artifacts and A1.1 tool capability inventory are on main. PR #76 implements A1.2/A1.5 local-only primitives; A1.3 GitHub issue/PR synchronization and A1.4 planner remain unimplemented.
+- PR #76 runtime behavior: task transitions are explicit and fail closed; blocked tasks retain a safe resume state and require refreshed context; failed validation requires a root-cause note and revised plan; done requires every acceptance criterion to have evidence. The ledger is JSONL, append-only, SHA-256 hash chained, serialized for concurrent writers, verified before append, and redacts sensitive-key values. These modules do not call GitHub or mutate issues/PRs.
+- Do not claim all milestones complete. Some GitHub milestones are incorrectly closed while their issues remain open (see governance section).
+
+## Milestone governance requiring owner CLI action
+
+The connector exposes issue updates but not milestone state mutation. These milestone IDs are closed despite open work:
+- #3 — P2 Capture Strategy and Diagnostics (Issue #2 remains open pending PR #77 review)
+- #4 — P3 Physical Device Acceptance (Issue #3 remains open)
+- #5 — P4 Beta Distribution and Signing (Issue #38 remains open)
+- #6 — R&D Agent System (Issues #10 and #12–#15 remain open)
+
+Reopen them with:
+```bash
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/3 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/4 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/5 -f state=open
+gh api -X PATCH repos/mojtaba-arvin/android-sim-call-recorder/milestones/6 -f state=open
+```
+P0 milestone #1 is complete after #7 closed. Do not reopen it.
+
+## Durable operating decisions
+
+- Preserve main protection and required checks; never bypass branch rules or simulate an independent reviewer.
+- Use merge commits and preserve history. Never force-push, reset, or squash existing work.
+- Merge only after all required checks pass on the exact PR head; classify transient dependency-rate-limit failures and retry only failed jobs.
+- Never claim a CI pass from queued, in-progress, skipped unexpectedly, cancelled, stale, or different-SHA evidence.
+- Keep API 24 as the software floor; keep API 23 out of scope unless both Shizuku and telephony paths are deliberately isolated/replaced.
+- Keep targetSdk 36 until Android 17 background-audio/foreground-service hardening is validated.
+- No APK publication, tag, or release until physical two-way evidence (#3), production signing (#38), and explicit owner approval are complete.
+- Do not upload call audio, personal identifiers, keystore files, or secret values to GitHub issues/PRs/artifacts.
+- When a user-owned secret/environment or physical-device action blocks progress, provide exact `gh` commands and preserve the safe resume point.
+
+---
+
 # Live state refresh — 2026-11-26T15:02:00Z
 
 **Captured at:** `2026-11-26T15:02:00Z`  
