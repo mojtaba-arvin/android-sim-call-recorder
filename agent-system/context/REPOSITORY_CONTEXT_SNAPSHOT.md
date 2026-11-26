@@ -1,15 +1,16 @@
-## Live state refresh — 2026-11-26T04:19:18.108Z
+## Live state refresh — 2026-11-26T04:21:09.357Z
 
-**Captured at:** `2026-11-26T04:19:18.108Z`  
+**Captured at:** `2026-11-26T04:21:09.357Z`  
 **Source branch:** `work/foundation-batch-2026-11-25`  
-**Source HEAD:** `cd4182f524af803dbfe575a2add6c2a66bfdabc5`
+**Source HEAD:** `647f01133785edf4fa6d50b1b616eceaccb60fcf`
 
-- PR #64 is Draft/open, base `bootstrap/native-android-foundation`, head `cd4182f524af803dbfe575a2add6c2a66bfdabc5`. PR #1 is Draft/open against `main`, head `05ef7b73fa123590569bf65663b997da31d9a3d3`; `main` remains unchanged.
-- Android CI run #885 on prior head `23fff325e9353d05329e8cd5e7abcd125ce4b3ae`: SDK full-suite step failed after 15 minutes (exit 124); the Gradle Test Executor started but no JUnit lifecycle events or complete full-suite report were produced. API 26/35 emulator lanes and API 36 Shell permission probe passed; API 24 was still running at the last status check.
-- Focused Multi-SIM, stale-recovery, repository, DAO/migration and AudioRecord tests passed on the prior run. This is not evidence that the full SDK suite passes.
-- The latest observed Android CI run was queued on the previous head. The current head adds bounded SDK package shards and a 90-second JVM thread-dump capture while preserving the 15-minute full-suite gate. Recheck the new exact-head run before merge.
-- The consumer smoke app now uses Hilt-supported `ComponentActivity` and declares the AndroidX Activity dependency. Documentation now agrees on minSdk 24 and the API 24–30 legacy telephony path.
-- Agent System Contracts passed on the previous context head; this refresh pins the benchmark and context to `cd4182f524af803dbfe575a2add6c2a66bfdabc5`. The new exact-head Agent System Contracts run must pass before merge.
+- PR #64 is Draft/open, base `bootstrap/native-android-foundation`, head `647f01133785edf4fa6d50b1b616eceaccb60fcf`. PR #1 remains Draft/open against `main`; `main` is unchanged.
+- Android CI run #885 on prior head `23fff325e9353d05329e8cd5e7abcd125ce4b3ae`: SDK full-suite step failed after 15 minutes (exit 124); Gradle Test Executor started but emitted no JUnit lifecycle events or complete full-suite report. API 26/35 emulator lanes and API 36 Shell permission probe passed; API 24 remained in progress at the last status check.
+- Focused Multi-SIM, stale-recovery, repository, DAO/migration and AudioRecord tests passed on that prior run. Do not infer that the full SDK suite passes.
+- Latest code changes add bounded SDK package shards and a 90-second JVM thread-dump capture without weakening the 15-minute full-suite gate. The consumer smoke app now extends Hilt-supported `ComponentActivity`; the direct AndroidX Activity dependency is declared.
+- App and SDK install floor is minSdk 24 (experimental). The privileged Shizuku capture selector intentionally gates the strategy to API 26+; API 24–25 are install-floor targets for non-Shizuku paths. Documentation and the selector comment now agree.
+- Room persists a bounded timestamped diagnostics history (up to 2,000 characters) and a separate nullable structured `fallbackReason`; architecture/lifecycle documentation now reflects this. No raw call audio or call content is stored in diagnostics.
+- The latest observed Android CI run was queued on the previous head and was superseded by the current changes. Recheck the exact-head run after this snapshot refresh. Agent System Contracts passed on the previous context head; this refresh pins the benchmark and context to `647f01133785edf4fa6d50b1b616eceaccb60fcf`, and the next exact-head Agent System Contracts run must pass.
 - No external Reviewer is required: the owner explicitly removed that prerequisite, and the active main ruleset requires zero approving reviews. The owner performs the full diff review. PR #1 remains Draft pending physical-device acceptance and production signing/governance gates.
 - GitHub milestones and issue assignments are in place: P0 (#7, #31), P1 (#4), P2 (#2, #5), P3 (#3), P4 (#38), R&D (#10, #12–#15). The milestone setup mapped these to IDs 1–6 respectively.
 - PRs #41, #44, #47, #49, #50, and #56 remain open until PR #64 merges. Do not delete their branches before that merge and a fresh dependency check.
@@ -19,7 +20,7 @@
 
 1. **P0 — CI reliability and compatibility:** identify the full SDK test-worker stall from bounded shards and the JVM thread dump; complete the API/dependency audit in #7. Do not raise timeouts or weaken tests without evidence.
 2. **P1 — Lifecycle and integrity:** complete the foreground-service/API 28–37 lifecycle matrix and adversarial cases in #4.
-3. **P2 — Strategy and diagnostics:** after PR #64 is merged and verified, close #2/#5 only if their software acceptance criteria are satisfied; physical support remains in #3.
+3. **P2 — Strategy and diagnostics:** close #2/#5 only after exact-head software acceptance criteria are satisfied; physical support remains in #3.
 4. **P3 — Physical acceptance:** #3 requires real, consented incoming/outgoing calls and independently assessed near/far speech for each exact device/build/carrier/SIM/route combination.
 5. **P4 — Beta/signing:** #38 remains blocked until real production signing material and certificate fingerprint are configured and verified. Do not publish a debug APK as production.
 6. **R&D:** A0 is complete; A1–A4 remain staged under #10 and #12–#15.
