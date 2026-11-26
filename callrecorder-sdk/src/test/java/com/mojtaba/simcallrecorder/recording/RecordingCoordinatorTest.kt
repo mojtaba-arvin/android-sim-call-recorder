@@ -140,6 +140,26 @@ class RecordingCoordinatorTest {
     }
 
     @Test
+    fun startRevalidatesShizukuAfterAnEarlierEligibleSelection() = runBlocking {
+        val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
+        val coordinator = RecordingCoordinator(setOf(shizuku, microphone), shizukuCaptureEnabled = true)
+
+        val armedSelection = coordinator.selectBest(profile(shizuku = true))
+        assertEquals(RecordingMode.SHIZUKU_VOICE_CALL, armedSelection?.mode)
+
+        val failure = runCatching {
+            // The live UserService may disappear between arming and the actual OFFHOOK start.
+            coordinator.start(request(RecordingMode.SHIZUKU_VOICE_CALL), profile(shizuku = false))
+        }.exceptionOrNull()
+
+        assertTrue(failure is UnsupportedOperationException)
+        assertTrue(failure?.message.orEmpty().contains("Start Shizuku"))
+        assertEquals("The stale selection must not start privileged capture.", 0, shizuku.startCount)
+        assertEquals("A failed privileged start must never switch to microphone capture.", 0, microphone.startCount)
+    }
+
+    @Test
     fun shizukuModeRejectsPermissionWithoutLiveAuthorizedUserService() = runBlocking {
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
         val coordinator = RecordingCoordinator(setOf(shizuku), shizukuCaptureEnabled = true)
