@@ -1,0 +1,209 @@
+package com.mojtaba.simcallrecorder.recording
+
+import com.mojtaba.simcallrecorder.domain.model.CallState
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.File
+
+class CallCaptureManagerTest {
+
+    @Test
+    fun authorizedShizukuIsRecommendedAheadOfMicrophoneStrategies() {
+        val profile = profile(shizuku = true, microphone = true)
+        val availability = CaptureStrategySelector.evaluate(profile)
+
+        assertEquals(RecordingMode.SHIZUKU_VOICE_CALL, availability.first { it.recommended }.mode)
+        assertTrue(availability.first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }.available)
+        assertTrue(availability.first { it.mode == RecordingMode.SPEAKERPHONE_MIC }.available)
+    }
+
+    @Test
+    fun shizukuUserServiceSupportsApi26WhenTheServerWasStartedByRootOrComputerAdb() {
+        listOf(26, 27, 28, 29, 30).forEach { sdk ->
+            val option = CaptureStrategySelector.evaluate(
+                profile(sdk = sdk, shizuku = true),
+            ).first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }
+
+            assertTrue("Shizuku should be eligible on API $sdk when its live UserService is ready", option.available)
+        }
+    }
+
+    @Test
+    fun shizukuUserServiceIsUnavailableBelowTheAppsApiMinimum() {
+        val option = CaptureStrategySelector.evaluate(
+            profile(sdk = 25, shizuku = true),
+        ).first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }
+
+        assertFalse(option.available)
+        assertTrue(option.reason.contains("API 26"))
+    }
+
+    @Test
+    fun shizukuCanBeRecommendedOnAndroidEightWhenItIsAlreadyRunning() {
+        val option = CaptureStrategySelector.evaluate(
+            profile(sdk = 26, shizuku = true, microphone = false),
+        ).first { it.recommended }
+
+        assertEquals(RecordingMode.SHIZUKU_VOICE_CALL, option.mode)
+    }
+
+    @Test
+    fun speakerphoneAcousticModeIsPreferredOverRestrictedAccessibilityExperiment() {
+        val profile = profile(microphone = true, accessibility = true)
+        val availability = CaptureStrategySelector.evaluate(profile)
+
+        assertEquals(
+            RecordingMode.SPEAKERPHONE_MIC,
+            availability.first { it.recommended }.mode,
+        )
+        assertTrue(availability.first { it.mode == RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION }.available)
+        assertFalse(availability.first { it.mode == RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION }.recommended)
+    }
+
+    @Test
+    fun voiceRecognitionRemainsAnOemExperimentWithoutInventingVendorSupport() {
+        val profile = profile(
+            manufacturer = "UnlistedVendor",
+            model = "Prototype X",
+            microphone = true,
+        )
+        val availability = CaptureStrategySelector.evaluate(profile)
+        val oem = availability.first { it.mode == RecordingMode.OEM_VOICE_RECOGNITION }
+
+        assertTrue(oem.available)
+        assertEquals(RecordingMode.SPEAKERPHONE_MIC, availability.first { it.recommended }.mode)
+        assertTrue(oem.displayName.contains("Platform microphone experiment"))
+        assertFalse(oem.recommended)
+        assertTrue(oem.reason.contains("UnlistedVendor Prototype X"))
+        assertFalse(oem.reason.contains("supported"))
+    }
+
+    @Test
+    fun microphoneStrategiesAreUnavailableWithoutRecordAudioPermission() {
+        val availability = CaptureStrategySelector.evaluate(profile())
+        assertTrue(availability.none { it.available })
+        assertNull(availability.firstOrNull { it.recommended })
+    }
+
+    @Test
+    fun accessibilityStrategyRequiresAndroidTenOrNewerAndExplicitEnablement() {
+        val oldSdk = CaptureStrategySelector.evaluate(profile(sdk = 28, microphone = true, accessibility = true))
+        val notEnabled = CaptureStrategySelector.evaluate(profile(microphone = true, accessibility = false))
+
+        assertFalse(oldSdk.first { it.mode == RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION }.available)
+        assertFalse(notEnabled.first { it.mode == RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION }.available)
+    }
+
+    @Test
+    fun voipNotificationIsOnlyAContextHintAndDoesNotCreateAnAudioStrategy() {
+        val withoutHint = CaptureStrategySelector.evaluate(
+            profile(microphone = true, accessibility = true, voipCall = false),
+        )
+        val withHint = CaptureStrategySelector.evaluate(
+            profile(microphone = true, accessibility = true, voipCall = true),
+        )
+
+        assertEquals(withoutHint.map { it.mode to it.available }, withHint.map { it.mode to it.available })
+        assertTrue(
+            withHint.first { it.mode == RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION }
+                .reason.contains("direct playback capture is not implied"),
+        )
+    }
+
+    @Test
+    fun managerSelectsRecommendedWhenPreferredStrategyIsNotAvailable() {
+        val backends = RecordingMode.entries
+            .filter { it != RecordingMode.STANDARD }
+            .map { FakeStrategy(it) }
+            .toSet()
+        val manager = CallCaptureManager(backends, shizukuCaptureEnabled = true)
+        val profile = profile(microphone = true, accessibility = false)
+
+        val selected = manager.selectBest(
+            profile = profile,
+            preferred = RecordingMode.ACCESSIBILITY_VOICE_RECOGNITION,
+        )
+
+        assertSame(
+            backends.first { it.mode == RecordingMode.SPEAKERPHONE_MIC },
+            selected,
+        )
+    }
+
+    @Test
+    fun bestAvailableSelectionPrefersReadyShizukuOverAcousticCapture() {
+        val shizuku = FakeStrategy(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeStrategy(RecordingMode.SPEAKERPHONE_MIC)
+        val manager = CallCaptureManager(setOf(shizuku, microphone), shizukuCaptureEnabled = true)
+
+        val selected = manager.selectBest(profile(shizuku = true, microphone = true))
+
+        assertSame(shizuku, selected)
+    }
+
+    @Test
+    fun unavailablePreferredShizukuNeverFallsBackToMicrophone() {
+        val shizuku = FakeStrategy(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeStrategy(RecordingMode.SPEAKERPHONE_MIC)
+        val manager = CallCaptureManager(setOf(shizuku, microphone), shizukuCaptureEnabled = true)
+
+        val selected = manager.selectBest(
+            profile = profile(microphone = true, shizuku = false),
+            preferred = RecordingMode.SHIZUKU_VOICE_CALL,
+        )
+
+        assertNull(selected)
+    }
+
+    @Test
+    fun managerDoesNotSelectShizukuWhenFeatureFlagIsDisabled() {
+        val shizuku = FakeStrategy(RecordingMode.SHIZUKU_VOICE_CALL)
+        val manager = CallCaptureManager(setOf(shizuku), shizukuCaptureEnabled = false)
+
+        assertNull(manager.strategyFor(RecordingMode.SHIZUKU_VOICE_CALL))
+        assertFalse(
+            manager.availability(profile(shizuku = true))
+                .first { it.mode == RecordingMode.SHIZUKU_VOICE_CALL }.available,
+        )
+    }
+
+    @Test
+    fun explicitSelectionIsResolvedWithoutChangingToAnotherCaptureSource() {
+        val selectedMic = FakeStrategy(RecordingMode.SPEAKERPHONE_MIC)
+        val manager = CallCaptureManager(
+            setOf(selectedMic, FakeStrategy(RecordingMode.SHIZUKU_VOICE_CALL)),
+            shizukuCaptureEnabled = true,
+        )
+
+        assertSame(selectedMic, manager.strategyFor(RecordingMode.SPEAKERPHONE_MIC))
+    }
+
+    private fun profile(
+        sdk: Int = 35,
+        manufacturer: String = "Example",
+        model: String = "Reference",
+        microphone: Boolean = false,
+        shizuku: Boolean = false,
+        accessibility: Boolean = false,
+        notificationListener: Boolean = false,
+        voipCall: Boolean = false,
+    ) = CaptureDeviceProfile(
+        sdkInt = sdk,
+        manufacturer = manufacturer,
+        model = model,
+        recordAudioGranted = microphone,
+        shizukuAuthorized = shizuku,
+        accessibilityServiceEnabled = accessibility,
+        notificationListenerEnabled = notificationListener,
+        voipCallNotificationPresent = voipCall,
+    )
+
+    private class FakeStrategy(override val mode: RecordingMode) : CallAudioRecordingBackend {
+        override suspend fun start(request: RecordingStartRequest): File = File("fake-${mode.name}.wav")
+        override suspend fun stop(): FinalizedAudioCapture? = null
+    }
+}

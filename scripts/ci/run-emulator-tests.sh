@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+mkdir -p app/build/reports/emulator
+test_log="app/build/reports/emulator/connected-tests.log"
+
+adb_diagnostics() {
+  echo "==> ADB diagnostics"
+  adb version || true
+  adb devices -l || true
+  pgrep -af 'adb|emulator' || true
+}
+
+echo "==> Starting and verifying the ADB server"
+if ! adb start-server; then
+  echo "ADB server could not start; refusing to run instrumentation without a device." >&2
+  adb_diagnostics
+  exit 1
+fi
+
+echo "==> Waiting for the emulator device"
+if ! timeout 120 adb wait-for-device; then
+  echo "Emulator did not become available through ADB within 120 seconds." >&2
+  adb_diagnostics
+  exit 1
+fi
+
+echo "==> Verifying exactly one connected emulator"
+if ! adb devices -l | awk 'NR > 1 && $1 ~ /^emulator-/ && $2 == "device" { count++ } END { exit (count == 1 ? 0 : 1) }'; then
+  echo "Expected exactly one online emulator in ADB; refusing to run instrumentation." >&2
+  adb_diagnostics
+  exit 1
+fi
+if ! adb get-state >/dev/null 2>&1; then
+  echo "ADB default target is not in the device state." >&2
+  adb_diagnostics
+  exit 1
+fi
+
+boot_completed=""
+for attempt in $(seq 1 60); do
+  boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+  if [[ "$boot_completed" == "1" ]]; then
+    break
+  fi
+  sleep 2
+done
+if [[ "$boot_completed" != "1" ]]; then
+  echo "Emulator connected but Android did not report sys.boot_completed=1 within 120 seconds." >&2
+  adb_diagnostics
+  exit 1
+fi
+
+echo "==> Emulator ready: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+source scripts/ci/clear-logcat-fail-closed.sh
+if ! clear_logcat_fail_closed; then
+  echo "Unable to establish a clean logcat boundary after emulator readiness; refusing to run instrumentation with ambiguous diagnostics." >&2
+  adb_diagnostics
+  exit 1
+fi
+
+# The connected instrumentation task may uninstall the target APK on completion.
+# Retry only transient dependency-resolution failures; do not force-refresh cached plugin metadata.
+source scripts/ci/gradle-maven-retry.sh
+if run_gradle_with_maven_rate_limit_retry "$test_log" :app:connectedDebugAndroidTest; then
+  test_exit_code=0
+else
+  test_exit_code=$?
+fi
+
+if [[ "$test_exit_code" -eq 0 ]]; then
+  echo "==> Re-establishing ADB after connected instrumentation tests" >> "$test_log"
+  if ! adb start-server >> "$test_log" 2>&1; then
+    echo "ADB server could not be restarted after instrumentation tests." >> "$test_log"
+    adb_diagnostics >> "$test_log" 2>&1
+    test_exit_code=1
+  elif ! timeout 120 adb wait-for-device >> "$test_log" 2>&1; then
+    echo "Emulator did not reconnect through ADB after instrumentation tests." >> "$test_log"
+    adb_diagnostics >> "$test_log" 2>&1
+    test_exit_code=1
+  fi
+fi
+
+if [[ "$test_exit_code" -eq 0 ]]; then
+  apk="app/build/outputs/apk/debug/app-debug.apk"
+  if [[ ! -s "$apk" ]]; then
+    echo "Debug APK is missing after connected instrumentation tests." >> "$test_log"
+    test_exit_code=1
+  elif ! adb install -r "$apk" >> "$test_log" 2>&1; then
+    echo "Unable to reinstall the debug APK before process-death tests." >> "$test_log"
+    test_exit_code=1
+  elif ! adb shell pm path com.mojtaba.simcallrecorder >/dev/null 2>&1; then
+    echo "Debug APK installation did not produce the expected application package." >> "$test_log"
+    test_exit_code=1
+  elif bash -x scripts/run-process-death-emulator-tests.sh >> "$test_log" 2>&1; then
+    test_exit_code=0
+  else
+    test_exit_code=$?
+  fi
+fi
+
+cat "$test_log"
+adb logcat -d -t 5000 > app/build/reports/emulator/logcat.txt || true
+adb shell dumpsys activity services > app/build/reports/emulator/services.txt || true
+adb shell dumpsys audio > app/build/reports/emulator/audio.txt || true
+exit "$test_exit_code"
