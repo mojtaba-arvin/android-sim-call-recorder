@@ -1,21 +1,22 @@
-## Live state refresh — 2026-11-26T10:52:00Z
+## Live state refresh — 2026-11-26T11:02:00Z
 
-**Captured at:** `2026-11-26T10:52:00Z`  
+**Captured at:** `2026-11-26T11:02:00Z`  
 **Source branch:** `temp-main-from-origin`  
-**Source HEAD:** `371af1d274d97252561cd37d5f296ed55d2f1f92`
+**Source HEAD:** `64cf57f619c1d07a0315ac7efe086f626b617fbf`
 
-- PR #65 is the sole integration candidate to `main` and remains **Draft**. PR #1 is the original Draft foundation PR. Both propose the same 164 changed files; do not merge them separately or in parallel.
-- At source head `371af1d274d97252561cd37d5f296ed55d2f1f92`, the integration branch is 20 commits ahead of `bootstrap/native-android-foundation`. Its 12 changed paths relative to that branch are limited to Android CI/test diagnostics, the agent context/benchmark, release/CI/device/engineering docs, and the bounded ADB logcat retry helper/test.
-- Android CI run #45804124155 on code head `7a6acefc0033dc455792a36ad8dd6c9dc351cb23` passed API 24 and API 35 emulator process-death lanes, the API 36 Shell permission probe, and the per-method SDK unit-test shards. API 26 failed before instrumentation because logcat clearing still failed after the one-time ADB restart. The SDK/app verification job was still running app unit tests, lint, and artifact assembly at this snapshot; do not claim it passed.
-- The telephony test-thread deadlock is resolved by Robolectric 4.18.1 `LooperMode.INSTRUMENTATION_TEST`: the test thread is separate from the SDK main Looper, so `runBlocking` no longer blocks the `Dispatchers.Main.immediate` callback-registration path. The method-level SDK shards passed on run #45804124155.
-- Commit `2199bdc431d2e0d593c129b96d13ae6bf9668326` adds three bounded post-restart logcat-clear retries (10-second command timeout, two-second backoff) and a regression test for delayed recovery. It preserves fail-closed behavior if a clean diagnostic boundary cannot be established.
-- Android CI run #45805158394 is pending on source head `371af1d274d97252561cd37d5f296ed55d2f1f92`; run #45804872586 was superseded before it could become authoritative. Require the latest exact-head run to pass all emulator, SDK, app, lint, AAR, and Required-check jobs.
-- Agent System Contracts run #45805158806 is in progress on this docs-updated source head. This refresh advances the context/benchmark baseline to `371af1d274d97252561cd37d5f296ed55d2f1f92`; require another Agent System Contracts pass on the resulting exact PR head.
+- PR #65 is the sole Draft integration candidate to `main`. PR #1 remains the original Draft foundation PR. Both propose the same 164 changed files; do not merge them separately or in parallel.
+- At source head `64cf57f619c1d07a0315ac7efe086f626b617fbf`, the integration branch is 23 commits ahead of `bootstrap/native-android-foundation`. Its 15 changed paths are limited to Android CI/test diagnostics, the agent context/benchmark, release/CI/device/engineering docs, and bounded ADB/Maven retry helpers/tests.
+- Android CI run #45805234778 on PR head `7c9647f43a1e67f531c4cce1d65d5e5ec4874b0c` passed the full SDK/app verification job, API 24 and API 26 emulator lanes, and the API 36 Shell permission probe. API 35 failed during UTP/JUnit dependency resolution after Maven Central returned HTTP 429; its one retry forced `--refresh-dependencies` and then failed KSP plugin resolution. The Required checks aggregator therefore failed.
+- The API 26 logcat issue is resolved: the bounded post-restart logcat retries passed on run #45805234778. Persistent inability to establish a clean diagnostic boundary still fails closed.
+- The telephony Robolectric deadlock is resolved by Robolectric 4.18.1 `LooperMode.INSTRUMENTATION_TEST`; the method-level SDK shards passed. The thread dump showed `LooperMode.PAUSED` running the test body on the SDK main Looper while `runBlocking` blocked the `Dispatchers.Main.immediate` callback-registration path.
+- Commit `64cf57f619c1d07a0315ac7efe086f626b617fbf` adds a bounded Gradle dependency-resolution retry helper: up to three retries with 15/30/45-second backoff, no `--refresh-dependencies`, and retries only for Maven/UTP/plugin dependency-resolution errors. Application/test assertion failures are not retried. A shell regression test covers transient recovery and non-transient fail-fast behavior.
+- Android CI run #45806090974 is in progress on source head `64cf57f619c1d07a0315ac7efe086f626b617fbf`; it is the first run to exercise the new Maven retry helper. No pass is claimed until all API 24/26/35, API 36, SDK/app/lint/AAR, and Required-check jobs finish successfully.
+- Agent System Contracts run #45806090975 failed because the context/benchmark baseline was stale after the CI helper change. This refresh advances the baseline to `64cf57f619c1d07a0315ac7efe086f626b617fbf`; require another Agent System Contracts pass on the resulting exact PR head.
 - Active Protect main ruleset #27531148 requires the `Android CI / Required checks` context, a PR, and resolved review threads; it requires zero approving reviews and has no bypass actors. PR #65 currently has no review threads. Do not bypass these rules.
 - The physical-device gate remains unmet: Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Keep device/route support unknown; do not claim `PASS_TWO_WAY`.
 - Production APK signing is not configured: no protected signing Environment, keystore, or independently verified certificate fingerprint. Issue #38 remains open; no debug-signed APK, production APK, tag, release, or publication is authorized.
 - Issues #2 and #7 retain software/API acceptance work; #10 and #12–#15 retain unfinished R&D deliverables. Do not claim all milestones complete or close issues solely to make the merge appear complete.
-- PR #65 metadata and the roadmap retain physical-device, production-signing, compatibility, and R&D gates. The release docs now map protected Environment secrets to the Gradle inputs, prohibit debug APK release assets, and keep the SDK AAR path separate.
+- The roadmap and release docs now align on manual AAR approval, no debug APK release assets, protected production signing, and physical-device acceptance before app APK distribution.
 - Branches remain `main`, `bootstrap/native-android-foundation`, and `temp-main-from-origin`. No branch has been deleted.
 
 ### Merge decision
