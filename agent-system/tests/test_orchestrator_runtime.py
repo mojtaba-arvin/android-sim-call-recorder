@@ -32,6 +32,8 @@ class TaskStateMachineTests(unittest.TestCase):
         task = self.machine.transition(task, TaskState.PR_REVIEW)
         with self.assertRaises(StateTransitionError):
             self.machine.complete(task)
+        with self.assertRaises(StateTransitionError):
+            self.machine.transition(task, TaskState.DONE)
 
         task = self.machine.record_acceptance(
             task, "CAPABILITY",
