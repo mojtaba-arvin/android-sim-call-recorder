@@ -25,6 +25,7 @@ android {
 dependencies {
     // Deliberately consume the built Release AAR, not project(":callrecorder-sdk").
     implementation(files(rootProject.file("callrecorder-sdk/build/outputs/aar/callrecorder-sdk-release.aar")))
+    implementation(libs.androidx.activity)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.kotlinx.coroutines.core)

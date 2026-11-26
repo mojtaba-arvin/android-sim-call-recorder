@@ -65,7 +65,7 @@ See [Android call-audio constraints](ANDROID_CALL_AUDIO_CONSTRAINTS.md), [the co
 
 ## Multi-SIM and diagnostics
 
-- Telephony observation uses subscription-specific `TelephonyManager` instances: `TelephonyCallback` on API 31+ and `PhoneStateListener` on API 28–30.
+- Telephony observation uses subscription-specific `TelephonyManager` instances: `TelephonyCallback` on API 31+ and `PhoneStateListener` on API 24–30.
 - The call-state stream observes `OnSubscriptionsChangedListener` and reconciles per-subscription listeners when SIMs are inserted, removed, disabled, or moved between slots. Removed subscription listeners are cancelled; a slot remap restarts the listener so emitted events retain the current slot association. Subscription IDs remain in-memory keys and are never exposed in domain events.
 - Subscription identifiers are operational inputs only; do not display or persist them. Present the SIM slot label where appropriate.
 - Audio endpoint inventory comes from `AudioManager.getDevices(GET_DEVICES_ALL)`; on API 31+, the selected communication endpoint is available through `getCommunicationDevice`.

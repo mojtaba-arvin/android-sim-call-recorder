@@ -315,10 +315,10 @@ fun RecordingPlayerScreen(record: CallRecord, onBack: () -> Unit, onDelete: () -
                     Text(it, style = MaterialTheme.typography.bodySmall)
                 }
                 record.fallbackReason?.let {
-                Text("Fallback reason", style = MaterialTheme.typography.labelLarge)
-                Text(it, style = MaterialTheme.typography.bodySmall)
-            }
-            record.captureDiagnostics?.let {
+                    Text("Fallback reason", style = MaterialTheme.typography.labelLarge)
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+                record.captureDiagnostics?.let {
                     Text("Audio input history", style = MaterialTheme.typography.labelLarge)
                     Text(it, style = MaterialTheme.typography.bodySmall)
                 }

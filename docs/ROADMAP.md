@@ -1,6 +1,6 @@
 # Engineering Roadmap
 
-Last reviewed: 2026-11-25
+Last reviewed: 2026-11-26
 
 ## Product outcome
 
@@ -20,19 +20,19 @@ A recording is accepted as successful only when the file is finalized, persisted
 - API 24 is an experimental software compatibility floor, not a promise of cellular audio compatibility.
 - The agent workflow is governed by the repository-root `AGENTS.md`; detailed history-derived process lessons are in [Engineering Execution Policy](ENGINEERING_EXECUTION_POLICY.md).
 
-## Operational readiness snapshot — 2026-11-25
+## Operational readiness snapshot — 2026-11-26
 
-- Current integration PR: [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64), Draft/open, targeting `bootstrap/native-android-foundation`; `main` remains unchanged.
-- Foundation PR #1 remains Draft/open against `main`, head `05ef7b73fa123590569bf65663b997da31d9a3d3`. Do not merge it while independent review and hardware acceptance remain outstanding.
-- PR #64 consolidates six streams: structured fallback metadata (#56), AudioRecord initialization/read/cleanup reliability (#44), fail-closed ADB/logcat preflight (#50), safe CI path classification (#41), independent Release AAR consumer smoke app (#47), and AAR checksum verification (#49).
-- Current PR #64 code head: `a87cc6669a2493e204fdbe2b61dfffcebea91b8a`; subsequent commits refresh only the agent-system context and benchmark. The exact-head Android CI run #45641121028 and Agent System Contracts run #45641121358 are pending/queued as of this snapshot.
-- Previous integration head `a0a5443` passed focused Multi-SIM, StaleRecordingRecoveryCallbackRobolectricTest, and DefaultCallRecordRepositoryRobolectricTest classes; its uploaded repository report has 9 tests, 0 failures/errors. The full SDK unit suite nevertheless hit its 15-minute cap (exit 124) before producing a complete report. This is an unresolved full-suite hang, not a confirmed failing test.
-- On `a0a5443`, API 24/26/35 emulator lanes and the conditional API 36 Shell permission probe passed. These are software/permission checks only; they do not establish real SIM audio.
-- Added per-test STARTED/PASSED/SKIPPED/FAILED Gradle logging so the next full-suite timeout identifies the last in-flight test. Corrected the CI classifier's newline-delimited stdin handoff; Shizuku path classification must be verified on the new exact head.
-- Do not merge #64 until Android CI, Agent System Contracts, the full SDK/app tests, lint, AAR/consumer smoke build, all API 24/26/35 emulator lanes, conditional API 36 probe and Required checks pass on the same exact head. Then inspect the full diff and close former PRs #41/#44/#47/#49/#50/#56 as superseded.
-- Governance Issue #8 is complete. Live ruleset #27531148 was observed to require PRs and `Android CI / Required checks`, with deletion/non-fast-forward protection; approval count is 0 and strict checks are false. Do not simulate independent review.
-- Issues #2/#4/#5/#7/#31 remain open pending exact-head integration CI and their remaining service/API/dependency acceptance. Issue #3 remains blocked on physical handset trials. Issue #38 remains blocked on owner-provisioned protected signing material and an independently approved certificate fingerprint.
-- No active issue is assigned to a GitHub Milestone. No physical device configuration has evidence for the required three incoming and three outgoing calls with separate near/far intelligibility; no `PASS_TWO_WAY` is claimed. No production APK signing, tag, release, or publication is enabled.
+- Integration PR [#64](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/64) remains Draft/open against `bootstrap/native-android-foundation`. It consolidates six workstreams: structured fallback metadata (#56), AudioRecord reliability (#44), fail-closed ADB/logcat preflight (#50), CI path classification (#41), Release AAR consumer smoke (#47), and AAR checksum verification (#49).
+- Foundation PR [#1](https://github.com/mojtaba-arvin/android-sim-call-recorder/pull/1) remains Draft/open against `main`; `main` is unchanged. External Reviewer approval is not required: the active ruleset has zero required approving reviews, and the owner will perform the full diff review.
+- Android CI run #885 on prior integration head `23fff325` failed in the SDK full-suite step after its 15-minute cap (exit 124). The Gradle Test Executor started but emitted no JUnit lifecycle events; no complete full-suite report or assertion failure was identified. API 26/35 emulator lanes and the API 36 Shell permission probe passed; API 24 was still running at the last status check.
+- The next exact-head Android CI run includes bounded SDK package shards and a 90-second JVM thread-dump capture while the full-suite gate remains unchanged. A green run on the exact current PR head is still required.
+- Agent System Contracts passed on the previous context head after the snapshot/benchmark provenance refresh. The latest code/doc changes require a new snapshot refresh and exact-head validation before merge.
+- Do not merge #64 until Android CI and Agent System Contracts both pass on the same exact head and the full 39-file diff is reviewed. Then close former PRs #41/#44/#47/#49/#50/#56 as superseded.
+- Governance Issue #8 is complete. The live `Protect main` ruleset requires PRs and `Android CI / Required checks`, protects against deletion/non-fast-forward updates, and requires zero approving reviews. The owner performs the review; no external reviewer is a gate.
+- GitHub milestones are assigned: P0 (#7, #31), P1 (#4), P2 (#2, #5), P3 (#3), P4 (#38), and R&D (#10, #12–#15).
+- Issues #2/#5 are candidates for closure after PR #64 merges and their software acceptance evidence is verified. Issue #31 is also a closure candidate after the preflight changes merge and exact-head CI passes. Issue #4 remains open for the foreground-service lifecycle/API matrix; #7 remains open for the full API/dependency audit.
+- Issue #3 remains blocked on real, consented handset trials: at least three incoming and three outgoing calls per claimed device/build/carrier/SIM/route, with near-end and far-end intelligibility assessed separately. No `PASS_TWO_WAY` is claimed.
+- Issue #38 remains blocked on owner-provisioned production signing material and an owner-verified certificate fingerprint. No production APK signing, tag, GitHub Release, or publication is enabled.
 
 
 ## Execution plan and acceptance gates
@@ -108,8 +108,8 @@ The agent platform is tracked separately from product implementation under umbre
 
 ## Immediate next actions
 
-1. Finish exact-head CI run #45632360523; inspect the full SDK test log/report, every emulator lane, and Required checks.
-2. If the SDK suite still hangs, isolate the last test from --info logs and fix lifecycle/worker cleanup; do not raise the timeout or weaken coverage.
-3. After #64 merges, close only the superseded PRs/issues with exact-head evidence and continue P1 adversarial lifecycle tests.
-4. Complete API/dependency compatibility inventory for Issue #7 and the API 28–37 FGS matrix for Issue #4.
-5. Arrange physical-device trials for Issue #3; keep all untested device/route combinations unknown.
+1. Inspect the exact-head CI run: identify the first failing SDK test shard or analyze the captured JVM thread dump. Do not increase timeouts or weaken tests without evidence.
+2. Require the full SDK suite, app tests, lint, AAR/consumer smoke build, API 24/26/35 emulator lanes, API 36 Shell probe, and Required checks to pass on one exact PR #64 head.
+3. After #64 merges into the Foundation branch, close only the superseded PRs #41/#44/#47/#49/#50/#56; delete their branches only after checking that no remaining PR or workflow depends on them.
+4. Close #2/#5/#31 only after the merged implementation and exact-SHA acceptance evidence satisfy their software criteria. Continue #4 lifecycle coverage and #7 dependency/API audit in parallel.
+5. Keep #3 physical acceptance and #38 production signing as explicit product gates; do not infer either from CI.
