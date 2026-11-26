@@ -1,3 +1,29 @@
+## Live state refresh — 2026-11-26T10:20:00Z
+
+**Captured at:** `2026-11-26T10:20:00Z`  
+**Source branch:** `temp-main-from-origin`  
+**Source HEAD:** `97dffd3f9b103731ba2023b70c98b4eb390df78f`
+
+- PR #65 is the sole non-Draft integration candidate to `main`; it consolidates the same 164-file tree proposed by PR #1, plus the integration branch's accumulated commits. PR #1 is the original Draft foundation PR and must not be merged separately or in parallel.
+- PR #65 head `97dffd3f9b103731ba2023b70c98b4eb390df78f`; base `main` at `71fe1f386fffe67547c1848ff12bc844247677de`. The branch is 7 commits ahead of `bootstrap/native-android-foundation`; only the Android CI workflow differs in the compared tree.
+- The previous Android CI run #45795947375 failed on the SDK verify job because the telephony Robolectric package shard exceeded its 180-second cap (exit 124), not because of an assertion failure. API 24/26/35 emulator jobs and the Android 16 permission probe were still being retried; no full green result is claimed.
+- Increased only the telephony package shard timeout from 180 to 360 seconds in `.github/workflows/android-ci.yml` (commit `97dffd3f9b103731ba2023b70c98b4eb390df78f`). This does not skip tests or alter assertions. New Android CI run #45800010143 is pending; Agent System Contracts run #45800010433 failed because the context/benchmark source baseline was stale after the workflow change. Refresh this snapshot and benchmark, then require both workflows to pass on the same resulting exact head.
+- Active Protect main ruleset #27531148 requires the `Android CI / Required checks` context, a PR, and resolved review threads; it requires zero approving reviews and does not permit bypass actors. Do not bypass these rules.
+- The physical-device gate remains unmet: Issue #3 records zero physical devices tested. CI/emulators do not prove near/far cellular speech. Keep device/route support unknown; do not claim `PASS_TWO_WAY`.
+- Production APK signing is not configured; Issue #38 remains open. Do not publish an app APK, create tags/releases, or publish SDK artifacts as part of this merge.
+- Issues #2 and #7 still have outstanding software/API acceptance criteria; #12–#15 and parent #10 still contain unfinished R&D work. Do not claim all milestones complete or close issues solely to make the merge appear complete.
+- PR #65's current title/body claim that it closes all six milestones is not accurate against the live issue state. Update PR metadata to describe code integration only and explicitly retain hardware, signing, compatibility, and R&D gates as open.
+- No branch has been deleted. Preserve `main`, the Foundation branch, and the integration head until the integration PR is merged or deliberately closed and no dependent PRs remain.
+
+### Merge decision
+
+- Do not merge PR #1 separately; PR #65 carries the same source tree and is the integration candidate.
+- Do not merge while exact-head Android CI or Agent System Contracts is pending/failed.
+- Do not convert emulator evidence into physical-device acceptance. If the repository's explicit physical-device-before-merge rule remains mandatory, it cannot be satisfied without a real handset and consented incoming/outgoing call trials; keep the PR open rather than fabricating evidence or weakening the gate.
+- After merge (only when all explicit merge gates are satisfied), close PR #1 as superseded and delete obsolete integration branches only after checking all dependent PRs.
+
+---
+
 ## Live state refresh — 2026-11-26T04:22:09.198Z
 
 **Captured at:** `2026-11-26T04:22:09.198Z`  
