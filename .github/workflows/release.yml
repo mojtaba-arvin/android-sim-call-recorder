@@ -113,7 +113,7 @@ jobs:
       - name: Verify downloaded SDK AAR and checksum manifest
         run: bash scripts/verify-sdk-release-assets.sh release-assets
       - name: Publish SDK AAR and checksums to GitHub Releases
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           name: SIM Call Recorder SDK ${{ inputs.release_tag }}
           tag_name: ${{ inputs.release_tag }}
