@@ -1,3 +1,20 @@
+# Live state refresh — 2026-11-27T22:04:00Z
+
+**Captured at:** `2026-11-27T22:04:00Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `5bf4fcfd9cd3757544d9b7380bc42e7751b7f81b`
+
+## Final commit identity policy refresh
+
+- The commit identity policy now explicitly preserves external human contributors in mixed PRs.
+- A maintainer-directed AI-assisted PR must include at least one commit authored by `mojtaba-arvin`; every commit attributed to that account must use `Mojtaba Arvin <m.arvin@live.com>`.
+- External human contributor commits remain attributed to their original authors. Agent changes must be added as separate maintainer-authored commits; never amend contributor commits.
+- This is a governance-only update. No benchmark tasks, acceptance criteria, scoring weights, hard-fail rules, Android runtime code, or device evidence are changed.
+- No physical-device, cellular-audio, or release claim is made by this policy change.
+- More than 30 minutes have elapsed since capture; refresh live GitHub state before any future mutation.
+
+---
+
 # Live state refresh — 2026-11-27T21:22:01Z
 
 **Captured at:** `2026-11-27T21:22:01Z`  
