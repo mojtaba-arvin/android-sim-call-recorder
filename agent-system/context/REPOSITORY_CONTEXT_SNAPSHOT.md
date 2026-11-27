@@ -1,3 +1,20 @@
+# Live state refresh — 2026-11-27T21:22:01Z
+
+**Captured at:** `2026-11-27T21:22:01Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `d7ca2876492a4eb68fbb6a7a4c95bd9abb648d29`
+
+## Commit identity policy implementation refresh
+
+- Issue #80 and PR #81 introduce the maintainer-directed commit identity policy and PR metadata validator.
+- The latest PR head includes the policy documentation, validator, PR workflow, agent instructions, and benchmark-context refresh.
+- The previous Agent System Contracts failure was caused by the new validator commit landing after the prior snapshot source SHA. This refresh pins the benchmark provenance to the exact latest policy head before changing only the context snapshot and benchmark metadata.
+- No task definitions, benchmark workloads, scoring weights, hard-fail rules, or product acceptance criteria are changed by this refresh.
+- Existing Android CI and product/device evidence remain independent. This governance change makes no physical-device, cellular-audio, or release claim.
+- More than 30 minutes have elapsed since capture; refresh live GitHub state before any future mutation.
+
+---
+
 # Live state refresh — 2026-11-27T21:14:00Z
 
 **Captured at:** `2026-11-27T21:14:00Z`  
