@@ -104,3 +104,7 @@ A task is complete only when the final report states:
 - The next concrete action, only if work remains.
 
 Do not report an item as done merely because code or documentation was written.
+
+## Commit identity and attribution
+
+Read `COMMIT_IDENTITY.md` before creating, amending, or reviewing commits. Maintainer-directed AI-assisted work must use the verified maintainer author identity; preserve real human contributor identities; do not use AI/bot authors or bot co-author trailers. Follow the documented, narrowly approved genuine-automation exception. Do not rewrite historical commits. Repository-specific Git, workflow, review, and merge restrictions in this file remain authoritative.
