@@ -1,3 +1,20 @@
+# Live state refresh — 2026-11-27T23:20:36Z
+
+**Captured at:** `2026-11-27T23:20:36Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `7d62ec0aaf6b46b293d1163e0171d6d23e26b1b9`
+
+## Root contributor guidance refresh
+
+- Root `AGENTS.md` now states the exact maintainer author identity `Mojtaba Arvin <m.arvin@live.com>`, the `mojtaba-arvin` account association requirement, human contributor preservation, bot/agent/co-author rejection, and the narrowly scoped GitHub Actions/Dependabot exception.
+- `COMMIT_IDENTITY.md` and `scripts/check_commit_identity.py` separately validate Git author and committer fields against GitHub account mappings. A `web-flow` committer is not treated as the commit author.
+- The current PR has 31 commits; the latest completed Commit identity run validated 30 commits successfully on `f90fbfbdf0971f57224bbc0fb553fce56b8fed83`. New exact-head checks are required after this root-guidance update.
+- The active `Protect main` ruleset requires only `Android CI / Required checks`, not `Commit identity`. Branch-protection read returned 403 and the available GitHub integration exposes no ruleset mutation. Owner-side required-check configuration remains outstanding.
+- No Android runtime, Shizuku, consent, recording, device-support, benchmark task/scoring, release, or product-acceptance behavior is changed. No physical-device, cellular-audio, merge, or release claim is made.
+- Refresh live state before future mutations; do not promote queued, pending, failed, or cancelled checks to success.
+
+---
+
 # Live state refresh — 2026-11-27T23:19:33Z
 
 **Captured at:** `2026-11-27T23:19:33Z`  
