@@ -1,3 +1,110 @@
+# Live state refresh — 2026-11-27T23:20:36Z
+
+**Captured at:** `2026-11-27T23:20:36Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `7d62ec0aaf6b46b293d1163e0171d6d23e26b1b9`
+
+## Root contributor guidance refresh
+
+- Root `AGENTS.md` now states the exact maintainer author identity `Mojtaba Arvin <m.arvin@live.com>`, the `mojtaba-arvin` account association requirement, human contributor preservation, bot/agent/co-author rejection, and the narrowly scoped GitHub Actions/Dependabot exception.
+- `COMMIT_IDENTITY.md` and `scripts/check_commit_identity.py` separately validate Git author and committer fields against GitHub account mappings. A `web-flow` committer is not treated as the commit author.
+- The current PR has 31 commits; the latest completed Commit identity run validated 30 commits successfully on `f90fbfbdf0971f57224bbc0fb553fce56b8fed83`. New exact-head checks are required after this root-guidance update.
+- The active `Protect main` ruleset requires only `Android CI / Required checks`, not `Commit identity`. Branch-protection read returned 403 and the available GitHub integration exposes no ruleset mutation. Owner-side required-check configuration remains outstanding.
+- No Android runtime, Shizuku, consent, recording, device-support, benchmark task/scoring, release, or product-acceptance behavior is changed. No physical-device, cellular-audio, merge, or release claim is made.
+- Refresh live state before future mutations; do not promote queued, pending, failed, or cancelled checks to success.
+
+---
+
+# Live state refresh — 2026-11-27T23:19:33Z
+
+**Captured at:** `2026-11-27T23:19:33Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `4f01e38144edd2d7e38d42979ff4d054fe3bc948`
+
+## Commit identity author/committer validation refresh
+
+- Issue #80 / PR #81 remains governance-only. The validator now checks Git author and committer metadata separately from their GitHub account mappings. It requires complete author/committer name and email fields, enforces the maintainer identity on both mapped fields, and does not mistake a `web-flow` committer for the commit author.
+- Bot/agent author rejection, human contributor preservation, bot/AI co-author trailer rejection, and the narrowly allowlisted GitHub Actions/Dependabot exception with explicit `allow-automation-commits` label remain enforced.
+- Fixture tests now include distinct human-author / `web-flow`-committer behavior, mismatched maintainer committer metadata, and misuse of the maintainer email in committer metadata.
+- The previous exact-head Commit identity and Agent System Contracts runs passed on `7b1dcd763eaec6687a6467288b1d33094822a00f`. This author/committer validator refinement changes foundation files after that SHA; fresh exact-head checks are required.
+- The active `Protect main` ruleset requires only `Android CI / Required checks`, not `Commit identity`. Branch-protection read returned 403 and the available GitHub integration exposes no ruleset mutation. Owner-side required-check configuration remains outstanding.
+- No Android runtime, Shizuku, consent, recording, device-support, benchmark task/scoring, release, or product-acceptance behavior is changed. No physical-device, cellular-audio, merge, or release claim is made.
+- Refresh live state before future mutations; do not promote queued, pending, failed, or cancelled checks to success.
+
+---
+
+# Live state refresh — 2026-11-27T23:16:50Z
+
+**Captured at:** `2026-11-27T23:16:50Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `ed0dc2b4f7ff1d228a64418c06d444d1f26ea0fd`
+
+## Commit identity governance refresh
+
+- Issue #80 / PR #81 remains governance-only. The validator now rejects missing author metadata, known bot/agent authors, and bot/AI co-author trailers; it preserves external human author identities and limits automation exceptions to the exact GitHub Actions/Dependabot accounts with the explicit `allow-automation-commits` label.
+- Fixture coverage includes maintainer identity, external/mixed human contributors, wrong/missing maintainer metadata, known bot/agent authors, human and bot co-author trailers, and both approved automation accounts.
+- The Commit identity workflow now uses `pull_request` with read-only `contents` and `pull-requests` permissions and no credential persistence. It does not execute with `pull_request_target` privileges.
+- The exact 24-commit PR history has been checked: all authors and committers map to `mojtaba-arvin` with `Mojtaba Arvin <m.arvin@live.com>`; no co-author trailers or foreign/bot commits were found. This is GitHub metadata evidence, not proof of who physically typed the code.
+- At capture, the new exact-head Commit identity run was in progress; Agent System Contracts failed because these three foundation paths changed after the previous snapshot: `.github/workflows/commit-identity.yml`, `COMMIT_IDENTITY.md`, and `scripts/check_commit_identity.py`. Android CI was pending.
+- The active `Protect main` ruleset requires only `Android CI / Required checks`; it does not yet require `Commit identity`. Branch-protection read returned 403 and the available GitHub integration exposes no ruleset mutation. Do not treat this workflow as a hard merge gate until the owner configures the required check through the authorized settings path.
+- No Android runtime, Shizuku, consent, recording, device-support, benchmark task/scoring, release, or product-acceptance behavior is changed. No physical-device, cellular-audio, merge, or release claim is made.
+- Refresh live state before future mutations; do not promote queued, pending, failed, or cancelled checks to success.
+
+---
+
+# Live state refresh — 2026-11-27T22:04:00Z
+
+**Captured at:** `2026-11-27T22:04:00Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `5bf4fcfd9cd3757544d9b7380bc42e7751b7f81b`
+
+## Final commit identity policy refresh
+
+- The commit identity policy now explicitly preserves external human contributors in mixed PRs.
+- A maintainer-directed AI-assisted PR must include at least one commit authored by `mojtaba-arvin`; every commit attributed to that account must use `Mojtaba Arvin <m.arvin@live.com>`.
+- External human contributor commits remain attributed to their original authors. Agent changes must be added as separate maintainer-authored commits; never amend contributor commits.
+- This is a governance-only update. No benchmark tasks, acceptance criteria, scoring weights, hard-fail rules, Android runtime code, or device evidence are changed.
+- No physical-device, cellular-audio, or release claim is made by this policy change.
+- More than 30 minutes have elapsed since capture; refresh live GitHub state before any future mutation.
+
+---
+
+# Live state refresh — 2026-11-27T21:22:01Z
+
+**Captured at:** `2026-11-27T21:22:01Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `d7ca2876492a4eb68fbb6a7a4c95bd9abb648d29`
+
+## Commit identity policy implementation refresh
+
+- Issue #80 and PR #81 introduce the maintainer-directed commit identity policy and PR metadata validator.
+- The latest PR head includes the policy documentation, validator, PR workflow, agent instructions, and benchmark-context refresh.
+- The previous Agent System Contracts failure was caused by the new validator commit landing after the prior snapshot source SHA. This refresh pins the benchmark provenance to the exact latest policy head before changing only the context snapshot and benchmark metadata.
+- No task definitions, benchmark workloads, scoring weights, hard-fail rules, or product acceptance criteria are changed by this refresh.
+- Existing Android CI and product/device evidence remain independent. This governance change makes no physical-device, cellular-audio, or release claim.
+- More than 30 minutes have elapsed since capture; refresh live GitHub state before any future mutation.
+
+---
+
+# Live state refresh — 2026-11-27T21:14:00Z
+
+**Captured at:** `2026-11-27T21:14:00Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `dc3113904853d4028d6208de91dd3460293a8f02`
+
+## Commit identity policy implementation
+
+- Issue #80 introduces repository-wide commit author and attribution controls for owner-authorized AI-assisted work, human contributors, and genuine automation.
+- PR #81 is open against `main`; this snapshot is pinned to its exact head before the snapshot/benchmark metadata refresh.
+- The PR adds `COMMIT_IDENTITY.md`, `scripts/check_commit_identity.py`, and a read-only Commit identity workflow. `AGENTS.md` points contributors to the policy.
+- The maintainer-directed AI work marker requires `Mojtaba Arvin <m.arvin@live.com>`; the PR commit list uses that exact author identity. Real human contributors remain attributed to themselves. Genuine GitHub Actions/Dependabot commits require the explicit `allow-automation-commits` label. Bot co-author trailers are rejected.
+- Agent System Contracts initially rejected the stale snapshot because this PR changes foundation files outside the context/benchmark snapshot paths. This refresh updates only the context snapshot and benchmark provenance metadata; it does not change benchmark tasks, scoring weights, hard-fail rules, or product acceptance criteria.
+- The first Android CI run on the policy PR was pending at capture time. No physical-device, cellular-audio, or release claim is made by this governance change.
+- Existing product and R&D gates remain unchanged. Preserve all open Issues and PRs; no merge, release, tag, permission change, or device test is implied by this snapshot.
+- More than 30 minutes have elapsed since capture; refresh live GitHub state before any future mutation.
+
+---
+
 # Live state refresh — 2026-11-26T15:02:00Z
 
 **Captured at:** `2026-11-26T15:02:00Z`  

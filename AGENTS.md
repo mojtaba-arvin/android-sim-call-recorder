@@ -104,3 +104,7 @@ A task is complete only when the final report states:
 - The next concrete action, only if work remains.
 
 Do not report an item as done merely because code or documentation was written.
+
+## Commit identity and attribution
+
+Read `COMMIT_IDENTITY.md` before creating, amending, or reviewing commits. For owner-authorized maintainer-directed AI-assisted implementation, use Git author `Mojtaba Arvin <m.arvin@live.com>` only after confirming that email is associated with the `mojtaba-arvin` GitHub account. Preserve every real human contributor's original author identity; reject AI/agent/bot authors and bot/AI co-author trailers. Permit only genuine GitHub Actions/Dependabot commits with the explicit `allow-automation-commits` PR label, as defined in `COMMIT_IDENTITY.md`. Keep Git author, Git committer, and GitHub account mappings distinct. Never rewrite historical commits or relabel another contributor's work. Repository-specific Git, workflow, review, and merge restrictions in this file remain authoritative.

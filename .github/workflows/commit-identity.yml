@@ -1,0 +1,30 @@
+name: Commit identity
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+# PR code is intentionally validated with a read-only token and no secrets.
+# Do not change this to pull_request_target or check out untrusted code there.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  commit-identity:
+    name: Commit identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out pull request merge commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate policy fixtures
+        run: python3 scripts/check_commit_identity.py --self-test
+      - name: Validate pull request commit authors
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/check_commit_identity.py
