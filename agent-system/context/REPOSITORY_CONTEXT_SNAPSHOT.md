@@ -1,3 +1,22 @@
+# Live state refresh — 2026-11-27T21:14:00Z
+
+**Captured at:** `2026-11-27T21:14:00Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `dc3113904853d4028d6208de91dd3460293a8f02`
+
+## Commit identity policy implementation
+
+- Issue #80 introduces repository-wide commit author and attribution controls for owner-authorized AI-assisted work, human contributors, and genuine automation.
+- PR #81 is open against `main`; this snapshot is pinned to its exact head before the snapshot/benchmark metadata refresh.
+- The PR adds `COMMIT_IDENTITY.md`, `scripts/check_commit_identity.py`, and a read-only Commit identity workflow. `AGENTS.md` points contributors to the policy.
+- The maintainer-directed AI work marker requires `Mojtaba Arvin <m.arvin@live.com>`; the PR commit list uses that exact author identity. Real human contributors remain attributed to themselves. Genuine GitHub Actions/Dependabot commits require the explicit `allow-automation-commits` label. Bot co-author trailers are rejected.
+- Agent System Contracts initially rejected the stale snapshot because this PR changes foundation files outside the context/benchmark snapshot paths. This refresh updates only the context snapshot and benchmark provenance metadata; it does not change benchmark tasks, scoring weights, hard-fail rules, or product acceptance criteria.
+- The first Android CI run on the policy PR was pending at capture time. No physical-device, cellular-audio, or release claim is made by this governance change.
+- Existing product and R&D gates remain unchanged. Preserve all open Issues and PRs; no merge, release, tag, permission change, or device test is implied by this snapshot.
+- More than 30 minutes have elapsed since capture; refresh live GitHub state before any future mutation.
+
+---
+
 # Live state refresh — 2026-11-26T15:02:00Z
 
 **Captured at:** `2026-11-26T15:02:00Z`  
