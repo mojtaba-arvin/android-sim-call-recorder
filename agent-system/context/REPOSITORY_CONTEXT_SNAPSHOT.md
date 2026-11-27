@@ -1,3 +1,22 @@
+# Live state refresh — 2026-11-27T23:16:50Z
+
+**Captured at:** `2026-11-27T23:16:50Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `ed0dc2b4f7ff1d228a64418c06d444d1f26ea0fd`
+
+## Commit identity governance refresh
+
+- Issue #80 / PR #81 remains governance-only. The validator now rejects missing author metadata, known bot/agent authors, and bot/AI co-author trailers; it preserves external human author identities and limits automation exceptions to the exact GitHub Actions/Dependabot accounts with the explicit `allow-automation-commits` label.
+- Fixture coverage includes maintainer identity, external/mixed human contributors, wrong/missing maintainer metadata, known bot/agent authors, human and bot co-author trailers, and both approved automation accounts.
+- The Commit identity workflow now uses `pull_request` with read-only `contents` and `pull-requests` permissions and no credential persistence. It does not execute with `pull_request_target` privileges.
+- The exact 24-commit PR history has been checked: all authors and committers map to `mojtaba-arvin` with `Mojtaba Arvin <m.arvin@live.com>`; no co-author trailers or foreign/bot commits were found. This is GitHub metadata evidence, not proof of who physically typed the code.
+- At capture, the new exact-head Commit identity run was in progress; Agent System Contracts failed because these three foundation paths changed after the previous snapshot: `.github/workflows/commit-identity.yml`, `COMMIT_IDENTITY.md`, and `scripts/check_commit_identity.py`. Android CI was pending.
+- The active `Protect main` ruleset requires only `Android CI / Required checks`; it does not yet require `Commit identity`. Branch-protection read returned 403 and the available GitHub integration exposes no ruleset mutation. Do not treat this workflow as a hard merge gate until the owner configures the required check through the authorized settings path.
+- No Android runtime, Shizuku, consent, recording, device-support, benchmark task/scoring, release, or product-acceptance behavior is changed. No physical-device, cellular-audio, merge, or release claim is made.
+- Refresh live state before future mutations; do not promote queued, pending, failed, or cancelled checks to success.
+
+---
+
 # Live state refresh — 2026-11-27T22:04:00Z
 
 **Captured at:** `2026-11-27T22:04:00Z`  
