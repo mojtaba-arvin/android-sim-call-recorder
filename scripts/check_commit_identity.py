@@ -47,15 +47,22 @@ def validate(pr, commits):
     for item in commits:
         commit = item.get("commit") or {}
         git_author = commit.get("author") or {}
+        git_committer = commit.get("committer") or {}
         github_author = item.get("author") or {}
+        github_committer = item.get("committer") or {}
         name = git_author.get("name") or ""
         email = git_author.get("email") or ""
         login = github_author.get("login")
         account_type = github_author.get("type")
+        committer_name = git_committer.get("name") or ""
+        committer_email = git_committer.get("email") or ""
+        committer_login = github_committer.get("login")
         sha = (item.get("sha") or "unknown")[:12]
 
         if not name or not email:
             errors.append(sha + ": missing author name/email")
+        if not committer_name or not committer_email:
+            errors.append(sha + ": missing committer name/email")
 
         if is_bot(name, email, login, account_type):
             allowed = (
@@ -80,6 +87,20 @@ def validate(pr, commits):
             errors.append(
                 f"{sha}: maintainer email must resolve to {LOGIN}, "
                 f"not {login!r}"
+            )
+
+        # Git author and committer are separate identities. GitHub's
+        # web-flow committer is legitimate and must not overwrite authorship.
+        if (committer_login or "").lower() == LOGIN:
+            if committer_name != NAME or committer_email.lower() != EMAIL.lower():
+                errors.append(
+                    f"{sha}: maintainer committer account must use "
+                    f"{NAME} <{EMAIL}>, got {committer_name!r} <{committer_email}>"
+                )
+        elif committer_email.lower() == EMAIL.lower():
+            errors.append(
+                f"{sha}: maintainer email in committer metadata must resolve "
+                f"to {LOGIN}, not {committer_login!r}"
             )
 
         for line in (commit.get("message") or "").splitlines():
@@ -113,12 +134,21 @@ def get_json(url, token):
 
 def self_test():
     def item(name, email, login, account_type, message="feat: test",
-             committer_login="web-flow", committer_type="User"):
+             committer_login=None, committer_type=None,
+             committer_name=None, committer_email=None):
+        if committer_login is None:
+            committer_login = login
+            committer_type = account_type
+            committer_name = name
+            committer_email = email
         return {
             "sha": "a" * 40,
             "commit": {
                 "author": {"name": name, "email": email},
-                "committer": {"name": "GitHub", "email": "noreply@github.com"},
+                "committer": {
+                    "name": committer_name or "",
+                    "email": committer_email or "",
+                },
                 "message": message,
             },
             "author": {"login": login, "type": account_type},
@@ -132,9 +162,23 @@ def self_test():
     assert not validate(no_labels, [
         item("External Human", "human@example.org", "external-human", "User"),
     ])
+    assert not validate(no_labels, [
+        item("Human", "human@example.org", "human", "User",
+             committer_login="web-flow", committer_type="User",
+             committer_name="GitHub", committer_email="noreply@github.com"),
+    ])
     assert validate(no_labels, [
-        item("Maintainer", "maintainer@example.org", LOGIN, "User",
-             committer_login="web-flow"),
+        item(NAME, EMAIL, LOGIN, "User",
+             committer_login=LOGIN, committer_type="User",
+             committer_name=NAME, committer_email="wrong@example.org"),
+    ])
+    assert validate(no_labels, [
+        item("Human", "human@example.org", "human", "User",
+             committer_login="web-flow", committer_type="User",
+             committer_name="GitHub", committer_email=EMAIL),
+    ])
+    assert validate(no_labels, [
+        item("Maintainer", "maintainer@example.org", LOGIN, "User"),
     ])  # A web-flow committer does not repair incorrect author metadata.
     assert validate(no_labels, [
         item("Copilot", "bot@example.org", "copilot[bot]", "Bot"),
