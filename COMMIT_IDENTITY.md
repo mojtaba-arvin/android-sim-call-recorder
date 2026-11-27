@@ -15,7 +15,7 @@ git config --global user.name "Mojtaba Arvin"
 git config --global user.email "m.arvin@live.com"
 ```
 
-`scripts/check_commit_identity.py` checks all paginated PR commits, rejects missing author metadata, known bot/agent authors and bot/AI co-author trailers, preserves other human authors, and enforces the maintainer identity when the marker is present. It allows only the exact GitHub Actions/Dependabot author accounts with the explicit label. Its fixture tests cover human and mixed-human attribution, wrong/missing maintainer metadata, known bot and agent authors, human/bot co-author trailers, and both approved automation accounts.
+`scripts/check_commit_identity.py` checks all paginated PR commits, rejects missing author/committer metadata, known bot/agent authors and bot/AI co-author trailers, preserves other human authors, and enforces the maintainer identity in both author and committer fields when their GitHub account mapping is the maintainer. A `web-flow` committer remains distinct from the commit author. It allows only the exact GitHub Actions/Dependabot author accounts with the explicit label. Its fixture tests cover human and mixed-human attribution, wrong/missing maintainer metadata, known bot and agent authors, human/bot co-author trailers, and both approved automation accounts.
 
 The `Commit identity` workflow uses the `pull_request` event with explicit read-only `contents` and `pull-requests` permissions, no secrets beyond the read-only `GITHUB_TOKEN`, and no credential persistence. It checks out the PR merge commit. Do not change it to `pull_request_target` or run PR-controlled code with elevated permissions.
 
