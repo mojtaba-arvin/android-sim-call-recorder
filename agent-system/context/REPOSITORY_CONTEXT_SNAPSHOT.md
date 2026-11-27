@@ -1,3 +1,21 @@
+# Live state refresh — 2026-11-27T23:19:33Z
+
+**Captured at:** `2026-11-27T23:19:33Z`  
+**Source branch:** `chore/issue-80-commit-identity-policy`  
+**Source HEAD:** `4f01e38144edd2d7e38d42979ff4d054fe3bc948`
+
+## Commit identity author/committer validation refresh
+
+- Issue #80 / PR #81 remains governance-only. The validator now checks Git author and committer metadata separately from their GitHub account mappings. It requires complete author/committer name and email fields, enforces the maintainer identity on both mapped fields, and does not mistake a `web-flow` committer for the commit author.
+- Bot/agent author rejection, human contributor preservation, bot/AI co-author trailer rejection, and the narrowly allowlisted GitHub Actions/Dependabot exception with explicit `allow-automation-commits` label remain enforced.
+- Fixture tests now include distinct human-author / `web-flow`-committer behavior, mismatched maintainer committer metadata, and misuse of the maintainer email in committer metadata.
+- The previous exact-head Commit identity and Agent System Contracts runs passed on `7b1dcd763eaec6687a6467288b1d33094822a00f`. This author/committer validator refinement changes foundation files after that SHA; fresh exact-head checks are required.
+- The active `Protect main` ruleset requires only `Android CI / Required checks`, not `Commit identity`. Branch-protection read returned 403 and the available GitHub integration exposes no ruleset mutation. Owner-side required-check configuration remains outstanding.
+- No Android runtime, Shizuku, consent, recording, device-support, benchmark task/scoring, release, or product-acceptance behavior is changed. No physical-device, cellular-audio, merge, or release claim is made.
+- Refresh live state before future mutations; do not promote queued, pending, failed, or cancelled checks to success.
+
+---
+
 # Live state refresh — 2026-11-27T23:16:50Z
 
 **Captured at:** `2026-11-27T23:16:50Z`  
