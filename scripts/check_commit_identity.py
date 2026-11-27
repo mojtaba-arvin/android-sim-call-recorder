@@ -132,10 +132,10 @@ def self_test():
     assert not validate(no_labels, [
         item("External Human", "human@example.org", "external-human", "User"),
     ])
-    assert not validate(no_labels, [
+    assert validate(no_labels, [
         item("Maintainer", "maintainer@example.org", LOGIN, "User",
              committer_login="web-flow"),
-    ]) is False  # Wrong maintainer metadata must be rejected.
+    ])  # A web-flow committer does not repair incorrect author metadata.
     assert validate(no_labels, [
         item("Copilot", "bot@example.org", "copilot[bot]", "Bot"),
     ])
