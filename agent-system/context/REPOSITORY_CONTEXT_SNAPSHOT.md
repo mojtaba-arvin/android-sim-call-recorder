@@ -1,8 +1,8 @@
-# Live state refresh — 2026-11-28T08:30:12.382Z
+# Live state refresh — 2026-11-28T08:33:00.485Z
 
-**Captured at:** `2026-11-28T08:30:12.382Z`  
+**Captured at:** `2026-11-28T08:33:00.485Z`  
 **Source branch:** `fix/evidence-gated-self-merge`  
-**Source HEAD:** `09ccf403342ad2e72b4b04e9f2ed48408dfdb860`
+**Source HEAD:** `ed9b68dd9fa36640d27dfcc8b3a547e7bc234ba9`
 
 ## Integration and CI
 
