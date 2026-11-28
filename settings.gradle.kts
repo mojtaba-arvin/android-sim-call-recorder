@@ -21,12 +21,18 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
-        // Isolate Robolectric artifacts from intermittent Maven Central HTTP 429 responses.
+        // Route Robolectric and Android Test Platform's JUnit artifacts through the
+        // Maven Central mirror. Hosted emulator jobs have hit HTTP 429 responses from
+        // repo.maven.apache.org while resolving junit-platform-engine/launcher.
+        // Keep Maven Central as the fallback for all other groups.
         maven {
-            name = "RobolectricMavenCentralMirror"
+            name = "ReliabilityMavenCentralMirror"
             url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
             content {
                 includeGroup("org.robolectric")
+                includeGroup("org.junit.platform")
+                includeGroup("org.apiguardian")
+                includeGroup("org.opentest4j")
             }
         }
         mavenCentral()
