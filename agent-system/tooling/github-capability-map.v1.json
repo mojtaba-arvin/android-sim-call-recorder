@@ -510,12 +510,12 @@
         "update_file",
         "create_blob",
         "create_tree",
-        "create_commit"
+        "create_commit",
+        "merge_pull_request"
       ],
       "deny": [
         "delete_file",
         "update_ref",
-        "merge_pull_request",
         "enable_auto_merge",
         "mark_pull_request_ready_for_review",
         "repository_settings_mutation",
@@ -606,7 +606,7 @@
     "Writes require a fresh branch/PR/issue snapshot and exact expected SHA/blob SHA.",
     "Every write must be followed by a read-back verification.",
     "Never attribute a CI result to a different tested SHA or attempt.",
-    "No issue closure, merge, tag, release, publish, permission change or ruleset change without its own evidence and approval gate."
+    "No issue closure without acceptance evidence. An implementer may merge its own PR only after exact-head required checks, complete acceptance evidence, resolved material review threads, current/mergeable branch state, and repository rules; no separate per-PR approval is needed when the ruleset requires zero approvals. Tags, releases, publication, permission/ruleset changes, and destructive external actions retain explicit owner approval."
   ],
   "notes": [
     "add_comment_to_issue is a PR conversation comment operation, not an issue-number comment operation.",
@@ -622,18 +622,18 @@
     "update_pull_request": "Base/state changes are denied by default. Draft/ready transitions require the PR readiness gate; closing another contributor's PR is denied.",
     "add_review_to_pr": "Only COMMENT or REQUEST_CHANGES when explicitly authorized; APPROVE is forbidden for self-authored work.",
     "update_ref": "Denied for normal implementers; requires a separate explicit ref-movement authorization and expected_sha lease.",
-    "merge_pull_request": "Denied by default; separate merge approval and all branch-protection checks are mandatory.",
-    "enable_auto_merge": "Denied by default; do not use as a substitute for explicit merge authorization.",
+    "merge_pull_request": "Allowed for the implementer on its own PR only when exact-head required checks are successful, acceptance evidence is complete, material review threads are resolved, the branch is current and mergeable, and repository rules permit it. No self-approval, no merge of another contributor's PR without explicit authorization, and no bypass. Reviewer, PR coordinator, and release manager roles continue to deny merges.",
+    "enable_auto_merge": "Denied by default; do not use as a substitute for checking exact-head required checks and repository merge rules. Separate explicit authorization is required.",
     "rerun_workflow_job": "Only retry a completed failed/cancelled job after inspecting logs and classifying a transient runner/environment failure; do not retry product/test failures blindly."
   },
   "verification": {
-    "refreshed_at": "2026-11-21T13:43:00Z",
+    "refreshed_at": "2026-11-28T08:27:41.358Z",
     "live_catalog_count": 89,
     "recorded_catalog_count": 89,
     "exact_name_parity": true,
     "missing_tools": [],
     "stale_tools": [],
-    "note": "Re-enumerated the live GitHub tool catalog during the 2026-11-21 session; exact 89/89 name parity. This verifies names only; task-relevant schemas must be re-read before each invocation."
+    "note": "Re-enumerated the live GitHub tool catalog on 2026-11-28; exact 89/89 name parity. This verifies names only; task-relevant schemas must be re-read before each invocation."
   },
   "source_foundation_head_sha": "77ab12588e6d0cd7720b63754671362477557752"
 }
