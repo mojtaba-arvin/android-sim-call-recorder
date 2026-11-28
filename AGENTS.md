@@ -107,4 +107,18 @@ Do not report an item as done merely because code or documentation was written.
 
 ## GitHub Issue title convention
 
-Every Issue title must use `<type>(<scope>): <short, clear description>`. Use one lowercase Conventional Commit type: `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `perf`, or `revert`. Scope must be concise lowercase kebab-case and identify the affected domain/component. Keep priority, milestone, feature/command IDs, phase, agent identity, dates, and run metadata in labels, milestones, or the Issue body—not the title. Do not use bracketed prefixes, standalone priority codes, `Recover:`, or agent/supervisor identity prefixes. Use `chore(roadmap): ...` for milestone bookkeeping and `chore(supervisor): ...` for run ledgers. Preserve all Issue metadata and relationships when renaming; change only the title. See the [shared canonical contract](https://github.com/mojtaba-arvin/commands/blob/main/_shared/issue-title-contract.md).
+Use this repository-local convention for every GitHub Issue title:
+
+```text
+<type>(<scope>): <short, clear description>
+```
+
+- Choose one lowercase Conventional Commit type: `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `perf`, or `revert`.
+- Use a concise lowercase kebab-case scope naming the affected repository area or component (for example, `recording`, `shizuku`, `device-tests`, or `release`). Do not use uppercase, spaces, underscores, or nested path-like scopes.
+- Write a short, specific description of the outcome. Keep it readable and avoid trailing metadata or redundant prefixes.
+- Keep priority, milestones, feature/command IDs, phase identifiers, agent identity, dates, and agent/run metadata out of the title. Put prioritization in labels or milestones and explanatory/tracking details in the Issue body.
+- Do not use bracketed prefixes, standalone priority codes, `Recover:`, or agent/supervisor identity prefixes.
+- Examples: `docs(agents): adopt canonical issue title convention`, `fix(recording): preserve finalized audio after process death`, and `test(device): document two-way audio acceptance`.
+- When correcting an existing title, preserve its body, labels, milestone, assignees, dependencies, and other relationships; change only the title unless the issue explicitly requires more.
+
+This section is the complete title-format guidance for this repository. It is intentionally self-contained and does not depend on another repository or a private shared document.
