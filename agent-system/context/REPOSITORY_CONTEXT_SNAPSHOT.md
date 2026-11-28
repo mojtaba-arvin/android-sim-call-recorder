@@ -1,10 +1,17 @@
-# Live state refresh — 2026-11-26T15:02:00Z
+# Live state refresh — 2026-11-28T08:30:12.382Z
 
-**Captured at:** `2026-11-26T15:02:00Z`  
-**Source branch:** `main`  
-**Source HEAD:** `5f409bcc6e769c9264edece22b34b704d4bf4482`
+**Captured at:** `2026-11-28T08:30:12.382Z`  
+**Source branch:** `fix/evidence-gated-self-merge`  
+**Source HEAD:** `09ccf403342ad2e72b4b04e9f2ed48408dfdb860`
 
 ## Integration and CI
+
+## Merge and review policy — 2026-11-28
+
+- Live `protect main` ruleset #27591151 requires zero approving reviews and does not require approval of the latest push. It still requires exact status checks, resolved review threads, strict freshness, deletion/non-fast-forward protection, and linear history; no bypass actors exist.
+- Routine low/medium-risk PRs may be self-reviewed by the authorized implementer and merged after exact-head required checks, complete acceptance evidence, resolved material review threads, and branch freshness/mergeability.
+- High/critical-risk changes involving credentials, privacy, consent, data loss, security boundaries, or P0/P1 risks require actual independent human review. Automated self-review must never be represented as human approval.
+- Production deployment, release, signing, external actions, and governance changes remain separately owner-authorized.
 
 - PR #65 remains merged with merge commit `458c46f926667a8cce61998149f700ee8940d0e3`.
 - PRs #66, #67, #69, #70, #68, and #72 are merged. PR #68 exact-head Android CI retry passed all required jobs (run #45822463332, attempt 2). PR #72 AGP 9.5.3 passed exact-head Android CI on retry attempt 3 (run #45822620656) and merged with commit `5f409bcc6e769c9264edece22b34b704d4bf4482`.
