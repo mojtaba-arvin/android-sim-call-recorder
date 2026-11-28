@@ -160,6 +160,56 @@ class RecordingCoordinatorTest {
     }
 
     @Test
+    fun serviceStartAdapterUsesFreshProfileAfterArmingAndNeverStartsMicFallback() = runBlocking {
+        val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
+        val coordinator = RecordingCoordinator(setOf(shizuku, microphone), shizukuCaptureEnabled = true)
+        var liveProfile = profile(shizuku = true)
+
+        val armedSelection = coordinator.selectBest(liveProfile)
+        assertEquals(RecordingMode.SHIZUKU_VOICE_CALL, armedSelection?.mode)
+
+        // Simulate the UserService disappearing after arm-time selection but before OFFHOOK.
+        liveProfile = profile(shizuku = false)
+        var snapshots = 0
+        val failure = runCatching {
+            CaptureRuntimeStarter.start(
+                request(RecordingMode.SHIZUKU_VOICE_CALL),
+                {
+                    snapshots++
+                    liveProfile
+                },
+                coordinator,
+            )
+        }.exceptionOrNull()
+
+        assertEquals("The service adapter must take one fresh profile snapshot at start time.", 1, snapshots)
+        assertTrue(failure is UnsupportedOperationException)
+        assertTrue(failure?.message.orEmpty().contains("Start Shizuku"))
+        assertEquals("The stale arm-time choice must not start Shizuku capture.", 0, shizuku.startCount)
+        assertEquals("A failed privileged start must never switch to microphone capture.", 0, microphone.startCount)
+    }
+
+    @Test
+    fun serviceStartAdapterReturnsTheProfileAndOutputFromTheExactBackend() = runBlocking {
+        val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
+        val microphone = FakeBackend(RecordingMode.SPEAKERPHONE_MIC)
+        val coordinator = RecordingCoordinator(setOf(shizuku, microphone), shizukuCaptureEnabled = true)
+        val currentProfile = profile(shizuku = true)
+
+        val (startedProfile, output) = CaptureRuntimeStarter.start(
+            request(RecordingMode.SHIZUKU_VOICE_CALL),
+            { currentProfile },
+            coordinator,
+        )
+
+        assertEquals(currentProfile, startedProfile)
+        assertEquals(File("test-recording.wav"), output)
+        assertEquals(1, shizuku.startCount)
+        assertEquals(0, microphone.startCount)
+    }
+
+    @Test
     fun shizukuModeRejectsPermissionWithoutLiveAuthorizedUserService() = runBlocking {
         val shizuku = FakeBackend(RecordingMode.SHIZUKU_VOICE_CALL)
         val coordinator = RecordingCoordinator(setOf(shizuku), shizukuCaptureEnabled = true)

@@ -348,8 +348,7 @@ internal class CallRecordingForegroundService : Service() {
                 val (runtimeProfile, output) = CaptureStartupBarrier.start(
                     prepareForCapture = { callRecordRepository.prepareForCapture() },
                     startBackend = {
-                        val profile = captureDeviceProfile()
-                        profile to recordingCoordinator.start(request, profile)
+                        CaptureRuntimeStarter.start(request, ::captureDeviceProfile, recordingCoordinator)
                     },
                 )
                 startedMode = request.mode
