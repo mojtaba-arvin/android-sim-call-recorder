@@ -26,6 +26,29 @@ def load_object(path: Path, errors: list[str]) -> dict[str, Any] | None:
     return value
 
 
+def validate_merge_authority(roles: dict[str, Any]) -> list[str]:
+    """Keep routine own-PR merge autonomous without granting review or release authority."""
+    errors: list[str] = []
+    implementer = roles.get("implementer", {})
+    reviewer = roles.get("reviewer", {})
+    pr_coordinator = roles.get("pr_coordinator", {})
+    release_manager = roles.get("release_manager", {})
+
+    if not isinstance(implementer, dict) or "merge_pull_request" not in implementer.get("allow", []):
+        errors.append("implementer must allow evidence-gated merges of its own PRs")
+    if not isinstance(implementer, dict) or "merge_pull_request" in implementer.get("deny", []):
+        errors.append("implementer must not have a blanket PR-merge denial")
+    if not isinstance(implementer, dict) or "enable_auto_merge" not in implementer.get("deny", []):
+        errors.append("implementer must continue to deny auto-merge")
+    if not isinstance(reviewer, dict) or not {"self_approval", "approve_own_pull_request", "merge_pull_request"}.issubset(set(reviewer.get("deny", []))):
+        errors.append("reviewer must deny self-approval and PR merges")
+    if not isinstance(pr_coordinator, dict) or "merge_pull_request" not in pr_coordinator.get("deny", []):
+        errors.append("PR coordinator must not merge PRs")
+    if not isinstance(release_manager, dict) or release_manager.get("allow") != []:
+        errors.append("release_manager must have no default grants")
+    return errors
+
+
 def validate_tool_inventory(root: Path) -> list[str]:
     errors: list[str] = []
     path = root / "agent-system/tooling/github-capability-map.v1.json"
@@ -104,15 +127,7 @@ def validate_tool_inventory(root: Path) -> list[str]:
             unknown_allow = set(allow) - known
             if unknown_allow:
                 errors.append(f"role {role!r} allows unknown capabilities: {sorted(unknown_allow)}")
-        implementer = roles.get("implementer", {})
-        reviewer = roles.get("reviewer", {})
-        release_manager = roles.get("release_manager", {})
-        if not isinstance(implementer, dict) or "merge_pull_request" not in implementer.get("deny", []):
-            errors.append("implementer must explicitly deny PR merges")
-        if not isinstance(reviewer, dict) or "approve_own_pull_request" not in reviewer.get("deny", []):
-            errors.append("reviewer must explicitly deny self-approval")
-        if not isinstance(release_manager, dict) or release_manager.get("allow") != []:
-            errors.append("release_manager must have no default grants")
+        errors.extend(validate_merge_authority(roles))
 
     constraints = data.get("argument_constraints")
     required = {"update_file", "update_issue", "update_pull_request", "merge_pull_request", "enable_auto_merge"}

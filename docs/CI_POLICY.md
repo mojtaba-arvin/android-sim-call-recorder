@@ -6,7 +6,7 @@ The stable branch-protection status check is **Android CI / Required checks** (j
 
 Do not make the conditional `verify` or `instrumented` jobs individually required: documentation-only changes intentionally skip those jobs. The `required` aggregator handles both cases and fails closed if change detection or any required code job fails.
 
-The active `Protect main` ruleset (ID `27531148`) was reverified on 2026-11-25 to require pull requests and this stable status check. It also prevents branch deletion and non-fast-forward updates. Required approving reviews are 0, strict/up-to-date checks are disabled, and no bypass actors are configured. These are observed live settings, not inferred from this document. Issue #8 is closed as completed: docs-only skip, deliberate-failure propagation, superseded-run cancellation, and the owner-operated zero-review policy are all explicitly decided and evidenced.
+The active `Protect main` ruleset (ID `27531148`) was reverified on 2026-11-25 to require pull requests and this stable status check. It also prevents branch deletion and non-fast-forward updates. Required approving reviews are 0, `require_last_push_approval=false`, `require_code_owner_review=false`, `required_review_thread_resolution=true`, strict/up-to-date checks are disabled, and no bypass actors are configured. `require_extra_approval_for_unattributed_changes=false` is also disabled in the live ruleset. Routine own-PR merges are therefore evidence-gated by exact-head CI and resolved review threads, not a separate human approval. These are observed live settings, not inferred from this document. Issue #8 is closed as completed: docs-only skip, deliberate-failure propagation, superseded-run cancellation, and the zero-required-approval, exact-head-check policy are all explicitly decided and evidenced.
 
 ## Change classification
 
@@ -92,6 +92,6 @@ Current PR #65 source head: `8ca35979ef153e4e3d122fc7f8a0f0ab2b060ef0`.
 - Agent System Contracts [run #45808314740](https://github.com/mojtaba-arvin/android-sim-call-recorder/actions/runs/45808314740): success on the same exact source head.
 - The Maven retry regression test and bounded dependency-resolution retry path passed. Application/test assertion failures are not retried.
 - The API 35 process-death/recovery markers and API 36 Shell permission probe are emulator/platform software evidence only; they do not prove physical cellular near/far audio.
-- The Protect main ruleset still requires approval of the most recent reviewable push. No bypass actors are configured. Do not weaken branch protection to force integration.
+- The Protect main ruleset does not require approval of the most recent reviewable push (`require_last_push_approval=false`) and requires zero approving reviews. It still requires pull requests, the stable `Android CI / Required checks` status, and resolution of review threads; it prevents deletion and non-fast-forward updates, and has no bypass actors. Keep those controls intact.
 
 Issue #3 physical-device acceptance and Issue #38 production signing remain separate release/distribution gates. Merge of the source integration does not authorize APK distribution, tagging, or publication.

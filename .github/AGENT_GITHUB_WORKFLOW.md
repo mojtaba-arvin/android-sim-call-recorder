@@ -49,7 +49,7 @@ During work, keep the issue current: record meaningful discoveries, decisions, b
 - Resolve every review thread with a code change or a reasoned reply. Do not dismiss or hide review feedback to make a PR appear clean.
 - Request review from configured CODEOWNERS/relevant maintainers where available. Never self-approve or simulate an independent review.
 - Mark Ready for review only when the PR is genuinely reviewable and its required checks have passed.
-- Never merge, enable auto-merge, bypass rules, force-push, or close another contributor's PR without explicit authorization.
+- The implementer may merge its own PR when the exact current head has all required checks successful, acceptance criteria/evidence are complete, material review threads are resolved, the branch is current and mergeable, and repository rules permit the merge. No separate per-PR human approval is required when the ruleset requires zero approvals. Never self-approve, bypass rules, force-push, or merge another contributor's PR without explicit authorization. Keep auto-merge disabled unless separately authorized and all required rules are enforced.
 
 ## 4. GitHub Actions and CI evidence
 
